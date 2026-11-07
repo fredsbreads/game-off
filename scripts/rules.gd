@@ -16,8 +16,8 @@ const LONG := 6.0
 
 # Distance (tiles) you run before you can teleport again. Measured in
 # distance, not time, so chunk spacing works the same at every speed.
-# (2.1 tiles = 0.35 s at the start speed, 0.21 s at max.) A kill resets it.
-const COOLDOWN_TILES := 2.1
+# (1.05 tiles = ~0.18 s at the start speed, ~0.12 s at max.) A kill resets it.
+const COOLDOWN_TILES := 1.05
 
 # Landing within this many tiles of an enemy's centre kills it.
 const KILL_RADIUS := 0.8
