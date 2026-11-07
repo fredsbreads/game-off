@@ -4,7 +4,7 @@ extends Camera2D
 ## teleport the player visibly jumps right, then the camera catches up
 ## quickly so long jumps don't leave you with less view ahead.
 
-const HOME_FRACTION := 0.25     # player's home spot, as a fraction of view width
+const HOME_FRACTION := 0.125    # player's home spot: 2 of the 16 tiles across
 const CATCH_UP_RATE := 14.0     # higher = faster catch-up (14 ~= 0.2 s)
 
 var _left := 0.0

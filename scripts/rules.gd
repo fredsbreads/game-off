@@ -11,8 +11,8 @@ const GROUND_Y := 448.0          # pixel y of the ground surface
 const PHYSICS_FPS := 60
 
 # Teleport distances, in tiles.
-const SHORT := 3.0
-const LONG := 6.0
+const SHORT := 4.5
+const LONG := 9.0
 
 # Distance (tiles) you run before you can teleport again. Measured in
 # distance, not time, so chunk spacing works the same at every speed.
@@ -26,8 +26,8 @@ const HIT_RADIUS := 0.55
 
 # Spikes must be too wide for a short jump but clearable
 # with a long one.
-const HAZARD_MIN := 4
-const HAZARD_MAX := 5
+const HAZARD_MIN := 5
+const HAZARD_MAX := 8
 const MIN_HAZARD_GAP := 5       # ground tiles between hazards, unless an enemy is in the gap
 const EDGE_PADDING := 2         # plain ground at both ends of every chunk
 

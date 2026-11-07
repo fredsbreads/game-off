@@ -13,36 +13,41 @@ extends RefCounted
 ## and fastest run speed.
 
 const LIST := [
+	# Distances: short = 4.5 tiles, long = 9 tiles. Chained shorts work with
+	# enemies 4 or 5 tiles apart (alternate them to stay centred); chained
+	# longs with enemies 9 apart. Spikes are 5-8 wide.
+
 	# --- difficulty 1: one idea at a time -------------------------------
 	{"name": "lone_enemy", "difficulty": 1, "map": "......E......."},
-	{"name": "spikes", "difficulty": 1, "map": "......^^^^......"},
-	{"name": "two_apart", "difficulty": 1, "map": ".....E........E......"},
+	{"name": "spikes", "difficulty": 1, "map": "......^^^^^......"},
+	{"name": "two_apart", "difficulty": 1, "map": ".....E..........E......"},
 
 	# --- difficulty 2: two ideas back to back --------------------------
-	{"name": "spikes_then_enemy", "difficulty": 2, "map": ".....^^^^......E......"},
-	{"name": "enemy_then_spikes", "difficulty": 2, "map": ".....E....^^^^......"},
-	{"name": "short_chain", "difficulty": 2, "map": ".....E..E.........."},
-	{"name": "long_chain", "difficulty": 2, "map": ".....E.....E........"},
-	{"name": "wide_spikes", "difficulty": 2, "map": ".....^^^^^......"},
+	{"name": "spikes_then_enemy", "difficulty": 2, "map": ".....^^^^^.......E......"},
+	{"name": "enemy_then_spikes", "difficulty": 2, "map": ".....E......^^^^^......"},
+	{"name": "short_chain", "difficulty": 2, "map": ".....E....E.........."},
+	{"name": "long_chain", "difficulty": 2, "map": ".....E........E........"},
+	{"name": "wide_spikes", "difficulty": 2, "map": ".....^^^^^^^......"},
 
 	# --- difficulty 3: short chains, double hazards --------------------
-	{"name": "double_spikes", "difficulty": 3, "map": ".....^^^^.....^^^^....."},
-	{"name": "triple_short", "difficulty": 3, "map": ".....E..E..E........"},
-	{"name": "long_short", "difficulty": 3, "map": ".....E.....E..E......"},
-	{"name": "spikes_landing_enemy", "difficulty": 3, "map": ".....^^^^.E........."},
-	{"name": "spike_pair", "difficulty": 3, "map": ".....^^^^^.....^^^^....."},
+	{"name": "double_spikes", "difficulty": 3, "map": ".....^^^^^......^^^^^......"},
+	{"name": "triple_short", "difficulty": 3, "map": ".....E...E....E.........."},
+	{"name": "long_short", "difficulty": 3, "map": ".....E........E....E......"},
+	{"name": "spikes_landing_enemy", "difficulty": 3, "map": ".....^^^^^...E.........."},
+	{"name": "spike_pair", "difficulty": 3, "map": ".....^^^^^^^......^^^^^......"},
 
 	# --- difficulty 4: hazards and enemies mixed -----------------------
-	{"name": "guarded_spikes", "difficulty": 4, "map": "......E^^^^......."},
-	{"name": "spikes_chain", "difficulty": 4, "map": ".....^^^^.E..E......"},
-	{"name": "long_long", "difficulty": 4, "map": ".....E.....E.....E......"},
-	{"name": "spike_gauntlet", "difficulty": 4, "map": ".....^^^^.....^^^^^.....^^^^....."},
+	{"name": "guarded_spikes", "difficulty": 4, "map": "......E^^^^^^......."},
+	{"name": "spikes_chain", "difficulty": 4, "map": ".....^^^^^^...E...E......."},
+	{"name": "long_long", "difficulty": 4, "map": ".....E........E........E......"},
+	{"name": "max_spikes", "difficulty": 4, "map": ".....^^^^^^^^......."},
+	{"name": "spike_gauntlet", "difficulty": 4, "map": ".....^^^^^......^^^^^^^......^^^^^^......"},
 
 	# --- difficulty 5: long chains that switch distance ----------------
-	{"name": "mixed_chain", "difficulty": 5, "map": ".....E..E.....E..E......."},
-	{"name": "spikes_enemy_spikes", "difficulty": 5, "map": ".....^^^^.E..^^^^......"},
-	{"name": "dense", "difficulty": 5, "map": ".....E..E..E..E..........."},
-	{"name": "over_and_on", "difficulty": 5, "map": ".....^^^^.E.....E..^^^^......"},
+	{"name": "mixed_chain", "difficulty": 5, "map": ".....E...E........E....E......."},
+	{"name": "spikes_enemy_spikes", "difficulty": 5, "map": ".....^^^^^^...E....^^^^^^......"},
+	{"name": "dense", "difficulty": 5, "map": ".....E...E....E...E....E.........."},
+	{"name": "over_and_on", "difficulty": 5, "map": ".....^^^^^^...E........E...^^^^^^^......"},
 ]
 
 
