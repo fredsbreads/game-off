@@ -24,7 +24,7 @@ const KILL_RADIUS := 0.8
 # Running within this many tiles of a live enemy's centre kills you.
 const HIT_RADIUS := 0.55
 
-# Hazards (pits, spikes) must be too wide for a short jump but clearable
+# Spikes must be too wide for a short jump but clearable
 # with a long one.
 const HAZARD_MIN := 4
 const HAZARD_MAX := 5
@@ -40,7 +40,7 @@ const SPEED_RAMP_TILES := 2000.0
 const COMBO_WINDOW := 1.5       # seconds without a kill before the chain breaks
 const KILL_POINTS := 100        # multiplied by the chain count
 
-enum Tile { GROUND, PIT, SPIKES }
+enum Tile { GROUND, SPIKES }
 
 
 static func speed_at(distance: float) -> float:

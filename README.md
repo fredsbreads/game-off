@@ -4,7 +4,7 @@ An entry for [GitHub Game Off 2026](https://itch.io/jam/game-off-2026), theme **
 
 You're always running right. Throw your sword ahead and instantly teleport to it,
 **shifting** between a short and a long distance. Land on enemies to slash them and
-chain kills; long-jump over pits and spikes.
+chain kills; long-jump over spikes.
 
 > Status: grey-box prototype. Everything is drawn with placeholder shapes.
 
@@ -20,10 +20,10 @@ They dim while the teleport is recharging (the sword also disappears from your b
 
 ## Rules
 
-- Running into an enemy, a pit or spikes kills you.
+- Running into an enemy or spikes kills you.
 - Teleporting passes through everything; only the landing spot matters.
 - Landing on an enemy kills it **and instantly resets the cooldown**, so kills can chain.
-- Hazards are always 4–5 tiles wide: too wide for a short teleport, clearable with a long one.
+- Spikes are always 4–5 tiles wide: too wide for a short teleport, clearable with a long one.
 - **Score** = metres travelled + 100 × chain count per kill.
   The chain breaks after 1.5 s without a kill; clearing a hazard refreshes the timer.
 - Speed ramps from 6 to 10 tiles/s over the first 2000 m.
@@ -57,7 +57,7 @@ tools/validate_chunks.gd
 ## Level design: chunks
 
 The endless level is made of short hand-made **chunks** in `scripts/chunks.gd`,
-written as strings (`.` ground, `E` enemy, `_` pit, `^` spikes) with a difficulty
+written as strings (`.` ground, `E` enemy, `^` spikes) with a difficulty
 from 1 to 5. The further you get, the harder the chunks it picks, with an
 occasional easy "breather" chunk.
 

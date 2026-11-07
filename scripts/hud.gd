@@ -88,7 +88,7 @@ func show_start(best: int) -> void:
 	var lines := "RED FLASH  —  prototype\n\n"
 	lines += "SHORT teleport:  ← / J / A / L-Shift   or tap the LEFT half\n"
 	lines += "LONG teleport:   → / K / D / R-Shift   or tap the RIGHT half\n\n"
-	lines += "Land on enemies to slash them. Long-jump over pits.\n"
+	lines += "Land on enemies to slash them. Long-jump over spikes.\n"
 	if SHOW_SCORE_UI and best > 0:
 		lines += "\nBest: %d\n" % best
 	lines += "\nPress or tap to start"

@@ -6,7 +6,6 @@ extends RefCounted
 ## Map legend (one character = one tile):
 ##   .  ground
 ##   E  enemy standing on ground
-##   _  pit
 ##   ^  spikes
 ##
 ## Run `tools/validate_chunks.gd` after editing (see README). It checks the
@@ -16,35 +15,34 @@ extends RefCounted
 const LIST := [
 	# --- difficulty 1: one idea at a time -------------------------------
 	{"name": "lone_enemy", "difficulty": 1, "map": "......E......."},
-	{"name": "pit", "difficulty": 1, "map": "......____......"},
 	{"name": "spikes", "difficulty": 1, "map": "......^^^^......"},
 	{"name": "two_apart", "difficulty": 1, "map": ".....E........E......"},
 
 	# --- difficulty 2: two ideas back to back --------------------------
-	{"name": "pit_then_enemy", "difficulty": 2, "map": ".....____......E......"},
-	{"name": "enemy_then_pit", "difficulty": 2, "map": ".....E....____......"},
+	{"name": "spikes_then_enemy", "difficulty": 2, "map": ".....^^^^......E......"},
+	{"name": "enemy_then_spikes", "difficulty": 2, "map": ".....E....^^^^......"},
 	{"name": "short_chain", "difficulty": 2, "map": ".....E..E.........."},
 	{"name": "long_chain", "difficulty": 2, "map": ".....E.....E........"},
-	{"name": "wide_pit", "difficulty": 2, "map": "....._____......"},
+	{"name": "wide_spikes", "difficulty": 2, "map": ".....^^^^^......"},
 
 	# --- difficulty 3: short chains, double hazards --------------------
-	{"name": "double_pit", "difficulty": 3, "map": ".....____.....____....."},
+	{"name": "double_spikes", "difficulty": 3, "map": ".....^^^^.....^^^^....."},
 	{"name": "triple_short", "difficulty": 3, "map": ".....E..E..E........"},
 	{"name": "long_short", "difficulty": 3, "map": ".....E.....E..E......"},
-	{"name": "pit_landing_enemy", "difficulty": 3, "map": ".....____.E........."},
-	{"name": "spike_pit", "difficulty": 3, "map": ".....^^^^^.....____....."},
+	{"name": "spikes_landing_enemy", "difficulty": 3, "map": ".....^^^^.E........."},
+	{"name": "spike_pair", "difficulty": 3, "map": ".....^^^^^.....^^^^....."},
 
 	# --- difficulty 4: hazards and enemies mixed -----------------------
-	{"name": "guarded_pit", "difficulty": 4, "map": "......E____......."},
-	{"name": "pit_chain", "difficulty": 4, "map": ".....____.E..E......"},
+	{"name": "guarded_spikes", "difficulty": 4, "map": "......E^^^^......."},
+	{"name": "spikes_chain", "difficulty": 4, "map": ".....^^^^.E..E......"},
 	{"name": "long_long", "difficulty": 4, "map": ".....E.....E.....E......"},
-	{"name": "spike_gauntlet", "difficulty": 4, "map": ".....^^^^.....^^^^^.....____....."},
+	{"name": "spike_gauntlet", "difficulty": 4, "map": ".....^^^^.....^^^^^.....^^^^....."},
 
 	# --- difficulty 5: long chains that switch distance ----------------
 	{"name": "mixed_chain", "difficulty": 5, "map": ".....E..E.....E..E......."},
-	{"name": "pit_enemy_pit", "difficulty": 5, "map": ".....____.E..____......"},
+	{"name": "spikes_enemy_spikes", "difficulty": 5, "map": ".....^^^^.E..^^^^......"},
 	{"name": "dense", "difficulty": 5, "map": ".....E..E..E..E..........."},
-	{"name": "over_and_on", "difficulty": 5, "map": ".....____.E.....E..____......"},
+	{"name": "over_and_on", "difficulty": 5, "map": ".....^^^^.E.....E..^^^^......"},
 ]
 
 
@@ -54,8 +52,6 @@ static func parse(map: String) -> Dictionary:
 	var enemies: Array[float] = []
 	for i in map.length():
 		match map[i]:
-			"_":
-				tiles.append(Rules.Tile.PIT)
 			"^":
 				tiles.append(Rules.Tile.SPIKES)
 			"E":
@@ -70,7 +66,7 @@ static func parse(map: String) -> Dictionary:
 static func validate(map: String) -> Array[String]:
 	var errors: Array[String] = []
 	for i in map.length():
-		if not "._^E".contains(map[i]):
+		if not ".^E".contains(map[i]):
 			errors.append("unknown character '%s' at %d" % [map[i], i])
 	if map.length() < Rules.EDGE_PADDING * 2 + 1:
 		errors.append("too short")
@@ -83,9 +79,9 @@ static func validate(map: String) -> Array[String]:
 	var i := 0
 	var last_hazard_end := -1
 	while i < map.length():
-		if map[i] == "_" or map[i] == "^":
+		if map[i] == "^":
 			var start := i
-			while i < map.length() and (map[i] == "_" or map[i] == "^"):
+			while i < map.length() and map[i] == "^":
 				i += 1
 			var width := i - start
 			if width < Rules.HAZARD_MIN or width > Rules.HAZARD_MAX:

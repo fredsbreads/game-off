@@ -136,7 +136,7 @@ func _step() -> void:
 
 	# 3. hazards and enemies
 	if Rules.is_hazard(level.tile_at(player.x)):
-		_die("fall")
+		_die("spikes")
 		return
 	if not level.enemies_at(player.x, Rules.HIT_RADIUS).is_empty():
 		_die("hit")
@@ -162,7 +162,7 @@ func _teleport(dist: float) -> void:
 	fx.teleport_trail(from, to)
 
 	if Rules.is_hazard(level.tile_at(to)):
-		_die("fall")
+		_die("spikes")
 		return
 
 	var hit := level.enemies_at(to, Rules.KILL_RADIUS)

@@ -13,7 +13,6 @@ const SIGN_EVERY := 50             # distance marker every N tiles
 const GROUND_A := Color(0.36, 0.38, 0.44)
 const GROUND_B := Color(0.32, 0.34, 0.40)
 const GROUND_TOP := Color(0.55, 0.58, 0.66)
-const PIT_COLOR := Color(0.06, 0.06, 0.09)
 const SPIKE_COLOR := Color(0.85, 0.85, 0.9)
 const SIGN_COLOR := Color(0.6, 0.62, 0.7, 0.6)
 
@@ -133,9 +132,6 @@ func _draw() -> void:
 	for i in range(first, last + 1):
 		var x0 := i * t
 		var tile := tile_at(i)
-		if tile == Rules.Tile.PIT:
-			draw_rect(Rect2(x0, gy, t, bottom - gy), PIT_COLOR)
-			continue
 		draw_rect(Rect2(x0, gy, t, bottom - gy), GROUND_A if i % 2 == 0 else GROUND_B)
 		draw_rect(Rect2(x0, gy, t, 4), GROUND_TOP)
 		if tile == Rules.Tile.SPIKES:

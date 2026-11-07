@@ -20,20 +20,17 @@ var alive := true
 var _run_time := 0.0
 var _death_offset := Vector2.ZERO
 var _death_velocity := Vector2.ZERO
-var _death_kind := ""
 
 
-func die(kind: String) -> void:
+func die(_kind: String) -> void:
 	alive = false
-	_death_kind = kind
-	_death_velocity = Vector2(0, 120) if kind == "fall" else Vector2(-220, -420)
+	_death_velocity = Vector2(-220, -420)
 
 
 func animate_death(delta: float) -> void:
 	_death_velocity.y += 1600.0 * delta
 	_death_offset += _death_velocity * delta
-	if _death_kind == "hit":
-		rotation -= 8.0 * delta
+	rotation -= 8.0 * delta
 
 
 func _process(delta: float) -> void:
