@@ -116,6 +116,7 @@ func prune(min_x: float) -> void:
 			enemies.remove_at(i)
 
 
+## left_px and size are the visible area in world pixels.
 func set_view(left_px: float, size: Vector2) -> void:
 	_view_left = left_px
 	_view_size = size
@@ -125,7 +126,7 @@ func set_view(left_px: float, size: Vector2) -> void:
 func _draw() -> void:
 	var t := Rules.TILE
 	var gy := Rules.GROUND_Y
-	var bottom := _view_size.y + 64.0
+	var bottom := gy + _view_size.y + 64.0  # comfortably past the bottom of any screen
 	var first := int(floor(_view_left / t)) - 1
 	var last := first + int(_view_size.x / t) + 3
 

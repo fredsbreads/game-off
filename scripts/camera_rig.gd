@@ -3,9 +3,15 @@ extends Camera2D
 ## Keeps the player at a home spot near the left of the screen. After a
 ## teleport the player visibly jumps right, then the camera catches up
 ## quickly so long jumps don't leave you with less view ahead.
+##
+## Fairness: every screen sees exactly VIEW_TILES tiles across. The camera
+## zooms to fit that width, so wider phones crop a little sky instead of
+## seeing further ahead. The ground always sits at the same height on screen.
 
 const HOME_TILES := 2.0         # player's home spot, in tiles from the left edge
 const CATCH_UP_RATE := 14.0     # higher = faster catch-up (14 ~= 0.2 s)
+const VIEW_TILES := 16.0        # tiles visible across, on every device
+const GROUND_SCREEN_FRACTION := 448.0 / 576.0   # ground line, from the top of the screen
 
 var _left := 0.0
 var _shake_time := 0.0
@@ -14,6 +20,17 @@ var _shake_strength := 0.0
 
 func left() -> float:
 	return _left
+
+
+## Size of the visible area in world pixels (always VIEW_TILES wide).
+func visible_world_size() -> Vector2:
+	var screen := get_viewport_rect().size
+	var world_w := VIEW_TILES * Rules.TILE
+	return Vector2(world_w, world_w * screen.y / screen.x)
+
+
+func top() -> float:
+	return Rules.GROUND_Y - visible_world_size().y * GROUND_SCREEN_FRACTION
 
 
 func snap(player_x: float) -> void:
@@ -41,7 +58,9 @@ func _target(player_x: float) -> float:
 
 
 func _apply() -> void:
-	position = Vector2(_left, 0)
+	var z := get_viewport_rect().size.x / (VIEW_TILES * Rules.TILE)
+	zoom = Vector2(z, z)
+	position = Vector2(_left, top())
 	if _shake_time > 0.0:
 		offset = Vector2(randf_range(-1, 1), randf_range(-1, 1)) * _shake_strength
 	else:
