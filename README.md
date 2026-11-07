@@ -12,8 +12,8 @@ chain kills; long-jump over pits and spikes.
 
 | Action | Keyboard | Touch |
 | --- | --- | --- |
-| Short teleport (3 tiles) | `←` / `J` / `A` | tap the left half of the screen |
-| Long teleport (6 tiles) | `→` / `K` / `D` | tap the right half of the screen |
+| Short teleport (3 tiles) | `←` / `J` / `A` / `Left Shift` | tap the left half of the screen |
+| Long teleport (6 tiles) | `→` / `K` / `D` / `Right Shift` | tap the right half of the screen |
 
 The two outlines ahead of the player show exactly where each teleport lands.
 They dim while the teleport is recharging (the sword also disappears from your back).
