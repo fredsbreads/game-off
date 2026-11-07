@@ -1,0 +1,11 @@
+# Godot cache and imports
+.godot/
+*.tmp
+
+# Export output
+build/
+export/
+
+# OS junk
+.DS_Store
+Thumbs.db
