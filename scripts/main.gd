@@ -67,6 +67,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	match state:
 		State.READY:
 			if not hud.is_portrait():
+				_request_fullscreen()
 				begin()
 		State.PLAYING:
 			if _queued_jump == 0.0:
@@ -74,6 +75,13 @@ func _unhandled_input(event: InputEvent) -> void:
 		State.OVER:
 			if _state_time >= RETRY_DELAY:
 				get_tree().reload_current_scene()
+
+
+## Must run inside an input event: browsers only allow fullscreen on a tap/press.
+## iPhone Safari never allows it; there, "Add to Home Screen" gives fullscreen.
+func _request_fullscreen() -> void:
+	if OS.has_feature("web") and DisplayServer.window_get_mode() != DisplayServer.WINDOW_MODE_FULLSCREEN:
+		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
 
 
 ## Left half of the screen = short, right half = long.

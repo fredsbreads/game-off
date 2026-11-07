@@ -4,7 +4,7 @@ extends Camera2D
 ## teleport the player visibly jumps right, then the camera catches up
 ## quickly so long jumps don't leave you with less view ahead.
 
-const HOME_FRACTION := 0.125    # player's home spot: 2 of the 16 tiles across
+const HOME_TILES := 2.0         # player's home spot, in tiles from the left edge
 const CATCH_UP_RATE := 14.0     # higher = faster catch-up (14 ~= 0.2 s)
 
 var _left := 0.0
@@ -37,7 +37,7 @@ func shake(duration: float, strength: float) -> void:
 
 
 func _target(player_x: float) -> float:
-	return player_x * Rules.TILE - get_viewport_rect().size.x * HOME_FRACTION
+	return (player_x - HOME_TILES) * Rules.TILE
 
 
 func _apply() -> void:

@@ -4,14 +4,13 @@ extends CanvasLayer
 ## "rotate your device" overlay and the screen flash.
 ## Built in code for the grey-box; swap for a designed scene later.
 ##
-## The view is always 1024 wide (stretch aspect "keep_width"), so x
-## positions can be fixed; only the height varies between screens.
+## The view is at least 1024x576 and grows to fill wider or taller screens
+## (stretch aspect "expand"), so right-aligned items follow the real width.
 
 ## Score, distance and chain are still tracked internally; this only
 ## controls whether any of it is shown (HUD, pop-ups, menus, distance signs).
 const SHOW_SCORE_UI := false
 
-const VIEW_W := 1024.0
 const CHAIN_COLOR_LOW := Color(1, 1, 1)
 const CHAIN_COLOR_HIGH := Color(1, 0.55, 0.3)
 
@@ -33,14 +32,12 @@ func _ready() -> void:
 	_score = _label(30, Vector2(20, 10))
 	_distance = _label(20, Vector2(22, 50))
 
-	_chain = _label(34, Vector2(VIEW_W - 220, 6))
+	_chain = _label(34, Vector2.ZERO)
 	_chain.size.x = 200
 	_chain.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_chain_bar_bg = _rect(Color(1, 1, 1, 0.15))
-	_chain_bar_bg.position = Vector2(VIEW_W - 200, 54)
 	_chain_bar_bg.size = Vector2(180, 6)
 	_chain_bar = _rect(Color(1, 1, 1, 0.9))
-	_chain_bar.position = _chain_bar_bg.position
 	_chain_bar.size = _chain_bar_bg.size
 
 	_message = _label(26, Vector2.ZERO)
@@ -60,6 +57,10 @@ func _ready() -> void:
 
 func _process(_delta: float) -> void:
 	_rotate.visible = is_portrait()
+	var right := get_viewport().get_visible_rect().size.x
+	_chain.position = Vector2(right - 220, 6)
+	_chain_bar_bg.position = Vector2(right - 200, 54)
+	_chain_bar.position = _chain_bar_bg.position
 
 
 func is_portrait() -> bool:
