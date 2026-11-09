@@ -219,6 +219,8 @@ func _step() -> void:
 		_teleport(jump)
 		if state != State.PLAYING:
 			return
+		if _hitstop > 0.0:
+			return   # killed: stay exactly on the enemy, so the markers line up
 
 	# 2. run
 	player.x += Rules.RUN_SPEED / Rules.PHYSICS_FPS

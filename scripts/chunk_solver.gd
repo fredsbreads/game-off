@@ -5,7 +5,7 @@ extends RefCounted
 ##
 ## It mirrors main.gd's per-frame order exactly:
 ##   1. optional teleport (only if cooldown is 0), resolve the landing
-##      (a kill snaps you exactly onto that enemy)
+##      (a kill snaps you exactly onto that enemy and ends the frame there)
 ##   2. run forward one frame
 ##   3. check hazards and enemy collisions
 ##   4. tick the cooldown down
@@ -93,6 +93,8 @@ static func step(tiles: PackedByteArray, enemies: Array[float], state: Array, ju
 		elif Rules.is_hazard(tiles[int(x)]):
 			return []
 		cooldown = 0 if killed else Rules.cooldown_frames(float(speed_fn.call(x)))
+		if killed:
+			return [x, 0, mask]   # a kill frame doesn't run: you stay on the enemy
 
 	x += float(speed_fn.call(x)) / Rules.PHYSICS_FPS
 	if x < size:
