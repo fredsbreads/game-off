@@ -9,6 +9,8 @@ const SCARF_COLOR := Color(0.9, 0.2, 0.22)
 const SWORD_COLOR := Color(0.75, 0.78, 0.85)
 const MARKER_READY := Color(1, 1, 1, 0.32)
 const MARKER_COOLDOWN := Color(1, 1, 1, 0.1)
+const MARKER_LIT := Color(1, 1, 1, 0.95)    # during the kill pause: "your move"
+const MARKER_LIT_PULSE_SPEED := 18.0
 const BOB_SPEED := 18.0
 const BOB_HEIGHT := 3.0
 
@@ -16,8 +18,10 @@ var x := 0.0
 var cooldown := 0
 var running := false
 var alive := true
+var markers_lit := false
 
 var _run_time := 0.0
+var _lit_time := 0.0
 var _death_offset := Vector2.ZERO
 var _death_velocity := Vector2.ZERO
 
@@ -34,8 +38,9 @@ func animate_death(delta: float) -> void:
 
 
 func _process(delta: float) -> void:
-	if running and alive:
+	if running and alive and not markers_lit:
 		_run_time += delta
+	_lit_time = _lit_time + delta if markers_lit else 0.0
 	position = Vector2(x * Rules.TILE, Rules.GROUND_Y) + _death_offset
 	queue_redraw()
 
@@ -47,10 +52,15 @@ func _draw() -> void:
 
 	if alive:
 		var marker_color := MARKER_READY if cooldown == 0 else MARKER_COOLDOWN
+		var width := 2.0
+		if markers_lit:
+			marker_color = MARKER_LIT
+			marker_color.a *= 0.75 + 0.25 * cos(_lit_time * MARKER_LIT_PULSE_SPEED)
+			width = 3.0
 		for d in [Rules.SHORT, Rules.LONG]:
 			var mx: float = d * t
-			draw_rect(Rect2(mx - w / 2, -h, w, h), marker_color, false, 2.0)
-			draw_line(Vector2(mx - w * 0.7, 3), Vector2(mx + w * 0.7, 3), marker_color, 3.0)
+			draw_rect(Rect2(mx - w / 2, -h, w, h), marker_color, false, width)
+			draw_line(Vector2(mx - w * 0.7, 3), Vector2(mx + w * 0.7, 3), marker_color, width + 1.0)
 
 	var bob := -absf(sin(_run_time * BOB_SPEED)) * BOB_HEIGHT
 	# Sword on the back, only while it's ready to throw.

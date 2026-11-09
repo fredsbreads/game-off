@@ -1,13 +1,15 @@
 class_name Fx
 extends Node2D
 ## Short-lived visual effects: teleport trails, landing rings, slashes,
-## particles and floating text. Runs on real time, so effects keep playing
-## during hitstop.
+## particles and floating text. Runs on real time; main.gd sets `frozen`
+## to hold them mid-air during the kill pause.
 
 const GRAVITY := 900.0
 const KILL_COLORS := [Color(1, 1, 1), Color(1, 0.45, 0.4), Color(1, 0.85, 0.5)]
 
 var _items: Array[Dictionary] = []
+## While true, every effect holds still (used during the kill pause).
+var frozen := false
 
 
 func teleport_trail(from_x: float, to_x: float) -> void:
@@ -40,6 +42,8 @@ func _ring(pos: Vector2, r0: float, r1: float, life: float, width: float, color:
 
 
 func _process(delta: float) -> void:
+	if frozen:
+		return
 	for i in range(_items.size() - 1, -1, -1):
 		var it := _items[i]
 		it["t"] += delta

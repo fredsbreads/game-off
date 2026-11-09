@@ -13,15 +13,21 @@ const KILL_PAUSE := 0.3
 # Pressing during the pause ends it (after this minimum, to keep the hit's
 # impact) and the press becomes your next teleport.
 const KILL_PAUSE_MIN := 0.05
+# Pause visuals: inverted colours for a moment, then the world goes grey
+# until play resumes. Kill effects play briefly, then hang mid-air.
+const INVERT_FLASH := true      # set false to drop the invert (photosensitivity)
+const INVERT_TIME := 0.05
+const FX_FREEZE_AFTER := 0.08
 const DEATH_ANIM_TIME := 0.7
 const RETRY_DELAY := 0.5
 const SAVE_PATH := "user://save.cfg"
 
 @onready var level: Level = $Level
-@onready var player: Player = $Player
+@onready var player: Player = $PlayerLayer/Player
 @onready var cam: CameraRig = $Camera
 @onready var fx: Fx = $FX
 @onready var hud: Hud = $HUD
+@onready var freeze_effect: FreezeEffect = $FreezeEffect
 
 var state := State.READY
 var distance := 0.0
@@ -128,10 +134,19 @@ func _physics_process(delta: float) -> void:
 			if _state_time >= DEATH_ANIM_TIME:
 				_game_over()
 
+	_update_pause_visuals()
 	var run_px := Rules.speed_at(distance) * Rules.TILE if moving else 0.0
 	cam.follow(player.x, run_px, delta)
 	level.set_view(cam.left(), cam.visible_world_size())
 	hud.set_stats(score(), distance, chain, chain_timer / Rules.COMBO_WINDOW)
+
+
+func _update_pause_visuals() -> void:
+	var paused := state == State.PLAYING and _hitstop > 0.0
+	var flashing := paused and INVERT_FLASH and _pause_elapsed < INVERT_TIME
+	freeze_effect.set_state(1.0 if flashing else 0.0, 1.0 if paused and not flashing else 0.0)
+	fx.frozen = paused and _pause_elapsed >= FX_FREEZE_AFTER
+	player.markers_lit = paused
 
 
 func _step() -> void:
@@ -206,12 +221,12 @@ func _kill(e: Enemy) -> void:
 	var c := mini(chain, 6)
 	_hitstop = KILL_PAUSE
 	_pause_elapsed = 0.0
-	cam.shake(0.15, 4.0 + 1.5 * c)
 	var pos := Vector2(e.tile_x * Rules.TILE, Rules.GROUND_Y - Rules.TILE * 0.45)
+	cam.shake(0.06, 4.0 + 1.5 * c)   # only during the flash, so the freeze reads as still
+	cam.punch(pos)
 	fx.kill_burst(pos, chain)
 	if Hud.SHOW_SCORE_UI:
 		fx.text(pos - Vector2(0, 60), "+%d" % points, 22 + 2 * c, Color(1, 0.95, 0.8))
-	hud.flash(Color(1, 1, 1, 0.08 + 0.025 * c), 0.1)
 
 
 func _end_chain() -> void:
