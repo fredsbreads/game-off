@@ -5,6 +5,7 @@ extends RefCounted
 ##
 ## It mirrors main.gd's per-frame order exactly:
 ##   1. optional teleport (only if cooldown is 0), resolve the landing
+##      (a kill snaps you exactly onto that enemy)
 ##   2. run forward one frame
 ##   3. check hazards and enemy collisions
 ##   4. tick the cooldown down
@@ -14,6 +15,7 @@ extends RefCounted
 
 const ACTIONS := [0.0, Rules.SHORT, Rules.LONG]
 const MAX_STATES := 200000
+const DEDUP_PER_TILE := 20.0    # positions within 0.05 tiles count as the same
 
 
 ## speed_fn: Callable(x: float) -> tiles per second.
@@ -36,17 +38,26 @@ static func search(tiles: PackedByteArray, enemies: Array[float], start_x: float
 				var result := step(tiles, enemies, state, action, speed_fn)
 				if result.is_empty():
 					continue
+				if required_kills != 0 and _left_required_behind(enemies, result, required_kills):
+					continue   # passed a required enemy alive: can't go back for it
 				result.append(index)
 				result.append(action)
 				history.append(result)
 				var new_index := history.size() - 1
 				if result[0] >= goal_x and (int(result[2]) & required_kills) == required_kills:
 					return {"ok": true, "actions": _path(history, new_index)}
-				var key := "%d|%d|%d" % [roundi(result[0] * 1000.0), result[1], result[2]]
+				# States at (almost) the same spot with the same kills are
+				# interchangeable; keep the one that can teleport soonest.
+				var key := "%d|%d" % [roundi(result[0] * DEDUP_PER_TILE), result[2]]
 				if seen.has(key):
-					history.pop_back()
+					var slot: int = seen[key]
+					var kept: Array = history[next[slot]]
+					if int(kept[1]) <= int(result[1]):
+						history.pop_back()
+						continue
+					next[slot] = new_index
 					continue
-				seen[key] = true
+				seen[key] = next.size()
 				next.append(new_index)
 		if next.is_empty() or history.size() > MAX_STATES:
 			return {"ok": false, "actions": []}
@@ -68,14 +79,19 @@ static func step(tiles: PackedByteArray, enemies: Array[float], state: Array, ju
 		x += jump
 		if x >= size:
 			return []
-		if Rules.is_hazard(tiles[int(x)]):
-			return []
 		var killed := false
+		var snap_to := x
 		for i in enemies.size():
 			var bit := 1 << i
 			if (mask & bit) == 0 and absf(enemies[i] - x) < Rules.KILL_RADIUS:
+				if not killed or absf(enemies[i] - x) < absf(snap_to - x):
+					snap_to = enemies[i]
 				mask |= bit
 				killed = true
+		if killed:
+			x = snap_to   # land exactly on the enemy you hit
+		elif Rules.is_hazard(tiles[int(x)]):
+			return []
 		cooldown = 0 if killed else Rules.cooldown_frames(float(speed_fn.call(x)))
 
 	x += float(speed_fn.call(x)) / Rules.PHYSICS_FPS
@@ -87,6 +103,16 @@ static func step(tiles: PackedByteArray, enemies: Array[float], state: Array, ju
 				return []
 	cooldown = maxi(cooldown - 1, 0)
 	return [x, cooldown, mask]
+
+
+static func _left_required_behind(enemies: Array[float], state: Array, required_kills: int) -> bool:
+	var x: float = state[0]
+	var mask: int = state[2]
+	for i in enemies.size():
+		var bit := 1 << i
+		if (required_kills & bit) != 0 and (mask & bit) == 0 and enemies[i] < x:
+			return true
+	return false
 
 
 static func _path(history: Array, index: int) -> Array:

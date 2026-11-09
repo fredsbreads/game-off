@@ -246,15 +246,22 @@ func _step() -> void:
 func _teleport(dist: float) -> void:
 	var from := player.x
 	var to := from + dist
+	var hit := level.enemies_at(to, Rules.KILL_RADIUS)
+	if not hit.is_empty():
+		# Land exactly on the enemy you hit, so chains can't drift.
+		var target := hit[0]
+		for e in hit:
+			if absf(e.tile_x - to) < absf(target.tile_x - to):
+				target = e
+		to = target.tile_x
 	player.x = to
 	distance = to - START_X
 	fx.teleport_trail(from, to)
 
-	if Rules.is_hazard(level.tile_at(to)):
+	if hit.is_empty() and Rules.is_hazard(level.tile_at(to)):
 		_die("spikes")
 		return
 
-	var hit := level.enemies_at(to, Rules.KILL_RADIUS)
 	if hit.is_empty():
 		player.cooldown = Rules.cooldown_frames(Rules.RUN_SPEED)
 		fx.landing_ring(to)
