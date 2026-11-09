@@ -143,7 +143,7 @@ func _draw() -> void:
 				]), SPIKE_COLOR)
 
 	# Distance markers, so speed and progress are readable.
-	if not Hud.SHOW_SCORE_UI:
+	if not Hud.SHOW_DISTANCE_UI:
 		return
 	var font := ThemeDB.fallback_font
 	var first_sign := int(ceil((first - start_x) / SIGN_EVERY))

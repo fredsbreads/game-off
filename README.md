@@ -27,8 +27,8 @@ They dim while the teleport is recharging (the sword also disappears from your b
 - **Score** = metres travelled + 100 × chain count per kill.
   The chain breaks after 1.5 s without a kill; clearing a hazard refreshes the timer.
 - Speed ramps from 6 to 10 tiles/s over the first 2000 m.
-- Score, distance and chain are tracked but **not shown** for now
-  (`SHOW_SCORE_UI` in `scripts/hud.gd`).
+- Score and chain are tracked but **not shown** for now; distance is shown.
+  Toggle with `SHOW_SCORE_UI` / `SHOW_DISTANCE_UI` at the top of `scripts/hud.gd`.
 
 ## Running it
 

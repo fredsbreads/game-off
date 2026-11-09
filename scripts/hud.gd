@@ -7,8 +7,11 @@ extends CanvasLayer
 ## The view is at least 1024x576 and grows to fill wider or taller screens
 ## (stretch aspect "expand"), so right-aligned items follow the real width.
 
-## Score, distance and chain are still tracked internally; this only
-## controls whether any of it is shown (HUD, pop-ups, menus, distance signs).
+## Everything is always tracked internally; these only control what's shown.
+## Distance: the metres counter, the distance signs on the ground, and the
+## distance line on the game-over screen.
+const SHOW_DISTANCE_UI := true
+## Score: score, kills, chain counter, point pop-ups and best score.
 const SHOW_SCORE_UI := false
 
 const CHAIN_COLOR_LOW := Color(1, 1, 1)
@@ -70,7 +73,10 @@ func is_portrait() -> bool:
 
 func set_stats(score: int, distance: float, chain: int, chain_fraction: float) -> void:
 	_score.visible = SHOW_SCORE_UI
-	_distance.visible = SHOW_SCORE_UI
+	_distance.visible = SHOW_DISTANCE_UI
+	# Move the distance up into the score's spot when the score is hidden.
+	_distance.position = Vector2(22, 50) if SHOW_SCORE_UI else Vector2(20, 10)
+	_distance.add_theme_font_size_override("font_size", 20 if SHOW_SCORE_UI else 30)
 	_score.text = "%d" % score
 	_distance.text = "%d m" % int(distance)
 	var show_chain := SHOW_SCORE_UI and chain > 0
@@ -99,11 +105,13 @@ func show_start(best: int) -> void:
 
 func show_game_over(stats: Dictionary) -> void:
 	var lines := "GAME OVER\n\n"
-	if SHOW_SCORE_UI:
+	if SHOW_DISTANCE_UI:
 		lines += "Distance  %d m\n" % int(stats["distance"])
+	if SHOW_SCORE_UI:
 		lines += "Kills  %d      Best chain  x%d\n\n" % [stats["kills"], stats["best_chain"]]
 		lines += "Score  %d\n" % stats["score"]
 		lines += ("NEW BEST!\n" if stats["new_best"] else "Best  %d\n" % stats["best"])
+	if SHOW_DISTANCE_UI or SHOW_SCORE_UI:
 		lines += "\n"
 	lines += "Press or tap to retry"
 	_message.text = lines
