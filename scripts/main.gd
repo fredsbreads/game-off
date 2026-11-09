@@ -7,9 +7,12 @@ extends Node2D
 enum State { READY, PLAYING, DYING, OVER }
 
 const START_X := 3.0
-# Pause after a kill, so you can read the next stretch before acting.
+# Every kill gets a short hit freeze (invert flash).
+const KILL_HIT := 0.06
+# If another enemy is under the short or long marker where you land, the
+# freeze extends into a "your move" pause: grey world, lit markers, zoom.
 # The camera keeps catching up during it, so the screen settles first.
-const KILL_PAUSE := 0.3
+const KILL_PAUSE := 0.2
 # Pressing during the pause ends it (after this minimum, to keep the hit's
 # impact) and the press becomes your next teleport.
 const KILL_PAUSE_MIN := 0.05
@@ -42,6 +45,7 @@ var debug: DebugTools = null
 var _queued_jump := 0.0
 var _hitstop := 0.0
 var _pause_elapsed := 0.0
+var _pause_is_chain := false    # true = the longer "your move" pause
 var _state_time := 0.0
 
 
@@ -144,9 +148,10 @@ func _physics_process(delta: float) -> void:
 func _update_pause_visuals() -> void:
 	var paused := state == State.PLAYING and _hitstop > 0.0
 	var flashing := paused and INVERT_FLASH and _pause_elapsed < INVERT_TIME
-	freeze_effect.set_state(1.0 if flashing else 0.0, 1.0 if paused and not flashing else 0.0)
+	var chain_pause := paused and _pause_is_chain
+	freeze_effect.set_state(1.0 if flashing else 0.0, 1.0 if chain_pause and not flashing else 0.0)
 	fx.frozen = paused and _pause_elapsed >= FX_FREEZE_AFTER
-	player.markers_lit = paused
+	player.markers_lit = chain_pause
 
 
 func _step() -> void:
@@ -207,6 +212,23 @@ func _teleport(dist: float) -> void:
 		player.cooldown = 0
 		for e in hit:
 			_kill(e)
+		_pause_is_chain = _chain_target_in_reach(to)
+		_hitstop = KILL_PAUSE if _pause_is_chain else KILL_HIT
+		_pause_elapsed = 0.0
+		if _pause_is_chain:
+			cam.punch(Vector2(hit[0].tile_x * Rules.TILE, Rules.GROUND_Y - Rules.TILE * 0.45))
+
+
+## True if a live enemy is under the short or long marker at this spot,
+## i.e. one more press right now would chain another kill.
+func _chain_target_in_reach(x: float) -> bool:
+	for d in [Rules.SHORT, Rules.LONG]:
+		var target: float = x + d
+		if Rules.is_hazard(level.tile_at(target)):
+			continue
+		if not level.enemies_at(target, Rules.KILL_RADIUS).is_empty():
+			return true
+	return false
 
 
 func _kill(e: Enemy) -> void:
@@ -219,11 +241,8 @@ func _kill(e: Enemy) -> void:
 	kill_score += points
 
 	var c := mini(chain, 6)
-	_hitstop = KILL_PAUSE
-	_pause_elapsed = 0.0
 	var pos := Vector2(e.tile_x * Rules.TILE, Rules.GROUND_Y - Rules.TILE * 0.45)
 	cam.shake(0.06, 4.0 + 1.5 * c)   # only during the flash, so the freeze reads as still
-	cam.punch(pos)
 	fx.kill_burst(pos, chain)
 	if Hud.SHOW_SCORE_UI:
 		fx.text(pos - Vector2(0, 60), "+%d" % points, 22 + 2 * c, Color(1, 0.95, 0.8))
