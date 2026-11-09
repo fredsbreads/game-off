@@ -7,8 +7,12 @@ extends Node2D
 enum State { READY, PLAYING, DYING, OVER }
 
 const START_X := 3.0
-const HITSTOP_BASE := 0.05
-const HITSTOP_PER_CHAIN := 0.01
+# Pause after a kill, so you can read the next stretch before acting.
+# The camera keeps catching up during it, so the screen settles first.
+const KILL_PAUSE := 0.3
+# Pressing during the pause ends it (after this minimum, to keep the hit's
+# impact) and the press becomes your next teleport.
+const KILL_PAUSE_MIN := 0.05
 const DEATH_ANIM_TIME := 0.7
 const RETRY_DELAY := 0.5
 const SAVE_PATH := "user://save.cfg"
@@ -31,6 +35,7 @@ var debug: DebugTools = null
 
 var _queued_jump := 0.0
 var _hitstop := 0.0
+var _pause_elapsed := 0.0
 var _state_time := 0.0
 
 
@@ -72,6 +77,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		State.PLAYING:
 			if _queued_jump == 0.0:
 				_queued_jump = jump
+				# Skip the rest of the kill pause.
+				_hitstop = minf(_hitstop, maxf(KILL_PAUSE_MIN - _pause_elapsed, 0.0))
 		State.OVER:
 			if _state_time >= RETRY_DELAY:
 				get_tree().reload_current_scene()
@@ -112,6 +119,7 @@ func _physics_process(delta: float) -> void:
 				pass
 			elif _hitstop > 0.0:
 				_hitstop -= delta
+				_pause_elapsed += delta
 			else:
 				_step()
 				moving = state == State.PLAYING
@@ -196,7 +204,8 @@ func _kill(e: Enemy) -> void:
 	kill_score += points
 
 	var c := mini(chain, 6)
-	_hitstop = HITSTOP_BASE + HITSTOP_PER_CHAIN * c
+	_hitstop = KILL_PAUSE
+	_pause_elapsed = 0.0
 	cam.shake(0.15, 4.0 + 1.5 * c)
 	var pos := Vector2(e.tile_x * Rules.TILE, Rules.GROUND_Y - Rules.TILE * 0.45)
 	fx.kill_burst(pos, chain)
