@@ -26,6 +26,13 @@ var _message: Label
 var _rotate: ColorRect
 var _flash: ColorRect
 var _flash_tween: Tween
+var _pause_button: Control
+var _pause_dim: ColorRect
+var _message_before_pause := ""
+var _message_visible_before_pause := false
+
+const PAUSE_BUTTON_SIZE := 64.0
+const PAUSE_BUTTON_MARGIN := 14.0
 
 
 func _ready() -> void:
@@ -42,6 +49,19 @@ func _ready() -> void:
 	_chain_bar_bg.size = Vector2(180, 6)
 	_chain_bar = _rect(Color(1, 1, 1, 0.9))
 	_chain_bar.size = _chain_bar_bg.size
+
+	# Pause button, top-right. Drawn only; main.gd hit-tests taps against it
+	# (touch doesn't emulate mouse in this project, so Buttons won't see taps).
+	_pause_button = Control.new()
+	_pause_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_pause_button.size = Vector2(PAUSE_BUTTON_SIZE, PAUSE_BUTTON_SIZE)
+	_pause_button.visible = false
+	_pause_button.draw.connect(_draw_pause_button)
+	add_child(_pause_button)
+
+	_pause_dim = _rect(Color(0, 0, 0, 0.55))
+	_pause_dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_pause_dim.visible = false
 
 	_message = _label(26, Vector2.ZERO)
 	_message.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -64,6 +84,7 @@ func _process(_delta: float) -> void:
 	_chain.position = Vector2(right - 220, 6)
 	_chain_bar_bg.position = Vector2(right - 200, 54)
 	_chain_bar.position = _chain_bar_bg.position
+	_pause_button.position = Vector2(right - PAUSE_BUTTON_SIZE - PAUSE_BUTTON_MARGIN, PAUSE_BUTTON_MARGIN)
 
 
 func is_portrait() -> bool:
@@ -116,6 +137,37 @@ func show_game_over(stats: Dictionary) -> void:
 	lines += "Press or tap to retry"
 	_message.text = lines
 	_message.visible = true
+
+
+func set_pause_button_visible(value: bool) -> void:
+	_pause_button.visible = value
+
+
+## A slightly larger area than the drawn button, so it's easy to hit.
+func pause_button_contains(pos: Vector2) -> bool:
+	return _pause_button.visible and _pause_button.get_rect().grow(12.0).has_point(pos)
+
+
+func show_paused(paused: bool) -> void:
+	_pause_dim.visible = paused
+	_pause_button.visible = not paused
+	if paused:
+		_message_before_pause = _message.text
+		_message_visible_before_pause = _message.visible
+		_message.text = "PAUSED\n\nPress any key or tap to resume"
+		_message.visible = true
+	else:
+		_message.text = _message_before_pause
+		_message.visible = _message_visible_before_pause
+
+
+func _draw_pause_button() -> void:
+	var s := PAUSE_BUTTON_SIZE
+	_pause_button.draw_rect(Rect2(0, 0, s, s), Color(0, 0, 0, 0.35))
+	_pause_button.draw_rect(Rect2(0, 0, s, s), Color(1, 1, 1, 0.5), false, 2.0)
+	var bar := Vector2(s * 0.14, s * 0.5)
+	_pause_button.draw_rect(Rect2(Vector2(s * 0.3, s * 0.25), bar), Color(1, 1, 1, 0.85))
+	_pause_button.draw_rect(Rect2(Vector2(s * 0.56, s * 0.25), bar), Color(1, 1, 1, 0.85))
 
 
 func hide_message() -> void:

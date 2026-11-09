@@ -21,6 +21,7 @@ const KILL_PAUSE_MIN := 0.05
 const INVERT_FLASH := true      # set false to drop the invert (photosensitivity)
 const INVERT_TIME := 0.05
 const FX_FREEZE_AFTER := 0.08
+const RESUME_GUARD := 0.15       # ignore presses this soon after pausing
 const DEATH_ANIM_TIME := 0.7
 const RETRY_DELAY := 0.5
 const SAVE_PATH := "user://save.cfg"
@@ -47,9 +48,16 @@ var _hitstop := 0.0
 var _pause_elapsed := 0.0
 var _pause_is_chain := false    # true = the longer "your move" pause
 var _state_time := 0.0
+var _paused_at_msec := 0
 
 
 func _ready() -> void:
+	# Main and the HUD keep running while the game is paused (to read the
+	# resume press and show the pause screen); the world stops.
+	process_mode = Node.PROCESS_MODE_ALWAYS
+	for node in [level, fx, cam, freeze_effect, $PlayerLayer]:
+		node.process_mode = Node.PROCESS_MODE_PAUSABLE
+	hud.process_mode = Node.PROCESS_MODE_ALWAYS
 	if not OS.get_cmdline_user_args().is_empty():
 		debug = DebugTools.new()
 		debug.main = self
@@ -70,11 +78,23 @@ func begin() -> void:
 	state = State.PLAYING
 	player.running = true
 	hud.hide_message()
+	hud.set_pause_button_visible(true)
 
 
 # --- input ---------------------------------------------------------------
 
 func _unhandled_input(event: InputEvent) -> void:
+	if get_tree().paused:
+		# Any key, click or tap resumes (it doesn't also teleport).
+		if _is_press(event):
+			get_viewport().set_input_as_handled()
+			if Time.get_ticks_msec() - _paused_at_msec >= RESUME_GUARD * 1000.0:
+				_set_paused(false)
+		return
+	if state == State.PLAYING and (event.is_action_pressed("pause") or _is_pause_button_press(event)):
+		get_viewport().set_input_as_handled()
+		_set_paused(true)
+		return
 	var jump := _jump_from_event(event)
 	if jump == 0.0:
 		return
@@ -92,6 +112,37 @@ func _unhandled_input(event: InputEvent) -> void:
 		State.OVER:
 			if _state_time >= RETRY_DELAY:
 				get_tree().reload_current_scene()
+
+
+func _set_paused(value: bool) -> void:
+	get_tree().paused = value
+	if value:
+		_paused_at_msec = Time.get_ticks_msec()
+		_queued_jump = 0.0
+	hud.show_paused(value)
+
+
+## Auto-pause when the window/tab/app loses focus (not during bot runs).
+func _notification(what: int) -> void:
+	if debug or state != State.PLAYING or get_tree().paused:
+		return
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_WM_WINDOW_FOCUS_OUT \
+			or what == NOTIFICATION_APPLICATION_PAUSED:
+		_set_paused(true)
+
+
+func _is_press(event: InputEvent) -> bool:
+	if event is InputEventKey:
+		return event.pressed and not event.echo
+	if event is InputEventScreenTouch or event is InputEventMouseButton:
+		return event.pressed
+	return false
+
+
+func _is_pause_button_press(event: InputEvent) -> bool:
+	var touch: bool = event is InputEventScreenTouch and event.pressed
+	var click: bool = event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT
+	return (touch or click) and hud.pause_button_contains(event.position)
 
 
 ## Must run inside an input event: browsers only allow fullscreen on a tap/press.
@@ -121,6 +172,8 @@ func _jump_for_screen_x(screen_x: float) -> float:
 # --- per frame -------------------------------------------------------------
 
 func _physics_process(delta: float) -> void:
+	if get_tree().paused:
+		return
 	_state_time += delta
 	var moving := false
 	match state:
@@ -257,6 +310,7 @@ func _end_chain() -> void:
 
 func _die(kind: String) -> void:
 	state = State.DYING
+	hud.set_pause_button_visible(false)
 	_state_time = 0.0
 	player.running = false
 	player.die(kind)

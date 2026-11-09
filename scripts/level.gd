@@ -9,6 +9,9 @@ const RUNWAY_TILES := 16           # flat ground at the very start
 const TILES_PER_DIFFICULTY := 200.0
 const BREATHER_CHANCE := 0.15      # sometimes drop in an easy chunk
 const SIGN_EVERY := 50             # distance marker every N tiles
+# Spikes are switched off for now: chunks containing spikes are skipped.
+# The spike code and chunks stay, so setting this back to true restores them.
+const SPAWN_SPIKES := false
 
 const GROUND_A := Color(0.36, 0.38, 0.44)
 const GROUND_B := Color(0.32, 0.34, 0.40)
@@ -31,6 +34,8 @@ var _view_size := Vector2(1024, 576)
 func _ready() -> void:
 	_rng.randomize()
 	for c in Chunks.LIST:
+		if not SPAWN_SPIKES and String(c["map"]).contains("^"):
+			continue
 		var parsed := Chunks.parse(c["map"])
 		parsed["name"] = c["name"]
 		parsed["difficulty"] = c["difficulty"]

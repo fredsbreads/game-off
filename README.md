@@ -15,6 +15,9 @@ chain kills; long-jump over spikes.
 | Short teleport (4.5 tiles) | `←` / `J` / `A` / `Left Shift` | tap the left half of the screen |
 | Long teleport (9 tiles) | `→` / `K` / `D` / `Right Shift` | tap the right half of the screen |
 
+Pause with `P` / `Esc` or the button in the top-right corner; any key or tap resumes.
+The game also pauses itself when the window or app loses focus.
+
 The two outlines ahead of the player show exactly where each teleport lands.
 They dim while the teleport is recharging (the sword also disappears from your back).
 
@@ -23,7 +26,7 @@ They dim while the teleport is recharging (the sword also disappears from your b
 - Running into an enemy or spikes kills you.
 - Teleporting passes through everything; only the landing spot matters.
 - Landing on an enemy kills it **and instantly resets the cooldown**, so kills can chain.
-- Spikes are always 5–8 tiles wide: too wide for a short teleport, clearable with a long one.
+- Spikes are currently **switched off** (`SPAWN_SPIKES` in `scripts/level.gd`). When on, they are always 5–8 tiles wide: too wide for a short teleport, clearable with a long one.
 - **Score** = metres travelled + 100 × chain count per kill.
   The chain breaks after 1.5 s without a kill; clearing a hazard refreshes the timer.
 - Speed ramps from 6 to 10 tiles/s over the first 2000 m.
