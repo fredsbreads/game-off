@@ -22,6 +22,9 @@ const SIGN_COLOR := Color(0.6, 0.62, 0.7, 0.6)
 var start_x := 0.0
 var tiles := PackedByteArray()
 var enemies: Array[Enemy] = []
+## Enemies are added here (a layer above the grey freeze effect, so they
+## keep their colour during the kill pause). Set by main.gd.
+var enemy_parent: Node = self
 var section_log: Array = []        # [start_x, name], for debugging deaths
 
 var _patterns: Array = []
@@ -80,7 +83,7 @@ func _append_pattern(pattern: Dictionary) -> void:
 		var enemy := Enemy.new()
 		enemy.tile_x = _cursor + float(off)
 		enemy.position = Vector2(enemy.tile_x * Rules.TILE, Rules.GROUND_Y)
-		add_child(enemy)
+		enemy_parent.add_child(enemy)
 		enemies.append(enemy)
 	_cursor += float(offsets.back()) + Patterns.BREAK
 

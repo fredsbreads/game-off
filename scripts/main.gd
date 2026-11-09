@@ -12,7 +12,7 @@ const KILL_HIT := 0.06
 # If another enemy is under the short or long marker where you land, the
 # freeze extends into a "your move" pause: grey world, lit markers, zoom.
 # The camera keeps catching up during it, so the screen settles first.
-const KILL_PAUSE := 0.2
+const KILL_PAUSE := 0.7
 # Pressing during the pause ends it (after this minimum, to keep the hit's
 # impact) and the press becomes your next teleport.
 const KILL_PAUSE_MIN := 0.05
@@ -55,7 +55,7 @@ func _ready() -> void:
 	# Main and the HUD keep running while the game is paused (to read the
 	# resume press and show the pause screen); the world stops.
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	for node in [level, fx, cam, freeze_effect, $PlayerLayer]:
+	for node in [level, fx, cam, freeze_effect, $EnemyLayer, $PlayerLayer]:
 		node.process_mode = Node.PROCESS_MODE_PAUSABLE
 	hud.process_mode = Node.PROCESS_MODE_ALWAYS
 	if not OS.get_cmdline_user_args().is_empty():
@@ -64,6 +64,7 @@ func _ready() -> void:
 		add_child(debug)
 	player.x = START_X
 	level.start_x = START_X
+	level.enemy_parent = $EnemyLayer
 	level.ensure_generated(player.x)
 	cam.snap(player.x)
 	best_score = _load_best()

@@ -21,6 +21,10 @@ script = ExtResource("4_fx")
 layer = 5
 script = ExtResource("7_freeze")
 
+[node name="EnemyLayer" type="CanvasLayer" parent="."]
+layer = 6
+follow_viewport_enabled = true
+
 [node name="PlayerLayer" type="CanvasLayer" parent="."]
 layer = 6
 follow_viewport_enabled = true

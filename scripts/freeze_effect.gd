@@ -1,8 +1,8 @@
 class_name FreezeEffect
 extends CanvasLayer
 ## Full-screen invert / grey effect used during the kill pause.
-## Sits above the world but below the player layer, so the player and the
-## lit landing markers stay in full colour while everything else freezes.
+## Sits above the world but below the enemy and player layers, so enemies,
+## the player and the lit landing markers stay in full colour.
 
 const SHADER := preload("res://shaders/freeze.gdshader")
 
