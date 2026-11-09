@@ -110,11 +110,11 @@ func _replan() -> void:
 			break
 		st = nxt
 	if not result["ok"] and soak_target > 0.0:
-		print("  bot: no plan at x=%.2f cd=%d (%s)" % [px, main.player.cooldown, main.level.chunk_name_at(px)])
+		print("  bot: no plan at x=%.2f cd=%d (%s)" % [px, main.player.cooldown, main.level.section_name_at(px)])
 	_replan_in = REPLAN_EVERY
 
 
 func on_death(kind: String) -> void:
 	if soak_target > 0.0:
-		print("SOAK FAIL: died (%s) at %.2f m in chunk %s" % [kind, main.distance, main.level.chunk_name_at(main.player.x)])
+		print("SOAK FAIL: died (%s) at %.2f m in %s" % [kind, main.distance, main.level.section_name_at(main.player.x)])
 		get_tree().quit(1)

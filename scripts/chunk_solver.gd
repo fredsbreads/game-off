@@ -9,7 +9,7 @@ extends RefCounted
 ##   3. check hazards and enemy collisions
 ##   4. tick the cooldown down
 ##
-## Used by tools/validate_chunks.gd to prove chunks are fair, and by the
+## Used by tools/validate_patterns.gd to prove patterns chain, and by the
 ## debug bot to play the game for soak tests and screenshots.
 
 const ACTIONS := [0.0, Rules.SHORT, Rules.LONG]
@@ -19,8 +19,10 @@ const MAX_STATES := 200000
 ## speed_fn: Callable(x: float) -> tiles per second.
 ## Teleports that would land at or beyond tiles.size() are not allowed
 ## (that ground isn't known yet).
+## required_kills: bitmask of enemies that must all be killed on the way
+## (0 = just survive).
 ## Returns {"ok": bool, "actions": Array (one jump per frame, 0 = none)}.
-static func search(tiles: PackedByteArray, enemies: Array[float], start_x: float, start_cooldown: int, goal_x: float, speed_fn: Callable, max_frames: int = 3000) -> Dictionary:
+static func search(tiles: PackedByteArray, enemies: Array[float], start_x: float, start_cooldown: int, goal_x: float, speed_fn: Callable, max_frames: int = 3000, required_kills: int = 0) -> Dictionary:
 	# Each history entry: [x, cooldown, killed_mask, parent_index, action]
 	var history: Array = [[start_x, start_cooldown, 0, -1, 0.0]]
 	var frontier: Array[int] = [0]
@@ -38,7 +40,7 @@ static func search(tiles: PackedByteArray, enemies: Array[float], start_x: float
 				result.append(action)
 				history.append(result)
 				var new_index := history.size() - 1
-				if result[0] >= goal_x:
+				if result[0] >= goal_x and (int(result[2]) & required_kills) == required_kills:
 					return {"ok": true, "actions": _path(history, new_index)}
 				var key := "%d|%d|%d" % [roundi(result[0] * 1000.0), result[1], result[2]]
 				if seen.has(key):

@@ -1,17 +1,17 @@
 class_name Level
 extends Node2D
-## Owns the endless strip of tiles and the enemies standing on it.
-## Builds it ahead of the player by appending random chunks, and draws the
-## visible part as grey boxes.
+## Owns the endless strip of ground and the enemies standing on it.
+## Builds it ahead of the player by laying random enemy patterns end to end
+## (see patterns.gd), and draws the visible part as grey boxes.
+##
+## The ground is still a strip of tiles so hazards (e.g. spikes) can come
+## back later as pattern steps; for now it's all plain ground.
 
 const AHEAD_TILES := 48            # always have this much level built ahead
-const RUNWAY_TILES := 16           # flat ground at the very start
+const RUNWAY_TILES := 16.0         # the first enemy appears this far in
 const TILES_PER_DIFFICULTY := 200.0
-const BREATHER_CHANCE := 0.15      # sometimes drop in an easy chunk
+const BREATHER_CHANCE := 0.15      # sometimes drop in an easy pattern
 const SIGN_EVERY := 50             # distance marker every N tiles
-# Spikes are switched off for now: chunks containing spikes are skipped.
-# The spike code and chunks stay, so setting this back to true restores them.
-const SPAWN_SPIKES := false
 
 const GROUND_A := Color(0.36, 0.38, 0.44)
 const GROUND_B := Color(0.32, 0.34, 0.40)
@@ -22,9 +22,10 @@ const SIGN_COLOR := Color(0.6, 0.62, 0.7, 0.6)
 var start_x := 0.0
 var tiles := PackedByteArray()
 var enemies: Array[Enemy] = []
-var chunk_log: Array = []          # [start_tile, name], for debugging deaths
+var section_log: Array = []        # [start_x, name], for debugging deaths
 
-var _chunks: Array = []
+var _patterns: Array = []
+var _cursor := RUNWAY_TILES        # where the next pattern's first enemy goes
 var _last_name := ""
 var _rng := RandomNumberGenerator.new()
 var _view_left := 0.0
@@ -33,16 +34,15 @@ var _view_size := Vector2(1024, 576)
 
 func _ready() -> void:
 	_rng.randomize()
-	for c in Chunks.LIST:
-		if not SPAWN_SPIKES and String(c["map"]).contains("^"):
+	for p in Patterns.LIST:
+		var parsed := Patterns.parse(p["steps"])
+		if not parsed["errors"].is_empty():
+			push_error("pattern %s: %s" % [p["name"], parsed["errors"]])
 			continue
-		var parsed := Chunks.parse(c["map"])
-		parsed["name"] = c["name"]
-		parsed["difficulty"] = c["difficulty"]
-		_chunks.append(parsed)
-	for i in RUNWAY_TILES:
-		tiles.append(Rules.Tile.GROUND)
-	chunk_log.append([0, "runway"])
+		parsed["name"] = p["name"]
+		parsed["difficulty"] = p["difficulty"]
+		_patterns.append(parsed)
+	section_log.append([0.0, "runway"])
 
 
 func set_seed(value: int) -> void:
@@ -50,37 +50,39 @@ func set_seed(value: int) -> void:
 
 
 func ensure_generated(player_x: float) -> void:
-	while tiles.size() < player_x + AHEAD_TILES:
-		_append_chunk(_pick_chunk(tiles.size() - start_x))
+	while _cursor < player_x + AHEAD_TILES:
+		_append_pattern(_pick_pattern(_cursor - start_x))
+	while tiles.size() < _cursor + Patterns.BREAK:
+		tiles.append(Rules.Tile.GROUND)
 
 
-func _pick_chunk(at_distance: float) -> Dictionary:
+func _pick_pattern(at_distance: float) -> Dictionary:
 	var top := clampi(1 + int(at_distance / TILES_PER_DIFFICULTY), 1, 5)
 	var low := maxi(1, top - 2)
 	if _rng.randf() < BREATHER_CHANCE:
 		top = mini(top, 2)
 		low = 1
 	var candidates: Array = []
-	for c in _chunks:
-		var d: int = c["difficulty"]
-		if d >= low and d <= top and c["name"] != _last_name:
-			candidates.append(c)
+	for p in _patterns:
+		var d: int = p["difficulty"]
+		if d >= low and d <= top and p["name"] != _last_name:
+			candidates.append(p)
 	if candidates.is_empty():
-		candidates = _chunks
+		candidates = _patterns
 	return candidates[_rng.randi_range(0, candidates.size() - 1)]
 
 
-func _append_chunk(chunk: Dictionary) -> void:
-	var base := tiles.size()
-	_last_name = chunk["name"]
-	chunk_log.append([base, chunk["name"]])
-	tiles.append_array(chunk["tiles"])
-	for local_x in chunk["enemies"]:
+func _append_pattern(pattern: Dictionary) -> void:
+	_last_name = pattern["name"]
+	section_log.append([_cursor, pattern["name"]])
+	var offsets: Array = pattern["offsets"]
+	for off in offsets:
 		var enemy := Enemy.new()
-		enemy.tile_x = base + float(local_x)
+		enemy.tile_x = _cursor + float(off)
 		enemy.position = Vector2(enemy.tile_x * Rules.TILE, Rules.GROUND_Y)
 		add_child(enemy)
 		enemies.append(enemy)
+	_cursor += float(offsets.back()) + Patterns.BREAK
 
 
 func tile_at(x: float) -> int:
@@ -105,10 +107,10 @@ func hazard_between(from_x: float, to_x: float) -> bool:
 	return false
 
 
-func chunk_name_at(x: float) -> String:
-	for i in range(chunk_log.size() - 1, -1, -1):
-		if chunk_log[i][0] <= x:
-			return "%s (starts at tile %d)" % [chunk_log[i][1], chunk_log[i][0]]
+func section_name_at(x: float) -> String:
+	for i in range(section_log.size() - 1, -1, -1):
+		if section_log[i][0] <= x:
+			return "%s (starts at %.1f)" % [section_log[i][1], section_log[i][0]]
 	return "?"
 
 

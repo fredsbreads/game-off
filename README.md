@@ -26,7 +26,7 @@ They dim while the teleport is recharging (the sword also disappears from your b
 - Running into an enemy or spikes kills you.
 - Teleporting passes through everything; only the landing spot matters.
 - Landing on an enemy kills it **and instantly resets the cooldown**, so kills can chain.
-- Spikes are currently **switched off** (`SPAWN_SPIKES` in `scripts/level.gd`). When on, they are always 5–8 tiles wide: too wide for a short teleport, clearable with a long one.
+- No spikes for now. Spike support is still in the code and can come back as a pattern step.
 - **Score** = metres travelled + 100 × chain count per kill.
   The chain breaks after 1.5 s without a kill; clearing a hazard refreshes the timer.
 - Run speed is a constant 6 tiles/s.
@@ -44,31 +44,41 @@ It targets a web export so it can be played in desktop and mobile browsers.
 scenes/main.tscn        the only scene: Level, Player, FX, Camera, HUD
 scripts/
   rules.gd              every gameplay number (distances, cooldown, speeds, scoring)
-  chunks.gd             the hand-made level pieces + format validation
-  chunk_solver.gd       brute-force "is this survivable?" search (validator + bot)
+  patterns.gd           enemy patterns in step notation (the level design)
+  chunk_solver.gd       brute-force "can this be played?" search (validator + bot)
   main.gd               game flow, input, per-frame rules, scoring
-  level.gd              endless tile strip built from random chunks, grey-box drawing
+  level.gd              endless level built from random patterns, grey-box drawing
   player.gd             player + landing markers (drawing only; main.gd moves it)
   enemy.gd              grey-box enemy
   camera_rig.gd         follow with fast catch-up after teleports, screen shake
   fx.gd                 trails, rings, slashes, particles, floating text
   hud.gd                score, chain, messages, rotate-device overlay, flash
   debug_tools.gd        bot / soak test / screenshots (only with command-line args)
-tools/validate_chunks.gd
+tools/validate_patterns.gd
 ```
 
-## Level design: chunks
+## Level design: patterns
 
-The endless level is made of short hand-made **chunks** in `scripts/chunks.gd`,
-written as strings (`.` ground, `E` enemy, `^` spikes) with a difficulty
-from 1 to 5. The further you get, the harder the chunks it picks, with an
-occasional easy "breather" chunk.
+The endless level is built from enemy **patterns** in `scripts/patterns.gd`,
+written in step notation. The first enemy is the entry; each step places the
+next enemy relative to the previous one:
 
-After editing chunks, run the validator. It checks the format rules and **proves
-each chunk is survivable** at the run speed:
+| Step | Next enemy | You do |
+| --- | --- | --- |
+| `S` | 4.5 tiles ahead | short teleport right away |
+| `L` | 9 tiles ahead | long teleport right away |
+| `s+` | 6.75 tiles ahead | run a beat, then short |
+| `l+` | 11.25 tiles ahead | run a beat, then long |
+| `\|` | 14 tiles ahead | chain ends on purpose |
+
+Example: `S L s+ S`. Patterns have a difficulty from 1 to 5; the further you
+get, the harder the patterns it picks, with an occasional easy one.
+
+After editing patterns, run the validator. It **proves every enemy in each
+pattern can be chained**:
 
 ```bash
-godot --headless --path . -s tools/validate_chunks.gd
+godot --headless --path . -s tools/validate_patterns.gd
 ```
 
 ## Testing with the bot
