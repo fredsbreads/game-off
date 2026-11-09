@@ -1,7 +1,7 @@
 extends SceneTree
 ## Checks every chunk in scripts/chunks.gd:
 ##   - format rules (hazard widths, spacing, padding)
-##   - survivable at slow, medium and max run speed, entering with the
+##   - survivable at the run speed, entering with the
 ##     worst case (cooldown just started)
 ##
 ## Run from the project folder:
@@ -9,7 +9,7 @@ extends SceneTree
 
 func _init() -> void:
 	var failures := 0
-	var speeds := [Rules.SPEED_START, (Rules.SPEED_START + Rules.SPEED_MAX) / 2.0, Rules.SPEED_MAX]
+	var speeds := [Rules.RUN_SPEED]
 	for c in Chunks.LIST:
 		var name: String = c["name"]
 		var map: String = c["map"]

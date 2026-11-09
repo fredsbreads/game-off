@@ -192,7 +192,7 @@ func _physics_process(delta: float) -> void:
 				_game_over()
 
 	_update_pause_visuals()
-	var run_px := Rules.speed_at(distance) * Rules.TILE if moving else 0.0
+	var run_px := Rules.RUN_SPEED * Rules.TILE if moving else 0.0
 	cam.follow(player.x, run_px, delta)
 	level.set_view(cam.left(), cam.visible_world_size())
 	hud.set_stats(score(), distance, chain, chain_timer / Rules.COMBO_WINDOW)
@@ -220,7 +220,7 @@ func _step() -> void:
 			return
 
 	# 2. run
-	player.x += Rules.speed_at(player.x - START_X) / Rules.PHYSICS_FPS
+	player.x += Rules.RUN_SPEED / Rules.PHYSICS_FPS
 	distance = player.x - START_X
 
 	# 3. hazards and enemies
@@ -256,7 +256,7 @@ func _teleport(dist: float) -> void:
 
 	var hit := level.enemies_at(to, Rules.KILL_RADIUS)
 	if hit.is_empty():
-		player.cooldown = Rules.cooldown_frames(Rules.speed_at(to - START_X))
+		player.cooldown = Rules.cooldown_frames(Rules.RUN_SPEED)
 		fx.landing_ring(to)
 		# Clearing a hazard keeps the chain alive (doesn't add to it).
 		if chain > 0 and level.hazard_between(from, to):

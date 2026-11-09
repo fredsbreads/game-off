@@ -29,7 +29,7 @@ They dim while the teleport is recharging (the sword also disappears from your b
 - Spikes are currently **switched off** (`SPAWN_SPIKES` in `scripts/level.gd`). When on, they are always 5–8 tiles wide: too wide for a short teleport, clearable with a long one.
 - **Score** = metres travelled + 100 × chain count per kill.
   The chain breaks after 1.5 s without a kill; clearing a hazard refreshes the timer.
-- Speed ramps from 6 to 10 tiles/s over the first 2000 m.
+- Run speed is a constant 6 tiles/s.
 - Score and chain are tracked but **not shown** for now; distance is shown.
   Toggle with `SHOW_SCORE_UI` / `SHOW_DISTANCE_UI` at the top of `scripts/hud.gd`.
 
@@ -65,7 +65,7 @@ from 1 to 5. The further you get, the harder the chunks it picks, with an
 occasional easy "breather" chunk.
 
 After editing chunks, run the validator. It checks the format rules and **proves
-each chunk is survivable** at slow, medium and top speed:
+each chunk is survivable** at the run speed:
 
 ```bash
 godot --headless --path . -s tools/validate_chunks.gd

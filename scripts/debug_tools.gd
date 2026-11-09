@@ -54,7 +54,7 @@ func _physics_process(_delta: float) -> void:
 		main.begin()
 
 	if soak_target > 0.0 and main.distance >= _next_report:
-		print("  ... %d m, speed %.1f tiles/s, kills %d, best chain %d" % [main.distance, Rules.speed_at(main.distance), main.kills, main.best_chain])
+		print("  ... %d m, kills %d, best chain %d" % [main.distance, main.kills, main.best_chain])
 		_next_report += 500.0
 	if soak_target > 0.0 and main.distance >= soak_target:
 		print("SOAK OK: %d m, kills %d, best chain %d, score %d" % [main.distance, main.kills, main.best_chain, main.score()])
@@ -98,15 +98,14 @@ func _replan() -> void:
 	for e in main.level.enemies:
 		if e.alive and e.tile_x > px - 1.0 and e.tile_x < px + PLAN_AHEAD_TILES + 8.0:
 			enemy_x.append(e.tile_x)
-	var start: float = main.START_X
 	var result := ChunkSolver.search(main.level.tiles, enemy_x, px, main.player.cooldown,
-		px + PLAN_AHEAD_TILES, func(x: float) -> float: return Rules.speed_at(x - start))
+		px + PLAN_AHEAD_TILES, func(_x: float) -> float: return Rules.RUN_SPEED)
 	_plan = result["actions"]
 	_predicted.clear()
 	var st: Array = [px, main.player.cooldown, 0]
 	for act in _plan:
 		_predicted.append([st[0], st[1]])
-		var nxt := ChunkSolver.step(main.level.tiles, enemy_x, st, act, func(x: float) -> float: return Rules.speed_at(x - start))
+		var nxt := ChunkSolver.step(main.level.tiles, enemy_x, st, act, func(_x: float) -> float: return Rules.RUN_SPEED)
 		if nxt.is_empty():
 			break
 		st = nxt

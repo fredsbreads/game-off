@@ -16,7 +16,7 @@ const LONG := 9.0
 
 # Distance (tiles) you run before you can teleport again. Measured in
 # distance, not time, so chunk spacing works the same at every speed.
-# (1.05 tiles = ~0.18 s at the start speed, ~0.12 s at max.) A kill resets it.
+# (1.05 tiles = ~0.18 s at 6 tiles/s.) A kill resets it.
 const COOLDOWN_TILES := 1.05
 
 # Landing within this many tiles of an enemy's centre kills it.
@@ -31,20 +31,14 @@ const HAZARD_MAX := 8
 const MIN_HAZARD_GAP := 5       # ground tiles between hazards, unless an enemy is in the gap
 const EDGE_PADDING := 2         # plain ground at both ends of every chunk
 
-# Run speed in tiles per second, ramping up with distance.
-const SPEED_START := 6.0
-const SPEED_MAX := 10.0
-const SPEED_RAMP_TILES := 2000.0
+# Run speed in tiles per second. Constant for now.
+const RUN_SPEED := 6.0
 
 # Scoring.
 const COMBO_WINDOW := 1.5       # seconds without a kill before the chain breaks
 const KILL_POINTS := 100        # multiplied by the chain count
 
 enum Tile { GROUND, SPIKES }
-
-
-static func speed_at(distance: float) -> float:
-	return lerpf(SPEED_START, SPEED_MAX, clampf(distance / SPEED_RAMP_TILES, 0.0, 1.0))
 
 
 static func cooldown_frames(speed: float) -> int:
