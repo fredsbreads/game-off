@@ -71,8 +71,8 @@ next enemy relative to the previous one:
 | `F` | same row, 6 ahead | forward right away |
 | `V` | other row, straight across | vertical right away |
 | `D` | other row, 6 ahead | diagonal right away |
-| `F+` `V+` `D+` | same, 3 tiles further | run a beat, then that move |
-| `\|` | same row, 14 ahead | chain ends on purpose |
+| `F+` `V+` `D+` | same, 3 tiles further | run a beat, then that move (switched off for now: `INCLUDE_BEATS`) |
+| `\|` | same row, 10 ahead | chain ends on purpose |
 
 Example: `F V D+ F`. Patterns have a difficulty from 1 to 5; the further you
 get, the harder the patterns it picks, with an occasional easy one.

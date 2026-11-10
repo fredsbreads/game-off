@@ -16,6 +16,8 @@ extends RefCounted
 ##   D+   diagonal beat   other row, run a little, then diagonal (6 + WAIT)
 ##   |    break      same row, BREAK tiles ahead (chain ends on purpose)
 ##
+## Off-beat steps are currently switched off (INCLUDE_BEATS).
+##
 ## Plain steps put the next enemy right under a marker, so the "your move"
 ## pause fires. Beats sit halfway between markers (WAIT = half a forward
 ## teleport), so it's never a near miss.
@@ -26,7 +28,10 @@ extends RefCounted
 ## proves every enemy in every pattern can be chained.
 
 const WAIT := 3.0       # half a forward teleport
-const BREAK := 14.0     # well past forward reach, so a break is unmistakable
+const BREAK := 10.0     # past forward reach, so a break is unmistakable
+# Off-beat steps (F+, V+, D+) are switched off for now: patterns using them
+# aren't spawned. They may come back later with a visual cue.
+const INCLUDE_BEATS := false
 
 const LIST := [
 	# --- difficulty 1 -----------------------------------------------------
@@ -82,6 +87,11 @@ static func step_shape(token: String) -> Array:
 		"|":
 			return [BREAK, false]
 	return []
+
+
+## True if the pattern uses an off-beat step (F+, V+, D+).
+static func has_beats(steps: String) -> bool:
+	return steps.contains("+")
 
 
 ## Enemies as Vector2(x relative to the entry, row relative to the entry:

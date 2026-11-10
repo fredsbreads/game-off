@@ -39,6 +39,8 @@ var _view_size := Vector2(1024, 576)
 func _ready() -> void:
 	_rng.randomize()
 	for p in Patterns.LIST:
+		if not Patterns.INCLUDE_BEATS and Patterns.has_beats(p["steps"]):
+			continue
 		var parsed := Patterns.parse(p["steps"])
 		if not parsed["errors"].is_empty():
 			push_error("pattern %s: %s" % [p["name"], parsed["errors"]])
