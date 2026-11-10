@@ -114,9 +114,10 @@ func set_stats(score: int, distance: float, chain: int, chain_fraction: float) -
 
 func show_start(best: int) -> void:
 	var lines := "RED FLASH  —  prototype\n\n"
-	lines += "SHORT teleport:  Left / J / A / L-Shift   or tap the LEFT half\n"
-	lines += "LONG teleport:   Right / K / D / R-Shift   or tap the RIGHT half\n\n"
-	lines += "Land on enemies to slash them. Long-jump over spikes.\n"
+	lines += "FORWARD:  Right / K / D / R-Shift   or tap the RIGHT half\n"
+	lines += "UP / DOWN:  Left / Up / J / A / W / L-Shift   or tap the LEFT half\n"
+	lines += "DIAGONAL:  both at once\n\n"
+	lines += "Land on enemies to slash them.\n"
 	if SHOW_SCORE_UI and best > 0:
 		lines += "\nBest: %d\n" % best
 	lines += "\nPress or tap to start"

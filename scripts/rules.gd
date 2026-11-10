@@ -7,29 +7,28 @@ extends RefCounted
 ## TILE to draw. The player's x is the centre of their feet.
 
 const TILE := 64.0
-const GROUND_Y := 448.0          # pixel y of the ground surface
+const GROUND_Y := 448.0          # pixel y of the floor surface
 const PHYSICS_FPS := 60
 
-# Teleport distances, in tiles.
-const SHORT := 4.5
-const LONG := 9.0
+# Two rows: you run along the floor, or upside down along the ceiling.
+const ROW_GAP := 4.5             # tiles between the floor and ceiling surfaces
+const CEILING_Y := GROUND_Y - ROW_GAP * TILE   # pixel y of the ceiling surface
+enum Row { FLOOR, CEILING }
 
-# Distance (tiles) you run before you can teleport again. Measured in
-# distance, not time, so chunk spacing works the same at every speed.
-# (1.05 tiles = ~0.18 s at 6 tiles/s.) A kill resets it.
-const COOLDOWN_TILES := 1.05
+# Teleports: forward along your row, straight across to the other row, or
+# diagonally (both at once).
+const FORWARD := 6.0             # tiles
+enum Move { NONE, FORWARD, VERTICAL, DIAGONAL }
+
+# Distance (tiles) you run before you can teleport again, shared by every
+# teleport. 0 = no cooldown: teleport as often as you like.
+# A kill always resets it.
+const COOLDOWN_TILES := 0.0
 
 # Landing within this many tiles of an enemy's centre kills it.
 const KILL_RADIUS := 0.8
 # Running within this many tiles of a live enemy's centre kills you.
 const HIT_RADIUS := 0.55
-
-# Spikes must be too wide for a short jump but clearable
-# with a long one.
-const HAZARD_MIN := 5
-const HAZARD_MAX := 8
-const MIN_HAZARD_GAP := 5       # ground tiles between hazards, unless an enemy is in the gap
-const EDGE_PADDING := 2         # plain ground at both ends of every chunk
 
 # Run speed in tiles per second. Constant for now.
 const RUN_SPEED := 6.0
@@ -43,6 +42,23 @@ enum Tile { GROUND, SPIKES }
 
 static func cooldown_frames(speed: float) -> int:
 	return ceili(COOLDOWN_TILES / speed * PHYSICS_FPS)
+
+
+static func move_dx(move: int) -> float:
+	return FORWARD if move == Move.FORWARD or move == Move.DIAGONAL else 0.0
+
+
+static func move_flips_row(move: int) -> bool:
+	return move == Move.VERTICAL or move == Move.DIAGONAL
+
+
+static func surface_y(row: int) -> float:
+	return GROUND_Y if row == Row.FLOOR else CEILING_Y
+
+
+## Pixel y of a body's middle (player or enemy) standing/hanging in a row.
+static func body_center_y(row: int) -> float:
+	return GROUND_Y - TILE * 0.5 if row == Row.FLOOR else CEILING_Y + TILE * 0.5
 
 
 static func is_hazard(tile: int) -> bool:

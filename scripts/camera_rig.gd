@@ -6,12 +6,11 @@ extends Camera2D
 ##
 ## Fairness: every screen sees exactly VIEW_TILES tiles across. The camera
 ## zooms to fit that width, so wider phones crop a little sky instead of
-## seeing further ahead. The ground always sits at the same height on screen.
+## seeing further ahead. The two rows always sit centred on screen.
 
 const HOME_TILES := 2.0         # player's home spot, in tiles from the left edge
 const CATCH_UP_RATE := 14.0     # higher = faster catch-up (14 ~= 0.2 s)
 const VIEW_TILES := 16.0        # tiles visible across, on every device
-const GROUND_SCREEN_FRACTION := 448.0 / 576.0   # ground line, from the top of the screen
 # Kill zoom punch: in quickly, then back out well before the pause ends,
 # so the full view is back while you decide.
 const PUNCH_ZOOM := 0.06        # 6 % closer at the peak
@@ -36,8 +35,10 @@ func visible_world_size() -> Vector2:
 	return Vector2(world_w, world_w * screen.y / screen.x)
 
 
+## Both rows are centred vertically, so every screen shows them the same.
 func top() -> float:
-	return Rules.GROUND_Y - visible_world_size().y * GROUND_SCREEN_FRACTION
+	var middle := (Rules.GROUND_Y + Rules.CEILING_Y) / 2.0
+	return middle - visible_world_size().y / 2.0
 
 
 func snap(player_x: float) -> void:

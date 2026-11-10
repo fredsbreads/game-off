@@ -12,13 +12,13 @@ var _items: Array[Dictionary] = []
 var frozen := false
 
 
-func teleport_trail(from_x: float, to_x: float) -> void:
-	_items.append({"kind": "trail", "t": 0.0, "life": 0.22,
-		"a": from_x * Rules.TILE, "b": to_x * Rules.TILE})
+## from / to are body centres in pixels.
+func teleport_trail(from: Vector2, to: Vector2) -> void:
+	_items.append({"kind": "trail", "t": 0.0, "life": 0.22, "a": from, "b": to})
 
 
-func landing_ring(x: float) -> void:
-	_ring(Vector2(x * Rules.TILE, Rules.GROUND_Y - Rules.TILE * 0.55), 10.0, 46.0, 0.25, 3.0, Color(1, 1, 1, 0.8))
+func landing_ring(pos: Vector2) -> void:
+	_ring(pos, 10.0, 46.0, 0.25, 3.0, Color(1, 1, 1, 0.8))
 
 
 ## Bigger and brighter the longer the chain.
@@ -64,13 +64,12 @@ func _draw() -> void:
 		var fade := 1.0 - k
 		match it["kind"]:
 			"trail":
-				var a: float = it["a"]
-				var b: float = it["b"]
-				var y := gy - t * 0.55
+				var a: Vector2 = it["a"]
+				var b: Vector2 = it["b"]
 				for g in 4:
-					var gx := lerpf(a, b, g / 4.0)
-					draw_rect(Rect2(gx - t * 0.25, gy - t * 1.1, t * 0.5, t * 1.1), Color(0.85, 0.88, 1, 0.3 * fade * (g + 1) / 4.0))
-				draw_line(Vector2(a, y), Vector2(b, y), Color(1, 1, 1, 0.9 * fade), 1.0 + 5.0 * fade)
+					var p := a.lerp(b, g / 4.0)
+					draw_rect(Rect2(p.x - t * 0.25, p.y - t * 0.55, t * 0.5, t * 1.1), Color(0.85, 0.88, 1, 0.3 * fade * (g + 1) / 4.0))
+				draw_line(a, b, Color(1, 1, 1, 0.9 * fade), 1.0 + 5.0 * fade)
 			"ring":
 				var r := lerpf(it["r0"], it["r1"], 1.0 - pow(1.0 - k, 3.0))
 				var col: Color = it["color"]

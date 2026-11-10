@@ -1,6 +1,6 @@
 class_name Level
 extends Node2D
-## Owns the endless strip of ground and the enemies standing on it.
+## Owns the endless floor and ceiling and the enemies on them.
 ## Builds it ahead of the player by laying random enemy patterns end to end
 ## (see patterns.gd), and draws the visible part as grey boxes.
 ##
@@ -29,6 +29,7 @@ var section_log: Array = []        # [start_x, name], for debugging deaths
 
 var _patterns: Array = []
 var _cursor := RUNWAY_TILES        # where the next pattern's first enemy goes
+var _cursor_row := Rules.Row.FLOOR # ...and its row (the row the last one ended in)
 var _last_name := ""
 var _rng := RandomNumberGenerator.new()
 var _view_left := 0.0
@@ -78,14 +79,19 @@ func _pick_pattern(at_distance: float) -> Dictionary:
 func _append_pattern(pattern: Dictionary) -> void:
 	_last_name = pattern["name"]
 	section_log.append([_cursor, pattern["name"]])
-	var offsets: Array = pattern["offsets"]
-	for off in offsets:
+	var shape: Array = pattern["enemies"]
+	var last_row := _cursor_row
+	for rel in shape:
+		var e: Vector2 = rel
 		var enemy := Enemy.new()
-		enemy.tile_x = _cursor + float(off)
-		enemy.position = Vector2(enemy.tile_x * Rules.TILE, Rules.GROUND_Y)
+		enemy.tile_x = _cursor + e.x
+		enemy.row = _cursor_row if int(e.y) == 0 else 1 - _cursor_row
 		enemy_parent.add_child(enemy)
 		enemies.append(enemy)
-	_cursor += float(offsets.back()) + Patterns.BREAK
+		last_row = enemy.row
+	var last: Vector2 = shape.back()
+	_cursor += last.x + Patterns.BREAK
+	_cursor_row = last_row
 
 
 func tile_at(x: float) -> int:
@@ -95,10 +101,10 @@ func tile_at(x: float) -> int:
 	return tiles[i]
 
 
-func enemies_at(x: float, radius: float) -> Array[Enemy]:
+func enemies_at(x: float, radius: float, row: int) -> Array[Enemy]:
 	var found: Array[Enemy] = []
 	for e in enemies:
-		if e.alive and absf(e.tile_x - x) < radius:
+		if e.alive and e.row == row and absf(e.tile_x - x) < radius:
 			found.append(e)
 	return found
 
@@ -151,6 +157,14 @@ func _draw() -> void:
 				draw_colored_polygon(PackedVector2Array([
 					Vector2(sx + 2, gy), Vector2(sx + t * 0.25, gy - t * 0.45), Vector2(sx + t * 0.5 - 2, gy)
 				]), SPIKE_COLOR)
+
+	# Ceiling: a solid band above the ceiling surface, mirroring the floor.
+	var cy := Rules.CEILING_Y
+	var roof := cy - _view_size.y - 64.0
+	for i in range(first, last + 1):
+		var x0 := i * t
+		draw_rect(Rect2(x0, roof, t, cy - roof), GROUND_A if i % 2 == 0 else GROUND_B)
+		draw_rect(Rect2(x0, cy - 4, t, 4), GROUND_TOP)
 
 	# Distance markers, so speed and progress are readable.
 	if not Hud.SHOW_DISTANCE_UI:

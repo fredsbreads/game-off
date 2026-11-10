@@ -74,43 +74,53 @@ func _save_shot(n: int) -> void:
 		get_tree().quit(0)
 
 
-## Called by main each playing frame; returns the jump to make (0 = none).
-func think() -> float:
+## Called by main each playing frame; returns the Rules.Move to make.
+func think() -> int:
 	if not bot:
-		return 0.0
+		return Rules.Move.NONE
 	# Never play out the tail of a plan: its last jump only has to reach the
 	# goal, not survive what comes after it.
 	if _plan.size() <= KEEP_TAIL_FRAMES or _replan_in <= 0:
 		_replan()
 	_replan_in -= 1
 	if _plan.is_empty():
-		return 0.0
+		return Rules.Move.NONE
 	if soak_target > 0.0 and not _predicted.is_empty():
 		var expect: Array = _predicted.pop_front()
-		if absf(expect[0] - main.player.x) > 0.001 or expect[1] != main.player.cooldown:
-			print("  MISMATCH predicted x=%.4f cd=%d actual x=%.4f cd=%d" % [expect[0], expect[1], main.player.x, main.player.cooldown])
+		if absf(expect[0] - main.player.x) > 0.001 or expect[1] != main.player.row or expect[2] != main.player.cooldown:
+			print("  MISMATCH predicted x=%.4f row=%d cd=%d actual x=%.4f row=%d cd=%d" % [expect[0], expect[1], expect[2], main.player.x, main.player.row, main.player.cooldown])
 	return _plan.pop_front()
 
 
 func _replan() -> void:
 	var px: float = main.player.x
-	var enemy_x: Array[float] = []
+	var near: Array[Vector2] = []
 	for e in main.level.enemies:
 		if e.alive and e.tile_x > px - 1.0 and e.tile_x < px + PLAN_AHEAD_TILES + 8.0:
-			enemy_x.append(e.tile_x)
-	var result := ChunkSolver.search(main.level.tiles, enemy_x, px, main.player.cooldown,
-		px + PLAN_AHEAD_TILES, func(_x: float) -> float: return Rules.RUN_SPEED)
+			near.append(Vector2(e.tile_x, e.row))
+	var start := [px, main.player.row, main.player.cooldown]
+	var limit := px + PLAN_AHEAD_TILES + 30.0
+	# Play like a person going for chains: try to kill every enemy in range,
+	# and only fall back to just surviving if that's impossible.
+	var goal := px + PLAN_AHEAD_TILES
+	var wanted := 0
+	for i in near.size():
+		if near[i].x < goal:
+			wanted |= 1 << i
+	var result := ChunkSolver.search(near, start, goal, limit, Rules.RUN_SPEED, 3000, wanted)
+	if not result["ok"]:
+		result = ChunkSolver.search(near, start, goal, limit, Rules.RUN_SPEED)
 	_plan = result["actions"]
 	_predicted.clear()
-	var st: Array = [px, main.player.cooldown, 0]
+	var st: Array = [px, main.player.row, main.player.cooldown, 0]
 	for act in _plan:
-		_predicted.append([st[0], st[1]])
-		var nxt := ChunkSolver.step(main.level.tiles, enemy_x, st, act, func(_x: float) -> float: return Rules.RUN_SPEED)
+		_predicted.append([st[0], st[1], st[2]])
+		var nxt := ChunkSolver.step(near, st, act, Rules.RUN_SPEED, limit)
 		if nxt.is_empty():
 			break
 		st = nxt
 	if not result["ok"] and soak_target > 0.0:
-		print("  bot: no plan at x=%.2f cd=%d (%s)" % [px, main.player.cooldown, main.level.section_name_at(px)])
+		print("  bot: no plan at x=%.2f row=%d (%s)" % [px, main.player.row, main.level.section_name_at(px)])
 	_replan_in = REPLAN_EVERY
 
 

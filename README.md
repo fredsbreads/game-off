@@ -10,25 +10,28 @@ chain kills; long-jump over spikes.
 
 ## Controls
 
+> **Branch `two-rows`:** experimental version with a floor and a ceiling row.
+
 | Action | Keyboard | Touch |
 | --- | --- | --- |
-| Short teleport (4.5 tiles) | `←` / `J` / `A` / `Left Shift` | tap the left half of the screen |
-| Long teleport (9 tiles) | `→` / `K` / `D` / `Right Shift` | tap the right half of the screen |
+| Forward teleport (6 tiles, same row) | `→` / `K` / `D` / `Right Shift` | tap the right half |
+| Vertical teleport (straight across to the other row) | `←` / `↑` / `J` / `A` / `W` / `Left Shift` | tap the left half |
+| Diagonal teleport (forward 6 + other row) | both at once | tap both halves at once |
 
 Pause with `P` / `Esc` or the button in the top-right corner; any key or tap resumes.
 The game also pauses itself when the window or app loses focus.
 
-The two outlines ahead of the player show exactly where each teleport lands.
-They dim while the teleport is recharging (the sword also disappears from your back).
+The three outlines show exactly where each teleport lands. On the ceiling you
+run upside down.
 
 ## Rules
 
-- Running into an enemy or spikes kills you.
+- Running into an enemy in your row kills you.
 - Teleporting passes through everything; only the landing spot matters.
-- Landing on an enemy kills it **and instantly resets the cooldown**, so kills can chain.
-- No spikes for now. Spike support is still in the code and can come back as a pattern step.
-- **Score** = metres travelled + 100 × chain count per kill.
-  The chain breaks after 1.5 s without a kill; clearing a hazard refreshes the timer.
+- Landing on an enemy kills it and snaps you exactly onto it.
+- No cooldown for now (`COOLDOWN_TILES` in `scripts/rules.gd`; shared by all teleports).
+- Every kill gets a short hit freeze. If another enemy is under one of your
+  markers, it becomes a 0.7 s "your move" pause (tap to skip).
 - Run speed is a constant 6 tiles/s.
 - Score and chain are tracked but **not shown** for now; distance is shown.
   Toggle with `SHOW_SCORE_UI` / `SHOW_DISTANCE_UI` at the top of `scripts/hud.gd`.
@@ -65,13 +68,13 @@ next enemy relative to the previous one:
 
 | Step | Next enemy | You do |
 | --- | --- | --- |
-| `S` | 4.5 tiles ahead | short teleport right away |
-| `L` | 9 tiles ahead | long teleport right away |
-| `s+` | 6.75 tiles ahead | run a beat, then short |
-| `l+` | 11.25 tiles ahead | run a beat, then long |
-| `\|` | 14 tiles ahead | chain ends on purpose |
+| `F` | same row, 6 ahead | forward right away |
+| `V` | other row, straight across | vertical right away |
+| `D` | other row, 6 ahead | diagonal right away |
+| `F+` `V+` `D+` | same, 3 tiles further | run a beat, then that move |
+| `\|` | same row, 14 ahead | chain ends on purpose |
 
-Example: `S L s+ S`. Patterns have a difficulty from 1 to 5; the further you
+Example: `F V D+ F`. Patterns have a difficulty from 1 to 5; the further you
 get, the harder the patterns it picks, with an occasional easy one.
 
 After editing patterns, run the validator. It **proves every enemy in each

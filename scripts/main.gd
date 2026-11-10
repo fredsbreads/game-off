@@ -2,14 +2,17 @@ extends Node2D
 ## Game flow, input, scoring and the per-frame rules.
 ##
 ## The per-frame order in _step() must match ChunkSolver.step(), so the
-## chunk validator's "this is survivable" proof applies to the real game.
+## pattern validator's "this chains" proof applies to the real game.
+##
+## Controls: forward (right half / Right, K, D, R-Shift), vertical (left
+## half / Left, Up, J, A, W, L-Shift), diagonal = both at once.
 
 enum State { READY, PLAYING, DYING, OVER }
 
 const START_X := 3.0
 # Every kill gets a short hit freeze (invert flash).
 const KILL_HIT := 0.06
-# If another enemy is under the short or long marker where you land, the
+# If another enemy is under any marker where you land, the
 # freeze extends into a "your move" pause: grey world, lit markers, zoom.
 # The camera keeps catching up during it, so the screen settles first.
 const KILL_PAUSE := 0.7
@@ -22,6 +25,9 @@ const INVERT_FLASH := true      # set false to drop the invert (photosensitivity
 const INVERT_TIME := 0.05
 const FX_FREEZE_AFTER := 0.08
 const RESUME_GUARD := 0.15       # ignore presses this soon after pausing
+# Pressing forward and vertical within this many frames of each other counts
+# as a diagonal. Single presses wait this long before firing (4 frames = 67 ms).
+const DIAGONAL_WINDOW_FRAMES := 4
 const DEATH_ANIM_TIME := 0.7
 const RETRY_DELAY := 0.5
 const SAVE_PATH := "user://save.cfg"
@@ -43,7 +49,9 @@ var best_chain := 0
 var best_score := 0
 var debug: DebugTools = null
 
-var _queued_jump := 0.0
+var _pending_forward := false
+var _pending_vertical := false
+var _pending_frames := 0
 var _hitstop := 0.0
 var _pause_elapsed := 0.0
 var _pause_is_chain := false    # true = the longer "your move" pause
@@ -96,8 +104,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		_set_paused(true)
 		return
-	var jump := _jump_from_event(event)
-	if jump == 0.0:
+	var button := _button_from_event(event)
+	if button == Rules.Move.NONE:
 		return
 	get_viewport().set_input_as_handled()
 	match state:
@@ -106,10 +114,14 @@ func _unhandled_input(event: InputEvent) -> void:
 				_request_fullscreen()
 				begin()
 		State.PLAYING:
-			if _queued_jump == 0.0:
-				_queued_jump = jump
-				# Skip the rest of the kill pause.
-				_hitstop = minf(_hitstop, maxf(KILL_PAUSE_MIN - _pause_elapsed, 0.0))
+			if not _pending_forward and not _pending_vertical:
+				_pending_frames = DIAGONAL_WINDOW_FRAMES
+			if button == Rules.Move.FORWARD:
+				_pending_forward = true
+			else:
+				_pending_vertical = true
+			# Skip the rest of the kill pause.
+			_hitstop = minf(_hitstop, maxf(KILL_PAUSE_MIN - _pause_elapsed, 0.0))
 		State.OVER:
 			if _state_time >= RETRY_DELAY:
 				get_tree().reload_current_scene()
@@ -119,7 +131,7 @@ func _set_paused(value: bool) -> void:
 	get_tree().paused = value
 	if value:
 		_paused_at_msec = Time.get_ticks_msec()
-		_queued_jump = 0.0
+		_clear_pending()
 	hud.show_paused(value)
 
 
@@ -153,21 +165,45 @@ func _request_fullscreen() -> void:
 		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
 
 
-## Left half of the screen = short, right half = long.
-func _jump_from_event(event: InputEvent) -> float:
+## Left half of the screen = vertical, right half = forward.
+## Returns Rules.Move.FORWARD, Rules.Move.VERTICAL or Rules.Move.NONE.
+func _button_from_event(event: InputEvent) -> int:
 	if event is InputEventScreenTouch and event.pressed:
-		return _jump_for_screen_x(event.position.x)
+		return _button_for_screen_x(event.position.x)
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		return _jump_for_screen_x(event.position.x)
-	if event.is_action_pressed("tp_short"):
-		return Rules.SHORT
-	if event.is_action_pressed("tp_long"):
-		return Rules.LONG
-	return 0.0
+		return _button_for_screen_x(event.position.x)
+	if event.is_action_pressed("tp_vertical"):
+		return Rules.Move.VERTICAL
+	if event.is_action_pressed("tp_forward"):
+		return Rules.Move.FORWARD
+	return Rules.Move.NONE
 
 
-func _jump_for_screen_x(screen_x: float) -> float:
-	return Rules.SHORT if screen_x < get_viewport().get_visible_rect().size.x * 0.5 else Rules.LONG
+func _button_for_screen_x(screen_x: float) -> int:
+	return Rules.Move.VERTICAL if screen_x < get_viewport().get_visible_rect().size.x * 0.5 else Rules.Move.FORWARD
+
+
+func _clear_pending() -> void:
+	_pending_forward = false
+	_pending_vertical = false
+	_pending_frames = 0
+
+
+## The move to make this frame from the buttons pressed, waiting a few
+## frames after a single press in case the other button follows (diagonal).
+func _take_pending_move() -> int:
+	if not _pending_forward and not _pending_vertical:
+		return Rules.Move.NONE
+	var move := Rules.Move.NONE
+	if _pending_forward and _pending_vertical:
+		move = Rules.Move.DIAGONAL
+	elif _pending_frames <= 0:
+		move = Rules.Move.FORWARD if _pending_forward else Rules.Move.VERTICAL
+	else:
+		_pending_frames -= 1
+		return Rules.Move.NONE
+	_clear_pending()
+	return move
 
 
 # --- per frame -------------------------------------------------------------
@@ -209,16 +245,11 @@ func _update_pause_visuals() -> void:
 
 
 func _step() -> void:
-	if debug and _queued_jump == 0.0:
-		_queued_jump = debug.think()
-	var jump := _queued_jump
-	_queued_jump = 0.0
+	var move := debug.think() if debug and debug.bot else _take_pending_move()
 
 	# 1. teleport (ignored while on cooldown)
-	if jump > 0.0 and player.cooldown == 0:
-		_teleport(jump)
-		if state != State.PLAYING:
-			return
+	if move != Rules.Move.NONE and player.cooldown == 0:
+		_teleport(move)
 		if _hitstop > 0.0:
 			return   # killed: stay exactly on the enemy, so the markers line up
 
@@ -226,11 +257,8 @@ func _step() -> void:
 	player.x += Rules.RUN_SPEED / Rules.PHYSICS_FPS
 	distance = player.x - START_X
 
-	# 3. hazards and enemies
-	if Rules.is_hazard(level.tile_at(player.x)):
-		_die("spikes")
-		return
-	if not level.enemies_at(player.x, Rules.HIT_RADIUS).is_empty():
+	# 3. running into an enemy in your row
+	if not level.enemies_at(player.x, Rules.HIT_RADIUS, player.row).is_empty():
 		_die("hit")
 		return
 
@@ -246,50 +274,45 @@ func _step() -> void:
 	level.prune(cam.left() / Rules.TILE - 2.0)
 
 
-func _teleport(dist: float) -> void:
-	var from := player.x
-	var to := from + dist
-	var hit := level.enemies_at(to, Rules.KILL_RADIUS)
+func _teleport(move: int) -> void:
+	var from := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row))
+	var to_x := player.x + Rules.move_dx(move)
+	var to_row := (1 - player.row) if Rules.move_flips_row(move) else player.row
+	var hit := level.enemies_at(to_x, Rules.KILL_RADIUS, to_row)
 	if not hit.is_empty():
 		# Land exactly on the enemy you hit, so chains can't drift.
 		var target := hit[0]
 		for e in hit:
-			if absf(e.tile_x - to) < absf(target.tile_x - to):
+			if absf(e.tile_x - to_x) < absf(target.tile_x - to_x):
 				target = e
-		to = target.tile_x
-	player.x = to
-	distance = to - START_X
+		to_x = target.tile_x
+	player.x = to_x
+	player.row = to_row
+	distance = to_x - START_X
+	var to := Vector2(to_x * Rules.TILE, Rules.body_center_y(to_row))
 	fx.teleport_trail(from, to)
-
-	if hit.is_empty() and Rules.is_hazard(level.tile_at(to)):
-		_die("spikes")
-		return
 
 	if hit.is_empty():
 		player.cooldown = Rules.cooldown_frames(Rules.RUN_SPEED)
 		fx.landing_ring(to)
-		# Clearing a hazard keeps the chain alive (doesn't add to it).
-		if chain > 0 and level.hazard_between(from, to):
-			chain_timer = Rules.COMBO_WINDOW
 	else:
 		player.cooldown = 0
 		for e in hit:
 			_kill(e)
-		_pause_is_chain = _chain_target_in_reach(to)
+		_pause_is_chain = _chain_target_in_reach(to_x, to_row)
 		_hitstop = KILL_PAUSE if _pause_is_chain else KILL_HIT
 		_pause_elapsed = 0.0
 		if _pause_is_chain:
-			cam.punch(Vector2(hit[0].tile_x * Rules.TILE, Rules.GROUND_Y - Rules.TILE * 0.45))
+			cam.punch(to)
 
 
-## True if a live enemy is under the short or long marker at this spot,
-## i.e. one more press right now would chain another kill.
-func _chain_target_in_reach(x: float) -> bool:
-	for d in [Rules.SHORT, Rules.LONG]:
-		var target: float = x + d
-		if Rules.is_hazard(level.tile_at(target)):
-			continue
-		if not level.enemies_at(target, Rules.KILL_RADIUS).is_empty():
+## True if a live enemy is under any marker at this spot, i.e. one more
+## press right now would chain another kill.
+func _chain_target_in_reach(x: float, row: int) -> bool:
+	for move in [Rules.Move.FORWARD, Rules.Move.VERTICAL, Rules.Move.DIAGONAL]:
+		var tx: float = x + Rules.move_dx(move)
+		var trow: int = (1 - row) if Rules.move_flips_row(move) else row
+		if not level.enemies_at(tx, Rules.KILL_RADIUS, trow).is_empty():
 			return true
 	return false
 
@@ -304,7 +327,7 @@ func _kill(e: Enemy) -> void:
 	kill_score += points
 
 	var c := mini(chain, 6)
-	var pos := Vector2(e.tile_x * Rules.TILE, Rules.GROUND_Y - Rules.TILE * 0.45)
+	var pos := Vector2(e.tile_x * Rules.TILE, Rules.body_center_y(e.row))
 	cam.shake(0.06, 4.0 + 1.5 * c)   # only during the flash, so the freeze reads as still
 	fx.kill_burst(pos, chain)
 	if Hud.SHOW_SCORE_UI:
@@ -313,7 +336,7 @@ func _kill(e: Enemy) -> void:
 
 func _end_chain() -> void:
 	if Hud.SHOW_SCORE_UI and chain >= 3:
-		fx.text(Vector2(player.x * Rules.TILE, Rules.GROUND_Y - Rules.TILE * 2.2), "CHAIN x%d" % chain, 30, Color(1, 0.7, 0.4))
+		fx.text(Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row) - Rules.TILE * 1.7), "CHAIN x%d" % chain, 30, Color(1, 0.7, 0.4))
 	chain = 0
 	chain_timer = 0.0
 

@@ -1,8 +1,8 @@
 class_name Player
 extends Node2D
-## The runner. Gameplay state is just `x` (in tiles) and `cooldown` (in
-## frames). main.gd moves them; this script only draws, including the two
-## landing markers.
+## The runner. Gameplay state is `x` (in tiles), `row` (floor or ceiling)
+## and `cooldown` (in frames). main.gd moves them; this script only draws,
+## including the three landing markers (forward, across, diagonal).
 
 const BODY_COLOR := Color(0.93, 0.93, 0.96)
 const SCARF_COLOR := Color(0.9, 0.2, 0.22)
@@ -15,6 +15,7 @@ const BOB_SPEED := 18.0
 const BOB_HEIGHT := 3.0
 
 var x := 0.0
+var row := Rules.Row.FLOOR
 var cooldown := 0
 var running := false
 var alive := true
@@ -41,7 +42,9 @@ func _process(delta: float) -> void:
 	if running and alive and not markers_lit:
 		_run_time += delta
 	_lit_time = _lit_time + delta if markers_lit else 0.0
-	position = Vector2(x * Rules.TILE, Rules.GROUND_Y) + _death_offset
+	position = Vector2(x * Rules.TILE, Rules.surface_y(row)) + _death_offset
+	# On the ceiling the whole player (and its markers) is drawn upside down.
+	scale.y = -1.0 if row == Rules.Row.CEILING else 1.0
 	queue_redraw()
 
 
@@ -49,6 +52,9 @@ func _draw() -> void:
 	var t := Rules.TILE
 	var w := t * 0.5
 	var h := t * 1.1
+	# In local coordinates the other row is always ROW_GAP "up" (-y): when
+	# the player is flipped onto the ceiling, that maps down to the floor.
+	var gap := Rules.ROW_GAP * t
 
 	if alive:
 		var marker_color := MARKER_READY if cooldown == 0 else MARKER_COOLDOWN
@@ -57,10 +63,12 @@ func _draw() -> void:
 			marker_color = MARKER_LIT
 			marker_color.a *= 0.75 + 0.25 * cos(_lit_time * MARKER_LIT_PULSE_SPEED)
 			width = 3.0
-		for d in [Rules.SHORT, Rules.LONG]:
-			var mx: float = d * t
-			draw_rect(Rect2(mx - w / 2, -h, w, h), marker_color, false, width)
-			draw_line(Vector2(mx - w * 0.7, 3), Vector2(mx + w * 0.7, 3), marker_color, width + 1.0)
+		var fwd := Rules.FORWARD * t
+		# Forward: same row.
+		_draw_marker(Rect2(fwd - w / 2, -h, w, h), 3.0, marker_color, width)
+		# Vertical and diagonal: the other row (hanging from its surface).
+		_draw_marker(Rect2(-w / 2, -gap, w, h), -gap - 3.0, marker_color, width)
+		_draw_marker(Rect2(fwd - w / 2, -gap, w, h), -gap - 3.0, marker_color, width)
 
 	var bob := -absf(sin(_run_time * BOB_SPEED)) * BOB_HEIGHT
 	# Sword on the back, only while it's ready to throw.
@@ -69,3 +77,10 @@ func _draw() -> void:
 	draw_rect(Rect2(-w / 2, -h + bob, w, h), BODY_COLOR)
 	draw_rect(Rect2(-w / 2, -h * 0.82 + bob, w, 7), SCARF_COLOR)
 	draw_rect(Rect2(-w / 2 - 14, -h * 0.82 + bob + 2, 14, 4), SCARF_COLOR)
+
+
+func _draw_marker(body: Rect2, line_y: float, color: Color, width: float) -> void:
+	draw_rect(body, color, false, width)
+	var cx := body.get_center().x
+	var half := body.size.x * 0.7
+	draw_line(Vector2(cx - half, line_y), Vector2(cx + half, line_y), color, width + 1.0)
