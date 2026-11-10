@@ -21,7 +21,7 @@ const KILL_PAUSE := 0.7
 const KILL_PAUSE_MIN := 0.05
 # Pause visuals: inverted colours for a moment, then the world goes grey
 # until play resumes. Kill effects play briefly, then hang mid-air.
-const INVERT_FLASH := true      # set false to drop the invert (photosensitivity)
+const INVERT_FLASH := false     # inverted-colour flash on kills (off: too aggressive in long chains)
 const INVERT_TIME := 0.05
 const FX_FREEZE_AFTER := 0.08
 const RESUME_GUARD := 0.15       # ignore presses this soon after pausing
