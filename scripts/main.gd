@@ -303,6 +303,7 @@ func _update_pause_visuals() -> void:
 	freeze_effect.set_state(1.0 if flashing else 0.0, 1.0 if chain_pause and not flashing else 0.0)
 	fx.frozen = paused and _pause_elapsed >= FX_FREEZE_AFTER
 	player.markers_lit = chain_pause
+	player.frozen = paused
 
 
 func _step() -> void:
