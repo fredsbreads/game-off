@@ -11,7 +11,7 @@ chain kills; long-jump over spikes.
 ## Controls
 
 You run along a floor and an upside-down ceiling, teleporting between them.
-The original single-row short/long version is tagged `short-long-version`.
+The original single-row short/long version is kept on the `short-long-version` branch.
 
 
 | Action | Keyboard | Touch |
