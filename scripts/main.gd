@@ -55,9 +55,6 @@ var debug: DebugTools = null
 var _pending_forward := false
 var _pending_vertical := false
 var _pending_frames := 0
-# Each key / finger counts once per press (see _is_fresh_press).
-var _held_keys := {}
-var _active_touches := {}
 var _last_touch_msec := -100000
 var _hitstop := 0.0
 var _pause_elapsed := 0.0
@@ -100,8 +97,7 @@ func begin() -> void:
 # --- input ---------------------------------------------------------------
 
 func _unhandled_input(event: InputEvent) -> void:
-	# Only brand-new presses do anything: no key repeats, no second press of a
-	# key or finger that's already down, no fake click after a tap.
+	# Only real new presses do anything: no key repeats, no fake click after a tap.
 	if not _is_fresh_press(event):
 		return
 	if get_tree().paused:
@@ -143,14 +139,11 @@ func _set_paused(value: bool) -> void:
 	if value:
 		_paused_at_msec = Time.get_ticks_msec()
 		_clear_pending()
-		_forget_held_inputs()
 	hud.show_paused(value)
 
 
 ## Auto-pause when the window/tab/app loses focus (not during bot runs).
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_WM_WINDOW_FOCUS_OUT:
-		_forget_held_inputs()
 	if debug or state != State.PLAYING or get_tree().paused:
 		return
 	if what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_WM_WINDOW_FOCUS_OUT \
@@ -158,32 +151,17 @@ func _notification(what: int) -> void:
 		_set_paused(true)
 
 
-## True only for a brand-new press. Tracks which keys and fingers are down so
-## a press counts once until it's released, and drops the fake mouse click a
-## phone browser sends after a tap. Release events update the tracking and
-## return false.
+## True only for a real new press. Key repeats are dropped (`echo`), and so
+## is the fake mouse click a phone browser sends after a tap.
+## Deliberately NOT tracking which keys are held: keyboards and OSes don't
+## reliably report releasing one Shift while the other is held, and a key
+## stuck as "held" would swallow its next presses.
 func _is_fresh_press(event: InputEvent) -> bool:
 	if event is InputEventKey:
-		var key := event as InputEventKey
-		var code := key.physical_keycode if key.physical_keycode != 0 else key.keycode
-		var id := "%d/%d" % [code, key.location]
-		if not key.pressed:
-			_held_keys.erase(id)
-			return false
-		if key.echo or _held_keys.has(id):
-			return false
-		_held_keys[id] = true
-		return true
+		return event.pressed and not event.echo
 	if event is InputEventScreenTouch:
-		var touch := event as InputEventScreenTouch
 		_last_touch_msec = Time.get_ticks_msec()
-		if not touch.pressed:
-			_active_touches.erase(touch.index)
-			return false
-		if _active_touches.has(touch.index):
-			return false
-		_active_touches[touch.index] = true
-		return true
+		return event.pressed
 	if event is InputEventMouseButton:
 		if Time.get_ticks_msec() - _last_touch_msec < MOUSE_AFTER_TOUCH_IGNORE_MS:
 			return false
@@ -191,12 +169,6 @@ func _is_fresh_press(event: InputEvent) -> bool:
 	if event is InputEventAction:
 		return event.pressed
 	return false
-
-
-## If focus is lost mid-press, the release never arrives; start clean.
-func _forget_held_inputs() -> void:
-	_held_keys.clear()
-	_active_touches.clear()
 
 
 func _is_press(event: InputEvent) -> bool:
