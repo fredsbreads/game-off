@@ -31,7 +31,7 @@ run upside down.
 - Running into an enemy in your row kills you.
 - Teleporting passes through everything; only the landing spot matters.
 - Landing on an enemy kills it and snaps you exactly onto it.
-- No cooldown for now (`COOLDOWN_TILES` in `scripts/rules.gd`; shared by all teleports).
+- A tiny cooldown of 0.16 s (10 frames) between teleports, shared by all of them; a kill resets it. A press during the cooldown fires as soon as it ends (`COOLDOWN_SECONDS` in `scripts/rules.gd`).
 - Every kill gets a short hit freeze. If another enemy is under one of your
   markers, it becomes a 0.7 s "your move" pause (tap to skip).
 - Run speed is a constant 6 tiles/s.

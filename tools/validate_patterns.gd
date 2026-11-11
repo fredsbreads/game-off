@@ -23,7 +23,7 @@ func _init() -> void:
 				var length: float = enemies.back().x + Patterns.BREAK
 				var all_killed := (1 << enemies.size()) - 1
 				# Arrive in the worse case: the row the entry ISN'T in.
-				var start := [0.0, 1 - entry_row, Rules.cooldown_frames(Rules.RUN_SPEED)]
+				var start := [0.0, 1 - entry_row, Rules.cooldown_frames()]
 				var result := ChunkSolver.search(enemies, start, length, length, Rules.RUN_SPEED, 3000, all_killed)
 				if not result["ok"]:
 					problems.append("can't chain every enemy (entry on %s)" % ("floor" if entry_row == Rules.Row.FLOOR else "ceiling"))

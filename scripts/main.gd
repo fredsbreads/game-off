@@ -31,8 +31,6 @@ const DIAGONAL_WINDOW_FRAMES := 4
 # Phone browsers send a fake mouse click after a finger lifts; ignore mouse
 # clicks this soon after any touch so a tap never counts twice.
 const MOUSE_AFTER_TOUCH_IGNORE_MS := 1000
-# TEMPORARY: on-screen + Output-panel log of how fast you press (cooldown tuning).
-const PRESS_RATE_LOG := true
 const DEATH_ANIM_TIME := 0.7
 const RETRY_DELAY := 0.5
 const SAVE_PATH := "user://save.cfg"
@@ -58,7 +56,6 @@ var _pending_forward := false
 var _pending_vertical := false
 var _pending_frames := 0
 var _last_touch_msec := -100000
-var _press_log: PressRateLog = null
 # Which Shift keys are down, by location (see _shift_press_is_fresh).
 var _shift_held := {}
 var _hitstop := 0.0
@@ -75,9 +72,6 @@ func _ready() -> void:
 	for node in [level, fx, cam, freeze_effect, $EnemyLayer, $PlayerLayer]:
 		node.process_mode = Node.PROCESS_MODE_PAUSABLE
 	hud.process_mode = Node.PROCESS_MODE_ALWAYS
-	if PRESS_RATE_LOG:
-		_press_log = PressRateLog.new()
-		add_child(_press_log)
 	if not OS.get_cmdline_user_args().is_empty():
 		debug = DebugTools.new()
 		debug.main = self
@@ -122,8 +116,6 @@ func _unhandled_input(event: InputEvent) -> void:
 	var button := _button_from_event(event)
 	if button == Rules.Move.NONE:
 		return
-	if _press_log:
-		_press_log.record("forward" if button == Rules.Move.FORWARD else "vertical")
 	get_viewport().set_input_as_handled()
 	match state:
 		State.READY:
@@ -255,7 +247,9 @@ func _clear_pending() -> void:
 
 ## The move to make this frame from the buttons pressed, waiting a few
 ## frames after a single press in case the other button follows (diagonal).
-func _take_pending_move() -> int:
+## The diagonal window keeps counting down during the cooldown, so a press
+## that waited out the cooldown fires the moment it ends (can_fire).
+func _take_pending_move(can_fire: bool) -> int:
 	if not _pending_forward and not _pending_vertical:
 		return Rules.Move.NONE
 	var move := Rules.Move.NONE
@@ -265,6 +259,8 @@ func _take_pending_move() -> int:
 		move = Rules.Move.FORWARD if _pending_forward else Rules.Move.VERTICAL
 	else:
 		_pending_frames -= 1
+		return Rules.Move.NONE
+	if not can_fire:
 		return Rules.Move.NONE
 	_clear_pending()
 	return move
@@ -310,7 +306,13 @@ func _update_pause_visuals() -> void:
 
 
 func _step() -> void:
-	var move := debug.think() if debug and debug.bot else _take_pending_move()
+	# A press during the cooldown waits (stays pending) and fires as soon as
+	# the cooldown ends, so mashing is rate-limited, never swallowed.
+	var move := Rules.Move.NONE
+	if debug and debug.bot:
+		move = debug.think()
+	else:
+		move = _take_pending_move(player.cooldown == 0)
 
 	# 1. teleport (ignored while on cooldown)
 	if move != Rules.Move.NONE and player.cooldown == 0:
@@ -358,7 +360,7 @@ func _teleport(move: int) -> void:
 	fx.teleport_trail(from, to)
 
 	if hit.is_empty():
-		player.cooldown = Rules.cooldown_frames(Rules.RUN_SPEED)
+		player.cooldown = Rules.cooldown_frames()
 		fx.landing_ring(to)
 	else:
 		player.cooldown = 0

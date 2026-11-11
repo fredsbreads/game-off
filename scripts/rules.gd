@@ -20,10 +20,10 @@ enum Row { FLOOR, CEILING }
 const FORWARD := 6.0             # tiles
 enum Move { NONE, FORWARD, VERTICAL, DIAGONAL }
 
-# Distance (tiles) you run before you can teleport again, shared by every
-# teleport. 0 = no cooldown: teleport as often as you like.
-# A kill always resets it.
-const COOLDOWN_TILES := 0.0
+# Time before you can teleport again, shared by every teleport. Just enough
+# to stop absurdly fast spamming. A kill always resets it.
+# Counted in whole frames: 0.16 s rounds up to 10 frames (~0.167 s).
+const COOLDOWN_SECONDS := 0.16
 
 # Landing within this many tiles of an enemy's centre kills it.
 const KILL_RADIUS := 0.8
@@ -40,8 +40,8 @@ const KILL_POINTS := 100        # multiplied by the chain count
 enum Tile { GROUND, SPIKES }
 
 
-static func cooldown_frames(speed: float) -> int:
-	return ceili(COOLDOWN_TILES / speed * PHYSICS_FPS)
+static func cooldown_frames() -> int:
+	return ceili(COOLDOWN_SECONDS * PHYSICS_FPS)
 
 
 static func move_dx(move: int) -> float:

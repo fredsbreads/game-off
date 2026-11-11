@@ -98,7 +98,7 @@ static func step(enemies: Array[Vector2], state: Array, move: int, speed: float,
 				killed = true
 		if killed:
 			return [snap_to, row, 0, mask]   # land exactly on it; no running this frame
-		cooldown = Rules.cooldown_frames(speed)
+		cooldown = Rules.cooldown_frames()
 
 	x += speed / Rules.PHYSICS_FPS
 	for i in enemies.size():
