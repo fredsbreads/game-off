@@ -12,6 +12,9 @@ const SHEET := preload("res://assets/sprites/kunoichi.png")
 const FRAME := Vector2i(96, 96)
 # Where her feet are inside a 96x96 frame: this point sits on the floor.
 const FEET := Vector2(47, 88)
+# Drawn size: 1.5 = each art pixel is 1.5 game units (she's ~100 units tall).
+# Purely visual; the hitbox below is set by the rules, not the art.
+const SPRITE_SCALE := 1.5
 # [row on the sheet, frame count, frames per second, loop]
 const ANIMS := {
 	"idle": [0, 6, 8.0, true],
@@ -46,6 +49,7 @@ func _ready() -> void:
 	_sprite.sprite_frames = _build_frames()
 	_sprite.centered = false
 	_sprite.offset = -FEET
+	_sprite.scale = Vector2(SPRITE_SCALE, SPRITE_SCALE)
 	_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_sprite.play("idle")
 	add_child(_sprite)
