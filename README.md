@@ -10,7 +10,9 @@ chain kills; long-jump over spikes.
 
 ## Controls
 
-> **Branch `two-rows`:** experimental version with a floor and a ceiling row.
+You run along a floor and an upside-down ceiling, teleporting between them.
+The original single-row short/long version is tagged `short-long-version`.
+
 
 | Action | Keyboard | Touch |
 | --- | --- | --- |
