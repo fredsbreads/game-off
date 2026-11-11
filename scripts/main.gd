@@ -56,6 +56,8 @@ var _pending_forward := false
 var _pending_vertical := false
 var _pending_frames := 0
 var _last_touch_msec := -100000
+# Which Shift keys are down, by location (see _shift_press_is_fresh).
+var _shift_held := {}
 var _hitstop := 0.0
 var _pause_elapsed := 0.0
 var _pause_is_chain := false    # true = the longer "your move" pause
@@ -149,16 +151,21 @@ func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_WM_WINDOW_FOCUS_OUT \
 			or what == NOTIFICATION_APPLICATION_PAUSED:
 		_set_paused(true)
+		_shift_held.clear()
 
 
 ## True only for a real new press. Key repeats are dropped (`echo`), and so
-## is the fake mouse click a phone browser sends after a tap.
-## Deliberately NOT tracking which keys are held: keyboards and OSes don't
-## reliably report releasing one Shift while the other is held, and a key
-## stuck as "held" would swallow its next presses.
+## is the fake mouse click a phone browser sends after a tap. The Shift keys
+## get extra handling (see _shift_press_is_fresh).
 func _is_fresh_press(event: InputEvent) -> bool:
 	if event is InputEventKey:
-		return event.pressed and not event.echo
+		var key := event as InputEventKey
+		var code := key.physical_keycode if key.physical_keycode != 0 else key.keycode
+		if code == KEY_SHIFT:
+			return _shift_press_is_fresh(key)
+		if not key.shift_pressed:
+			_shift_held.clear()   # any key event with no Shift down: none is held
+		return key.pressed and not key.echo
 	if event is InputEventScreenTouch:
 		_last_touch_msec = Time.get_ticks_msec()
 		return event.pressed
@@ -169,6 +176,28 @@ func _is_fresh_press(event: InputEvent) -> bool:
 	if event is InputEventAction:
 		return event.pressed
 	return false
+
+
+## With both Shifts held, releasing one makes some systems report that Shift
+## as pressed AGAIN (and never report its release). So a Shift press only
+## counts if that Shift isn't already down. Because the release can go
+## missing, the held state is cleared whenever no Shift is down at all
+## (checked every frame in _physics_process, and on other key events).
+func _shift_press_is_fresh(key: InputEventKey) -> bool:
+	var side := key.location
+	if not key.pressed:
+		_shift_held.erase(side)
+		return false
+	if key.echo or _shift_held.has(side):
+		return false
+	_shift_held[side] = true
+	return true
+
+
+func _forget_shift_if_none_down() -> void:
+	if not _shift_held.is_empty() and not Input.is_key_pressed(KEY_SHIFT) \
+			and not Input.is_physical_key_pressed(KEY_SHIFT):
+		_shift_held.clear()
 
 
 func _is_press(event: InputEvent) -> bool:
@@ -236,6 +265,7 @@ func _take_pending_move() -> int:
 # --- per frame -------------------------------------------------------------
 
 func _physics_process(delta: float) -> void:
+	_forget_shift_if_none_down()
 	if get_tree().paused:
 		return
 	_state_time += delta
