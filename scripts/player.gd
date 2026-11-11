@@ -9,17 +9,20 @@ extends Node2D
 const SHOW_HITBOX := true
 
 const SHEET := preload("res://assets/sprites/kunoichi.png")
+# The run cycle is its own 6-frame strip (with the katana on her back).
+const RUN_SHEET := preload("res://assets/sprites/kunoichi_run.png")
 const FRAME := Vector2i(96, 96)
 # Where her feet are inside a 96x96 frame: this point sits on the floor.
 const FEET := Vector2(47, 88)
+const RUN_FEET := Vector2(47, 86)   # the run strip's feet sit 2 px higher
 # Drawn size: 1.5 = each art pixel is 1.5 game units (she's ~100 units tall).
 # Purely visual; the hitbox below is set by the rules, not the art.
 const SPRITE_SCALE := 1.5
-# [row on the sheet, frame count, frames per second, loop]
+# [sheet, row on the sheet, frame count, frames per second, loop, feet]
 const ANIMS := {
-	"idle": [0, 6, 8.0, true],
-	"run": [2, 6, 12.0, true],
-	"fall": [5, 3, 10.0, true],
+	"idle": [SHEET, 0, 6, 8.0, true, FEET],
+	"run": [RUN_SHEET, 0, 6, 12.0, true, RUN_FEET],
+	"fall": [SHEET, 5, 3, 10.0, true, FEET],
 }
 
 const MARKER_READY := Color(1, 1, 1, 0.32)
@@ -48,10 +51,9 @@ func _ready() -> void:
 	_sprite = AnimatedSprite2D.new()
 	_sprite.sprite_frames = _build_frames()
 	_sprite.centered = false
-	_sprite.offset = -FEET
 	_sprite.scale = Vector2(SPRITE_SCALE, SPRITE_SCALE)
 	_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_sprite.play("idle")
+	_play("idle")
 	add_child(_sprite)
 
 	# Drawn after (on top of) the sprite.
@@ -66,20 +68,27 @@ func _build_frames() -> SpriteFrames:
 	for anim in ANIMS:
 		var spec: Array = ANIMS[anim]
 		frames.add_animation(anim)
-		frames.set_animation_speed(anim, spec[2])
-		frames.set_animation_loop(anim, spec[3])
-		for i in int(spec[1]):
+		frames.set_animation_speed(anim, spec[3])
+		frames.set_animation_loop(anim, spec[4])
+		for i in int(spec[2]):
 			var tex := AtlasTexture.new()
-			tex.atlas = SHEET
-			tex.region = Rect2(Vector2(i * FRAME.x, int(spec[0]) * FRAME.y), Vector2(FRAME))
+			tex.atlas = spec[0]
+			tex.region = Rect2(Vector2(i * FRAME.x, int(spec[1]) * FRAME.y), Vector2(FRAME))
 			frames.add_frame(anim, tex)
 	return frames
+
+
+## Play an animation with its own foot anchor.
+func _play(anim: String) -> void:
+	var feet: Vector2 = ANIMS[anim][5]
+	_sprite.offset = -feet
+	_sprite.play(anim)
 
 
 func die(_kind: String) -> void:
 	alive = false
 	_death_velocity = Vector2(-220, -420)
-	_sprite.play("fall")
+	_play("fall")
 
 
 func animate_death(delta: float) -> void:
@@ -97,7 +106,7 @@ func _process(delta: float) -> void:
 	if alive:
 		var want := "run" if running else "idle"
 		if _sprite.animation != want:
-			_sprite.play(want)
+			_play(want)
 	_sprite.speed_scale = 0.0 if frozen else 1.0
 
 	queue_redraw()
