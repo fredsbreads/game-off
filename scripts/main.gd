@@ -31,6 +31,8 @@ const DIAGONAL_WINDOW_FRAMES := 4
 # Phone browsers send a fake mouse click after a finger lifts; ignore mouse
 # clicks this soon after any touch so a tap never counts twice.
 const MOUSE_AFTER_TOUCH_IGNORE_MS := 1000
+# TEMPORARY: on-screen + Output-panel log of how fast you press (cooldown tuning).
+const PRESS_RATE_LOG := true
 const DEATH_ANIM_TIME := 0.7
 const RETRY_DELAY := 0.5
 const SAVE_PATH := "user://save.cfg"
@@ -56,6 +58,7 @@ var _pending_forward := false
 var _pending_vertical := false
 var _pending_frames := 0
 var _last_touch_msec := -100000
+var _press_log: PressRateLog = null
 # Which Shift keys are down, by location (see _shift_press_is_fresh).
 var _shift_held := {}
 var _hitstop := 0.0
@@ -72,6 +75,9 @@ func _ready() -> void:
 	for node in [level, fx, cam, freeze_effect, $EnemyLayer, $PlayerLayer]:
 		node.process_mode = Node.PROCESS_MODE_PAUSABLE
 	hud.process_mode = Node.PROCESS_MODE_ALWAYS
+	if PRESS_RATE_LOG:
+		_press_log = PressRateLog.new()
+		add_child(_press_log)
 	if not OS.get_cmdline_user_args().is_empty():
 		debug = DebugTools.new()
 		debug.main = self
@@ -116,6 +122,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	var button := _button_from_event(event)
 	if button == Rules.Move.NONE:
 		return
+	if _press_log:
+		_press_log.record("forward" if button == Rules.Move.FORWARD else "vertical")
 	get_viewport().set_input_as_handled()
 	match state:
 		State.READY:
