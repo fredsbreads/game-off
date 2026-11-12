@@ -115,7 +115,7 @@ func set_stats(score: int, distance: float, chain: int, chain_fraction: float) -
 func show_start(best: int) -> void:
 	var lines := "left tap - shift\n"
 	lines += "right tap - forward\n"
-	lines += "double tap - shift + forward"
+	lines += "tap both - shift + forward"
 	if SHOW_SCORE_UI and best > 0:
 		lines += "\n\nBest: %d" % best
 	_message.text = lines
