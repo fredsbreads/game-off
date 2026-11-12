@@ -32,7 +32,7 @@ var _rotate_sprite: AnimatedSprite2D
 
 # Phones held sideways get this message instead of the game (in the
 # browser, upright play is the intended way; see export_presets.cfg).
-const PORTRAIT_MESSAGE := "Play on Portrait Mode.\nLock your Rotation.\n(Mobile browsers are weird ¯\\_(ツ)_/¯)"
+const PORTRAIT_MESSAGE := "Play in Portrait Mode.\nLock your Rotation.\n(Mobile browsers are weird ¯\\_(ツ)_/¯)"
 # The default font has no ツ; this 2 KB font supplies just that character.
 const SHRUG_FONT := preload("res://assets/fonts/NotoSansJP-shrug.ttf")
 var _flash: ColorRect
