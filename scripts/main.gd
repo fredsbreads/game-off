@@ -293,7 +293,7 @@ func _physics_process(delta: float) -> void:
 	var run_px := Rules.RUN_SPEED * Rules.TILE if moving else 0.0
 	cam.follow(player.x, run_px, delta)
 	level.set_view(cam.left(), cam.visible_world_size())
-	hud.set_stats(score(), distance, chain, chain_timer / Rules.COMBO_WINDOW)
+	hud.set_stats(score(), distance, kills, chain, chain_timer / Rules.COMBO_WINDOW)
 
 
 func _update_pause_visuals() -> void:

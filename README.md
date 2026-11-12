@@ -35,8 +35,8 @@ run upside down.
 - Every kill gets a short hit freeze. If another enemy is under one of your
   markers, it becomes a 0.7 s "your move" pause (tap to skip).
 - Run speed is a constant 6 tiles/s.
-- Score and chain are tracked but **not shown** for now; distance is shown.
-  Toggle with `SHOW_SCORE_UI` / `SHOW_DISTANCE_UI` at the top of `scripts/hud.gd`.
+- Score, chain and distance are tracked but **not shown** for now; kills are shown.
+  Toggle with `SHOW_KILLS_UI` / `SHOW_SCORE_UI` / `SHOW_DISTANCE_UI` at the top of `scripts/hud.gd`.
 
 ## Running it
 

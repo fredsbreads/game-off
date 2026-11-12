@@ -10,7 +10,9 @@ extends CanvasLayer
 ## Everything is always tracked internally; these only control what's shown.
 ## Distance: the metres counter, the distance signs on the ground, and the
 ## distance line on the game-over screen.
-const SHOW_DISTANCE_UI := true
+const SHOW_DISTANCE_UI := false
+## Kills: the kill counter (top-left) and the kills line on the game-over screen.
+const SHOW_KILLS_UI := true
 ## Score: score, kills, chain counter, point pop-ups and best score.
 const SHOW_SCORE_UI := false
 
@@ -19,6 +21,7 @@ const CHAIN_COLOR_HIGH := Color(1, 0.55, 0.3)
 
 var _score: Label
 var _distance: Label
+var _kills: Label
 var _chain: Label
 var _chain_bar_bg: ColorRect
 var _chain_bar: ColorRect
@@ -41,6 +44,7 @@ func _ready() -> void:
 
 	_score = _label(30, Vector2(20, 10))
 	_distance = _label(20, Vector2(22, 50))
+	_kills = _label(30, Vector2(20, 10))
 
 	_chain = _label(34, Vector2.ZERO)
 	_chain.size.x = 200
@@ -92,7 +96,9 @@ func is_portrait() -> bool:
 	return s.y > s.x * 1.05
 
 
-func set_stats(score: int, distance: float, chain: int, chain_fraction: float) -> void:
+func set_stats(score: int, distance: float, kills: int, chain: int, chain_fraction: float) -> void:
+	_kills.visible = SHOW_KILLS_UI and not SHOW_SCORE_UI
+	_kills.text = "%d kills" % kills if kills != 1 else "1 kill"
 	_score.visible = SHOW_SCORE_UI
 	_distance.visible = SHOW_DISTANCE_UI
 	# Move the distance up into the score's spot when the score is hidden.
@@ -126,11 +132,13 @@ func show_game_over(stats: Dictionary) -> void:
 	var lines := "GAME OVER\n\n"
 	if SHOW_DISTANCE_UI:
 		lines += "Distance  %d m\n" % int(stats["distance"])
+	if SHOW_KILLS_UI and not SHOW_SCORE_UI:
+		lines += "Kills  %d\n" % stats["kills"]
 	if SHOW_SCORE_UI:
 		lines += "Kills  %d      Best chain  x%d\n\n" % [stats["kills"], stats["best_chain"]]
 		lines += "Score  %d\n" % stats["score"]
 		lines += ("NEW BEST!\n" if stats["new_best"] else "Best  %d\n" % stats["best"])
-	if SHOW_DISTANCE_UI or SHOW_SCORE_UI:
+	if SHOW_DISTANCE_UI or SHOW_KILLS_UI or SHOW_SCORE_UI:
 		lines += "\n"
 	lines += "Press or tap to retry"
 	_message.text = lines
