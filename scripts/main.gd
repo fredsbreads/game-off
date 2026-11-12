@@ -103,7 +103,13 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not _is_fresh_press(event):
 		return
 	if get_tree().paused:
-		# Any key, click or tap resumes (it doesn't also teleport).
+		# The "Flip screen" button (upright phones) turns the game 180 degrees.
+		var tap: bool = (event is InputEventScreenTouch or event is InputEventMouseButton) and event.pressed
+		if tap and hud.flip_button_contains(_screen_pos(event)):
+			get_viewport().set_input_as_handled()
+			JavaScriptBridge.eval("window.redFlashSetFlip(!window.redFlashFlip)", true)
+			return
+		# Any other key, click or tap resumes (it doesn't also teleport).
 		if _is_press(event):
 			get_viewport().set_input_as_handled()
 			if Time.get_ticks_msec() - _paused_at_msec >= RESUME_GUARD * 1000.0:
@@ -141,7 +147,7 @@ func _set_paused(value: bool) -> void:
 	if value:
 		_paused_at_msec = Time.get_ticks_msec()
 		_clear_pending()
-	hud.show_paused(value)
+	hud.show_paused(value, _web_canvas_rotated())
 
 
 ## Auto-pause when the window/tab/app loses focus (not during bot runs).
@@ -250,7 +256,13 @@ func _screen_pos(event: InputEvent) -> Vector2:
 	var size := get_viewport().get_visible_rect().size
 	var fx := pos.x / size.x
 	var fy := pos.y / size.y
+	if _web_canvas_flipped():   # turned the other way (game left at the bottom)
+		return Vector2((1.0 - fy) * size.x, fx * size.y)
 	return Vector2(fy * size.x, (1.0 - fx) * size.y)
+
+
+func _web_canvas_flipped() -> bool:
+	return int(JavaScriptBridge.eval("window.redFlashFlip === true ? 1 : 0", true)) == 1
 
 
 func _web_canvas_rotated() -> bool:

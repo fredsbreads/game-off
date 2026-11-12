@@ -39,6 +39,8 @@ var _flash: ColorRect
 var _flash_tween: Tween
 var _pause_button: Control
 var _pause_dim: ColorRect
+var _flip_button: Control
+const FLIP_BUTTON_SIZE := Vector2(300, 64)
 var _message_before_pause := ""
 var _message_visible_before_pause := false
 
@@ -75,10 +77,18 @@ func _ready() -> void:
 	_pause_dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_pause_dim.visible = false
 
+	_flip_button = Control.new()
+	_flip_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_flip_button.size = FLIP_BUTTON_SIZE
+	_flip_button.visible = false
+	_flip_button.draw.connect(_draw_flip_button)
+
 	_message = _label(26, Vector2.ZERO)
 	_message.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_message.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_message.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+
+	add_child(_flip_button)   # above the pause message
 
 	_rotate = _rect(Color(0.05, 0.05, 0.07, 1))
 	_rotate.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -119,6 +129,7 @@ func _process(_delta: float) -> void:
 	_chain_bar_bg.position = Vector2(right - 200, 54)
 	_chain_bar.position = _chain_bar_bg.position
 	_pause_button.position = Vector2(right - PAUSE_BUTTON_SIZE - PAUSE_BUTTON_MARGIN, PAUSE_BUTTON_MARGIN)
+	_flip_button.position = Vector2((view.x - FLIP_BUTTON_SIZE.x) / 2.0, view.y * 0.5 + 90.0)
 
 
 ## True on a phone/tablet held sideways in the browser: play is upright there.
@@ -186,9 +197,11 @@ func pause_button_contains(pos: Vector2) -> bool:
 	return _pause_button.visible and _pause_button.get_rect().grow(12.0).has_point(pos)
 
 
-func show_paused(paused: bool) -> void:
+## can_flip: show the "Flip screen" button (upright phones only).
+func show_paused(paused: bool, can_flip: bool = false) -> void:
 	_pause_dim.visible = paused
 	_pause_button.visible = not paused
+	_flip_button.visible = paused and can_flip
 	if paused:
 		_message_before_pause = _message.text
 		_message_visible_before_pause = _message.visible
@@ -197,6 +210,21 @@ func show_paused(paused: bool) -> void:
 	else:
 		_message.text = _message_before_pause
 		_message.visible = _message_visible_before_pause
+
+
+func flip_button_contains(pos: Vector2) -> bool:
+	return _flip_button.visible and _flip_button.get_rect().grow(10.0).has_point(pos)
+
+
+func _draw_flip_button() -> void:
+	var s := FLIP_BUTTON_SIZE
+	_flip_button.draw_rect(Rect2(Vector2.ZERO, s), Color(1, 1, 1, 0.12))
+	_flip_button.draw_rect(Rect2(Vector2.ZERO, s), Color(1, 1, 1, 0.7), false, 2.0)
+	var font := ThemeDB.fallback_font
+	var text := "Flip screen"
+	var size := 26
+	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+	_flip_button.draw_string(font, Vector2((s.x - w) / 2.0, s.y / 2.0 + size * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color.WHITE)
 
 
 func _draw_pause_button() -> void:
