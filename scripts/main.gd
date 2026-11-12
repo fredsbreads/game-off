@@ -211,12 +211,16 @@ func _is_press(event: InputEvent) -> bool:
 func _is_pause_button_press(event: InputEvent) -> bool:
 	var touch: bool = event is InputEventScreenTouch and event.pressed
 	var click: bool = event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT
-	return (touch or click) and hud.pause_button_contains(event.position)
+	return (touch or click) and hud.pause_button_contains(_screen_pos(event))
 
 
 ## Must run inside an input event: browsers only allow fullscreen on a tap/press.
 ## iPhone Safari never allows it; there, "Add to Home Screen" gives fullscreen.
 func _request_fullscreen() -> void:
+	# Fullscreen would undo the page's 90-degree turn of the canvas
+	# (browsers draw a fullscreen element unrotated), so skip it then.
+	if _web_canvas_rotated():
+		return
 	if OS.has_feature("web") and DisplayServer.window_get_mode() != DisplayServer.WINDOW_MODE_FULLSCREEN:
 		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
 
@@ -225,14 +229,35 @@ func _request_fullscreen() -> void:
 ## Returns Rules.Move.FORWARD, Rules.Move.VERTICAL or Rules.Move.NONE.
 func _button_from_event(event: InputEvent) -> int:
 	if event is InputEventScreenTouch and event.pressed:
-		return _button_for_screen_x(event.position.x)
+		return _button_for_screen_x(_screen_pos(event).x)
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		return _button_for_screen_x(event.position.x)
+		return _button_for_screen_x(_screen_pos(event).x)
 	if event.is_action_pressed("tp_vertical"):
 		return Rules.Move.VERTICAL
 	if event.is_action_pressed("tp_forward"):
 		return Rules.Move.FORWARD
 	return Rules.Move.NONE
+
+
+## On phones held upright, the web page turns the game's canvas 90 degrees
+## so it shows as landscape (see html/head_include in export_presets.cfg).
+## Godot doesn't know it's turned, so tap positions arrive along the wrong
+## axes; this turns them back into game-screen positions.
+func _screen_pos(event: InputEvent) -> Vector2:
+	var pos: Vector2 = event.position
+	if not _web_canvas_rotated():
+		return pos
+	var size := get_viewport().get_visible_rect().size
+	var fx := pos.x / size.x
+	var fy := pos.y / size.y
+	return Vector2(fy * size.x, (1.0 - fx) * size.y)
+
+
+func _web_canvas_rotated() -> bool:
+	if not OS.has_feature("web"):
+		return false
+	# The browser bridge hands back JS booleans as 1 / 0, so ask for a number.
+	return int(JavaScriptBridge.eval("window.redFlashRotated === true ? 1 : 0", true)) == 1
 
 
 func _button_for_screen_x(screen_x: float) -> int:
