@@ -119,7 +119,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	get_viewport().set_input_as_handled()
 	match state:
 		State.READY:
-			if not hud.is_portrait():
+			if not hud.needs_portrait():
 				_request_fullscreen()
 				begin()
 		State.PLAYING:
@@ -301,7 +301,7 @@ func _physics_process(delta: float) -> void:
 	var moving := false
 	match state:
 		State.PLAYING:
-			if hud.is_portrait():
+			if hud.needs_portrait():
 				pass
 			elif _hitstop > 0.0:
 				_hitstop -= delta

@@ -27,6 +27,14 @@ var _chain_bar_bg: ColorRect
 var _chain_bar: ColorRect
 var _message: Label
 var _rotate: ColorRect
+var _rotate_label: Label
+var _rotate_sprite: AnimatedSprite2D
+
+# Phones held sideways get this message instead of the game (in the
+# browser, upright play is the intended way; see export_presets.cfg).
+const PORTRAIT_MESSAGE := "Play on Portrait Mode.\nLock your Rotation.\n(Mobile browsers are weird ¯\\_(ツ)_/¯)"
+# The default font has no ツ; this 2 KB font supplies just that character.
+const SHRUG_FONT := preload("res://assets/fonts/NotoSansJP-shrug.ttf")
 var _flash: ColorRect
 var _flash_tween: Tween
 var _pause_button: Control
@@ -74,26 +82,50 @@ func _ready() -> void:
 
 	_rotate = _rect(Color(0.05, 0.05, 0.07, 1))
 	_rotate.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	var rotate_label := _label(72, Vector2.ZERO)
-	rotate_label.reparent(_rotate)
-	rotate_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	rotate_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	rotate_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	rotate_label.text = "Rotate your device\nto landscape"
+	_rotate_label = _label(34, Vector2.ZERO)
+	_rotate_label.reparent(_rotate)
+	_rotate_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_rotate_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_rotate_label.text = PORTRAIT_MESSAGE
+	var font := FontVariation.new()
+	font.base_font = ThemeDB.fallback_font
+	font.fallbacks = [SHRUG_FONT]
+	_rotate_label.add_theme_font_override("font", font)
+	# Her falling animation beside the message.
+	_rotate_sprite = AnimatedSprite2D.new()
+	var frames := SpriteFrames.new()
+	frames.set_animation_speed("default", 10.0)
+	for i in 3:
+		var tex := AtlasTexture.new()
+		tex.atlas = Player.SHEET
+		tex.region = Rect2(i * 96, 5 * 96, 96, 96)
+		frames.add_frame("default", tex)
+	_rotate_sprite.sprite_frames = frames
+	_rotate_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_rotate_sprite.scale = Vector2(4, 4)
+	_rotate_sprite.play()
+	_rotate.add_child(_rotate_sprite)
 
 
 func _process(_delta: float) -> void:
-	_rotate.visible = is_portrait()
-	var right := get_viewport().get_visible_rect().size.x
+	_rotate.visible = needs_portrait()
+	var view := get_viewport().get_visible_rect().size
+	if _rotate.visible:
+		_rotate_sprite.position = Vector2(view.x * 0.2, view.y * 0.5)
+		_rotate_label.position = Vector2(view.x * 0.36, 0)
+		_rotate_label.size = Vector2(view.x * 0.6, view.y)
+	var right := view.x
 	_chain.position = Vector2(right - 220, 6)
 	_chain_bar_bg.position = Vector2(right - 200, 54)
 	_chain_bar.position = _chain_bar_bg.position
 	_pause_button.position = Vector2(right - PAUSE_BUTTON_SIZE - PAUSE_BUTTON_MARGIN, PAUSE_BUTTON_MARGIN)
 
 
-func is_portrait() -> bool:
-	var s := get_viewport().get_visible_rect().size
-	return s.y > s.x * 1.05
+## True on a phone/tablet held sideways in the browser: play is upright there.
+func needs_portrait() -> bool:
+	if not OS.has_feature("web"):
+		return false
+	return int(JavaScriptBridge.eval("window.redFlashNeedPortrait === true ? 1 : 0", true)) == 1
 
 
 func set_stats(score: int, distance: float, kills: int, chain: int, chain_fraction: float) -> void:
