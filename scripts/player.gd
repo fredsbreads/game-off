@@ -6,7 +6,7 @@ extends Node2D
 ## diagonal) and, while SHOW_HITBOX is on, her hitbox.
 
 # Show the hitbox outline over the sprite (for tuning; turn off for release).
-const SHOW_HITBOX := true
+const SHOW_HITBOX := false
 
 const SHEET := preload("res://assets/sprites/kunoichi.png")
 # The run cycle is its own 6-frame strip (with the katana on her back).
