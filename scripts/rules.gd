@@ -27,6 +27,10 @@ const COOLDOWN_SECONDS := 0.16
 
 # Landing within this many tiles of an enemy's centre kills it.
 const KILL_RADIUS := 0.8
+# The vertical teleport is more forgiving: it kills an enemy across from you
+# within this many tiles (aiming straight across is a timing call, not a
+# distance one, and a stacked pair otherwise leaves almost no window).
+const VERTICAL_KILL_RADIUS := 1.5
 # Running within this many tiles of a live enemy's centre kills you.
 const HIT_RADIUS := 0.55
 
@@ -42,6 +46,10 @@ enum Tile { GROUND, SPIKES }
 
 static func cooldown_frames() -> int:
 	return ceili(COOLDOWN_SECONDS * PHYSICS_FPS)
+
+
+static func kill_radius(move: int) -> float:
+	return VERTICAL_KILL_RADIUS if move == Move.VERTICAL else KILL_RADIUS
 
 
 static func move_dx(move: int) -> float:
