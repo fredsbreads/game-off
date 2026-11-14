@@ -27,10 +27,11 @@ const COOLDOWN_SECONDS := 0.16
 
 # Landing within this many tiles of an enemy's centre kills it.
 const KILL_RADIUS := 0.8
-# The vertical teleport is more forgiving: it kills an enemy across from you
-# within this many tiles (aiming straight across is a timing call, not a
-# distance one, and a stacked pair otherwise leaves almost no window).
-const VERTICAL_KILL_RADIUS := 1.5
+# The vertical teleport is more forgiving AHEAD of you only: it kills an
+# enemy across from you up to this many tiles ahead (aiming straight across
+# is a timing call, and a stacked pair otherwise leaves almost no window).
+# Behind you it uses the normal KILL_RADIUS.
+const VERTICAL_KILL_AHEAD := 1.5
 # Running within this many tiles of a live enemy's centre kills you.
 const HIT_RADIUS := 0.55
 
@@ -48,8 +49,18 @@ static func cooldown_frames() -> int:
 	return ceili(COOLDOWN_SECONDS * PHYSICS_FPS)
 
 
-static func kill_radius(move: int) -> float:
-	return VERTICAL_KILL_RADIUS if move == Move.VERTICAL else KILL_RADIUS
+## Kill zone for a move, as [tiles behind the landing spot, tiles ahead].
+static func kill_zone(move: int) -> Vector2:
+	if move == Move.VERTICAL:
+		return Vector2(KILL_RADIUS, VERTICAL_KILL_AHEAD)
+	return Vector2(KILL_RADIUS, KILL_RADIUS)
+
+
+## True if an enemy at enemy_x is killed by `move` landing at landing_x.
+static func in_kill_zone(move: int, enemy_x: float, landing_x: float) -> bool:
+	var zone := kill_zone(move)
+	var d := enemy_x - landing_x
+	return d > -zone.x and d < zone.y
 
 
 static func move_dx(move: int) -> float:

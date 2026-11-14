@@ -383,7 +383,7 @@ func _teleport(move: int) -> void:
 	var from := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row))
 	var to_x := player.x + Rules.move_dx(move)
 	var to_row := (1 - player.row) if Rules.move_flips_row(move) else player.row
-	var hit := level.enemies_at(to_x, Rules.kill_radius(move), to_row)
+	var hit := level.enemies_hit_by(move, to_x, to_row)
 	if not hit.is_empty():
 		# Land exactly on the enemy you hit, so chains can't drift.
 		var target := hit[0]
@@ -417,7 +417,7 @@ func _chain_target_in_reach(x: float, row: int) -> bool:
 	for move in [Rules.Move.FORWARD, Rules.Move.VERTICAL, Rules.Move.DIAGONAL]:
 		var tx: float = x + Rules.move_dx(move)
 		var trow: int = (1 - row) if Rules.move_flips_row(move) else row
-		if not level.enemies_at(tx, Rules.kill_radius(move), trow).is_empty():
+		if not level.enemies_hit_by(move, tx, trow).is_empty():
 			return true
 	return false
 

@@ -129,16 +129,17 @@ func _draw() -> void:
 		marker_color.a *= 0.75 + 0.25 * cos(_lit_time * MARKER_LIT_PULSE_SPEED)
 		width = 3.0
 	var fwd := Rules.FORWARD * t
-	# Each marker is as wide as that teleport's kill range: an enemy whose
-	# centre is inside it dies if you make that move now. The across marker
-	# (vertical) is wider because that teleport is more forgiving.
-	var k := Rules.KILL_RADIUS * t * 2.0
-	var kv := Rules.VERTICAL_KILL_RADIUS * t * 2.0
+	# Each marker covers that teleport's kill zone: an enemy whose centre is
+	# inside it dies if you make that move now. The across marker (vertical)
+	# reaches further ahead because that teleport is more forgiving forward.
+	var zf := Rules.kill_zone(Rules.Move.FORWARD) * t
+	var zv := Rules.kill_zone(Rules.Move.VERTICAL) * t
+	var zd := Rules.kill_zone(Rules.Move.DIAGONAL) * t
 	# Forward: same row.
-	_draw_marker(Rect2(fwd - k / 2, -h, k, h), 3.0, marker_color, width)
+	_draw_marker(Rect2(fwd - zf.x, -h, zf.x + zf.y, h), 3.0, marker_color, width)
 	# Vertical and diagonal: the other row (hanging from its surface).
-	_draw_marker(Rect2(-kv / 2, -gap, kv, h), -gap - 3.0, marker_color, width)
-	_draw_marker(Rect2(fwd - k / 2, -gap, k, h), -gap - 3.0, marker_color, width)
+	_draw_marker(Rect2(-zv.x, -gap, zv.x + zv.y, h), -gap - 3.0, marker_color, width)
+	_draw_marker(Rect2(fwd - zd.x, -gap, zd.x + zd.y, h), -gap - 3.0, marker_color, width)
 
 
 func _draw_marker(body: Rect2, line_y: float, color: Color, width: float) -> void:

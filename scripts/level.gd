@@ -103,6 +103,15 @@ func tile_at(x: float) -> int:
 	return tiles[i]
 
 
+## Live enemies in `row` that `move` landing at x would kill.
+func enemies_hit_by(move: int, x: float, row: int) -> Array[Enemy]:
+	var found: Array[Enemy] = []
+	for e in enemies:
+		if e.alive and e.row == row and Rules.in_kill_zone(move, e.tile_x, x):
+			found.append(e)
+	return found
+
+
 func enemies_at(x: float, radius: float, row: int) -> Array[Enemy]:
 	var found: Array[Enemy] = []
 	for e in enemies:

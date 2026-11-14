@@ -91,7 +91,7 @@ static func step(enemies: Array[Vector2], state: Array, move: int, speed: float,
 		for i in enemies.size():
 			var bit := 1 << i
 			var e := enemies[i]
-			if (mask & bit) == 0 and int(e.y) == row and absf(e.x - x) < Rules.kill_radius(move):
+			if (mask & bit) == 0 and int(e.y) == row and Rules.in_kill_zone(move, e.x, x):
 				if not killed or absf(e.x - x) < absf(snap_to - x):
 					snap_to = e.x
 				mask |= bit
@@ -116,7 +116,7 @@ static func _left_required_behind(enemies: Array[Vector2], state: Array, require
 	var mask: int = state[3]
 	for i in enemies.size():
 		var bit := 1 << i
-		if (required_kills & bit) != 0 and (mask & bit) == 0 and enemies[i].x < x - Rules.VERTICAL_KILL_RADIUS:
+		if (required_kills & bit) != 0 and (mask & bit) == 0 and enemies[i].x < x - Rules.KILL_RADIUS:
 			return true
 	return false
 
