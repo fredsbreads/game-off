@@ -29,6 +29,7 @@ var _plan: Array = []
 var _predicted: Array = []
 var _replan_in := 0
 var _next_report := 500.0
+var _forced: int = Rules.Move.NONE
 
 
 func _ready() -> void:
@@ -57,7 +58,7 @@ func _physics_process(_delta: float) -> void:
 		print("  ... %d m, kills %d, best chain %d" % [main.distance, main.kills, main.best_chain])
 		_next_report += 500.0
 	if soak_target > 0.0 and main.distance >= soak_target:
-		print("SOAK OK: %d m, kills %d, best chain %d, score %d" % [main.distance, main.kills, main.best_chain, main.score()])
+		print("SOAK OK: %d m, kills %d, best chain %d, level %d" % [main.distance, main.kills, main.best_chain, main.progression.level])
 		get_tree().quit(0)
 
 	if shots_dir != "" and _frame % shot_every == 0 and _shots_taken < shot_count:
@@ -78,6 +79,12 @@ func _save_shot(n: int) -> void:
 func think() -> int:
 	if not bot:
 		return Rules.Move.NONE
+	if _forced != Rules.Move.NONE:
+		var move := _forced
+		_forced = Rules.Move.NONE
+		_plan.clear()
+		_replan_in = 0
+		return move
 	# Never play out the tail of a plan: its last jump only has to reach the
 	# goal, not survive what comes after it.
 	if _plan.size() <= KEEP_TAIL_FRAMES or _replan_in <= 0:
@@ -122,6 +129,18 @@ func _replan() -> void:
 	if not result["ok"] and soak_target > 0.0:
 		print("  bot: no plan at x=%.2f row=%d (%s)" % [px, main.player.row, main.level.section_name_at(px)])
 	_replan_in = REPLAN_EVERY
+
+
+## main.gd: the bot chose a move during the "your move" freeze; it's made on
+## the next playing frame, before the plan (which is then rebuilt).
+func force_move(move: int) -> void:
+	_forced = move
+	_predicted.clear()
+
+
+func on_level_up(level: int) -> void:
+	if soak_target > 0.0:
+		print("  LEVEL %d at %d m (kills %d)" % [level, main.distance, main.kills])
 
 
 func on_death(kind: String) -> void:

@@ -46,9 +46,9 @@ var state := State.READY
 var distance := 0.0
 var kills := 0
 var kill_score := 0
-var chain := 0
-var chain_timer := 0.0
-var best_chain := 0
+var chain := 0                  # kills in the current chain
+var best_chain := 0             # longest chain this run
+var progression := Progression.new()
 var best_score := 0
 var debug: DebugTools = null
 
@@ -61,6 +61,10 @@ var _shift_held := {}
 var _hitstop := 0.0
 var _pause_elapsed := 0.0
 var _pause_is_chain := false    # true = the longer "your move" pause
+# Chain tracking (see Progression for the rules):
+var _chain_awaiting := false     # an enemy is under a marker: your move
+var _pressed_during_pause := false
+var _chain_candidates := {}      # instance id -> killed? (enemies seen under a marker)
 var _state_time := 0.0
 var _paused_at_msec := 0
 
@@ -136,6 +140,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			else:
 				_pending_vertical = true
 			# Skip the rest of the kill pause.
+			if _hitstop > 0.0:
+				_pressed_during_pause = true
 			_hitstop = minf(_hitstop, maxf(KILL_PAUSE_MIN - _pause_elapsed, 0.0))
 		State.OVER:
 			if _state_time >= RETRY_DELAY:
@@ -316,8 +322,12 @@ func _physics_process(delta: float) -> void:
 			if hud.needs_portrait():
 				pass
 			elif _hitstop > 0.0:
+				_bot_acts_in_pause()
 				_hitstop -= delta
 				_pause_elapsed += delta
+				if _hitstop <= 0.0 and _pause_is_chain and _chain_awaiting \
+						and not _pressed_during_pause and not _pending_forward and not _pending_vertical:
+					_end_chain("DROPPED")   # waited too long in the "your move" freeze
 			else:
 				_step()
 				moving = state == State.PLAYING
@@ -330,7 +340,10 @@ func _physics_process(delta: float) -> void:
 	var run_px := Rules.RUN_SPEED * Rules.TILE if moving else 0.0
 	cam.follow(player.x, run_px, delta)
 	level.set_view(cam.left(), cam.visible_world_size())
-	hud.set_stats(score(), distance, kills, chain, chain_timer / Rules.COMBO_WINDOW)
+	hud.set_stats(score(), distance, kills, chain, 0.0)
+	var to_screen := get_viewport_rect().size.x / (CameraRig.VIEW_TILES * Rules.TILE)
+	hud.set_progress(progression.level, progression.bar, progression.bar_size(), chain,
+		(Rules.CEILING_Y - cam.top()) * to_screen)
 
 
 func _update_pause_visuals() -> void:
@@ -370,10 +383,6 @@ func _step() -> void:
 	# 4. timers
 	if player.cooldown > 0:
 		player.cooldown -= 1
-	if chain > 0:
-		chain_timer -= 1.0 / Rules.PHYSICS_FPS
-		if chain_timer <= 0.0:
-			_end_chain()
 
 	level.ensure_generated(player.x)
 	level.prune(cam.left() / Rules.TILE - 2.0)
@@ -400,26 +409,59 @@ func _teleport(move: int) -> void:
 	if hit.is_empty():
 		player.cooldown = Rules.cooldown_frames()
 		fx.landing_ring(to)
+		if _chain_awaiting:
+			_end_chain("DROPPED")   # teleported into empty space while an enemy was in reach
 	else:
 		player.cooldown = 0
 		for e in hit:
 			_kill(e)
-		_pause_is_chain = _chain_target_in_reach(to_x, to_row)
+		var targets := _chain_targets(to_x, to_row)
+		_pause_is_chain = not targets.is_empty()
 		_hitstop = KILL_PAUSE if _pause_is_chain else KILL_HIT
 		_pause_elapsed = 0.0
 		if _pause_is_chain:
 			cam.punch(to)
+			_chain_awaiting = true
+			_pressed_during_pause = false
+			for t in targets:
+				var id := t.get_instance_id()
+				if not _chain_candidates.has(id):
+					_chain_candidates[id] = false
+		else:
+			# Nothing left to chain: the chain ends here, on a kill.
+			var skipped := false
+			for id in _chain_candidates:
+				if not _chain_candidates[id]:
+					skipped = true
+			_end_chain("SINGLE" if chain == 1 else ("CLEAN" if skipped else "PERFECT"))
 
 
-## True if a live enemy is under any marker at this spot, i.e. one more
-## press right now would chain another kill.
-func _chain_target_in_reach(x: float, row: int) -> bool:
+## Live enemies under any marker at this spot, i.e. what one more press
+## right now could chain onto.
+func _chain_targets(x: float, row: int) -> Array[Enemy]:
+	var found: Array[Enemy] = []
 	for move in [Rules.Move.FORWARD, Rules.Move.VERTICAL, Rules.Move.DIAGONAL]:
 		var tx: float = x + Rules.move_dx(move)
 		var trow: int = (1 - row) if Rules.move_flips_row(move) else row
+		for e in level.enemies_hit_by(move, tx, trow):
+			if not found.has(e):
+				found.append(e)
+	return found
+
+
+## The bot (debug only) can't press during the freeze through think(), so
+## here it chains onto whatever is under a marker, like a player would.
+func _bot_acts_in_pause() -> void:
+	if not (debug and debug.bot) or not _pause_is_chain or _pressed_during_pause:
+		return
+	for move in [Rules.Move.FORWARD, Rules.Move.VERTICAL, Rules.Move.DIAGONAL]:
+		var tx: float = player.x + Rules.move_dx(move)
+		var trow: int = (1 - player.row) if Rules.move_flips_row(move) else player.row
 		if not level.enemies_hit_by(move, tx, trow).is_empty():
-			return true
-	return false
+			debug.force_move(move)
+			_pressed_during_pause = true
+			_hitstop = minf(_hitstop, maxf(KILL_PAUSE_MIN - _pause_elapsed, 0.0))
+			return
 
 
 func _kill(e: Enemy) -> void:
@@ -427,7 +469,7 @@ func _kill(e: Enemy) -> void:
 	kills += 1
 	chain += 1
 	best_chain = maxi(best_chain, chain)
-	chain_timer = Rules.COMBO_WINDOW
+	_chain_candidates[e.get_instance_id()] = true
 	var points := Rules.KILL_POINTS * chain
 	kill_score += points
 
@@ -439,11 +481,32 @@ func _kill(e: Enemy) -> void:
 		fx.text(pos - Vector2(0, 60), "+%d" % points, 22 + 2 * c, Color(1, 0.95, 0.8))
 
 
-func _end_chain() -> void:
-	if Hud.SHOW_SCORE_UI and chain >= 3:
-		fx.text(Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row) - Rules.TILE * 1.7), "CHAIN x%d" % chain, 30, Color(1, 0.7, 0.4))
+const GRADE_COLORS := {
+	"PERFECT": Color(1.0, 0.85, 0.3), "CLEAN": Color(1, 1, 1),
+	"DROPPED": Color(0.65, 0.65, 0.7), "SINGLE": Color(1, 1, 1),
+}
+
+## A chain is over: add it to the progression bar (see Progression for the
+## grades), show how it went, and level up if earned.
+func _end_chain(grade: String) -> void:
+	if chain > 0:
+		var levelled := progression.add_chain(chain, grade)
+		if grade != "SINGLE":
+			var above := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row) - Rules.TILE * 1.4)
+			if player.row == Rules.Row.CEILING:
+				above.y += Rules.TILE * 2.8
+			fx.text(above, grade, 30, GRADE_COLORS[grade])
+		hud.pulse_progress()
+		if levelled:
+			level.level = progression.level
+			level.rebuild_ahead(cam.left() / Rules.TILE + CameraRig.VIEW_TILES + 1.0)
+			hud.show_level_up(progression.level)
+			if debug:
+				debug.on_level_up(progression.level)
 	chain = 0
-	chain_timer = 0.0
+	_chain_awaiting = false
+	_pressed_during_pause = false
+	_chain_candidates.clear()
 
 
 func _die(kind: String) -> void:
@@ -467,7 +530,7 @@ func _game_over() -> void:
 		best_score = final_score
 		_save_best(best_score)
 	hud.show_game_over({
-		"distance": distance, "kills": kills, "best_chain": best_chain,
+		"distance": distance, "kills": kills, "best_chain": best_chain, "level": progression.level,
 		"score": final_score, "best": best_score, "new_best": new_best,
 	})
 

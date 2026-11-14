@@ -39,7 +39,6 @@ const HIT_RADIUS := 0.55
 const RUN_SPEED := 6.0
 
 # Scoring.
-const COMBO_WINDOW := 1.5       # seconds without a kill before the chain breaks
 const KILL_POINTS := 100        # multiplied by the chain count
 
 enum Tile { GROUND, SPIKES }

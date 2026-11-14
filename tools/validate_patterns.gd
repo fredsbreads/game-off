@@ -1,54 +1,61 @@
 extends SceneTree
-## Checks every pattern in scripts/patterns.gd:
-##   - the step notation parses
-##   - EVERY enemy can be killed (the whole pattern chains), arriving in
-##     either row with BREAK tiles of run-up
+## Checks the enemy chains:
+##   - every hand-made pattern in scripts/patterns.gd parses and EVERY enemy
+##     can be killed (the whole pattern chains), arriving from either row
+##   - no two patterns share a layout (mirror images count as the same)
+##   - generated chains for levels 4 and up are chainable (a sample per level)
+##   - the bar size per level
 ##
 ## Run from the project folder:
 ##   godot --headless --path . -s tools/validate_patterns.gd
 
+const GENERATED_LEVELS := 10
+const SAMPLES_PER_LEVEL := 15
+
 func _init() -> void:
 	var failures := 0
+	var seen := {}
 	for p in Patterns.LIST:
 		var name: String = p["name"]
 		var parsed := Patterns.parse(p["steps"])
 		var problems: Array[String] = parsed["errors"]
+		if problems.is_empty() and not Patterns.is_chainable(parsed["enemies"]):
+			problems.append("can't chain every enemy")
 		if problems.is_empty():
-			for entry_row in [Rules.Row.FLOOR, Rules.Row.CEILING]:
-				var enemies: Array[Vector2] = []
-				for e in parsed["enemies"]:
-					var rel: Vector2 = e
-					var row: int = entry_row if int(rel.y) == 0 else 1 - entry_row
-					enemies.append(Vector2(Patterns.BREAK + rel.x, row))
-				var length: float = enemies.back().x + Patterns.BREAK
-				var all_killed := (1 << enemies.size()) - 1
-				# Arrive in the worse case: the row the entry ISN'T in.
-				var start := [0.0, 1 - entry_row, Rules.cooldown_frames()]
-				var result := ChunkSolver.search(enemies, start, length, length, Rules.RUN_SPEED, 3000, all_killed)
-				if not result["ok"]:
-					problems.append("can't chain every enemy (entry on %s)" % ("floor" if entry_row == Rules.Row.FLOOR else "ceiling"))
+			var key := _layout_key(parsed["enemies"])
+			if seen.has(key):
+				problems.append("same layout as %s (%s)" % [seen[key]["name"], seen[key]["steps"]])
+			else:
+				seen[key] = p
 		if problems.is_empty():
-			print("  ok    d%d  %-24s %s" % [p["difficulty"], name, p["steps"]])
+			print("  ok    L%d  %-24s %s" % [p["level"], name, p["steps"]])
 		else:
 			failures += 1
-			print("  FAIL  d%d  %-24s %s: %s" % [p["difficulty"], name, p["steps"], ", ".join(problems)])
-	# Different step strings can produce the same layout (e.g. "D V F" and
-	# "F V D"). Mirror images count as the same too: every pattern already
-	# appears mirrored when entered from the other row.
-	var seen := {}
-	var dupes := 0
-	for p in Patterns.LIST:
-		var parsed := Patterns.parse(p["steps"])
-		if not parsed["errors"].is_empty():
-			continue
-		var key := _layout_key(parsed["enemies"])
-		if seen.has(key):
-			dupes += 1
-			print("  DUPE  %s (%s) has the same layout as %s (%s)" % [p["name"], p["steps"], seen[key]["name"], seen[key]["steps"]])
+			print("  FAIL  L%d  %-24s %s: %s" % [p["level"], name, p["steps"], ", ".join(problems)])
+
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 12345
+	for level in range(Patterns.FIRST_GENERATED_LEVEL, GENERATED_LEVELS + 1):
+		var r := Patterns.chain_length_range(level)
+		var bad := 0
+		for i in SAMPLES_PER_LEVEL:
+			var chain := Patterns.generate(level, rng)
+			var n: int = chain["enemies"].size()
+			if n < r.x or n > r.y or not Patterns.is_chainable(chain["enemies"]):
+				bad += 1
+				print("  FAIL  L%d  generated %s" % [level, chain["steps"]])
+		if bad > 0:
+			failures += 1
 		else:
-			seen[key] = p
-	print("%d patterns, %d failed, %d duplicate layouts" % [Patterns.LIST.size(), failures, dupes])
-	failures += dupes
+			print("  ok    L%d  %d generated chains of %d-%d enemies" % [level, SAMPLES_PER_LEVEL, r.x, r.y])
+
+	var sizes: PackedStringArray = []
+	var prog := Progression.new()
+	for level in range(1, 11):
+		prog.level = level
+		sizes.append("L%d %.1f" % [level, prog.bar_size()])
+	print("  bar sizes: ", ", ".join(sizes))
+	print("%d patterns, %d problems" % [Patterns.LIST.size(), failures])
 	quit(1 if failures > 0 else 0)
 
 

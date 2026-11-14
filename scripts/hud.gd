@@ -11,8 +11,8 @@ extends CanvasLayer
 ## Distance: the metres counter, the distance signs on the ground, and the
 ## distance line on the game-over screen.
 const SHOW_DISTANCE_UI := false
-## Kills: the kill counter (top-left) and the kills line on the game-over screen.
-const SHOW_KILLS_UI := true
+## Kills: the kill counter (top-left). The game-over screen always shows kills.
+const SHOW_KILLS_UI := false
 ## Score: score, kills, chain counter, point pop-ups and best score.
 const SHOW_SCORE_UI := false
 
@@ -44,6 +44,21 @@ const FLIP_BUTTON_SIZE := Vector2(300, 64)
 var _message_before_pause := ""
 var _message_visible_before_pause := false
 
+# Progression bar, centred above the ceiling row.
+const PROGRESS_SIZE := Vector2(320, 12)
+const PROGRESS_FILL := Color(1, 1, 1, 0.9)
+const PROGRESS_PENDING := Color(0.6, 0.6, 0.6, 0.75)   # this chain's kills, not yet counted
+const PROGRESS_EMPTY := Color(1, 1, 1, 0.12)
+var _progress: Control
+var _progress_level: Label
+var _p_bar := 0.0
+var _p_size := 1.0
+var _p_pending := 0.0
+var _p_pulse := 0.0
+var _p_tween: Tween
+var _banner: Label
+var _banner_tween: Tween
+
 const PAUSE_BUTTON_SIZE := 64.0
 const PAUSE_BUTTON_MARGIN := 14.0
 
@@ -63,6 +78,22 @@ func _ready() -> void:
 	_chain_bar_bg.size = Vector2(180, 6)
 	_chain_bar = _rect(Color(1, 1, 1, 0.9))
 	_chain_bar.size = _chain_bar_bg.size
+
+	_progress = Control.new()
+	_progress.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_progress.size = PROGRESS_SIZE
+	_progress.visible = false
+	_progress.draw.connect(_draw_progress)
+	add_child(_progress)
+	_progress_level = _label(20, Vector2.ZERO)
+	_progress_level.reparent(_progress)
+	_progress_level.add_theme_color_override("font_color", Color(1, 1, 1, 0.75))
+
+	_banner = _label(64, Vector2.ZERO)
+	_banner.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_banner.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_banner.modulate.a = 0.0
 
 	# Pause button, top-right. Drawn only; main.gd hit-tests taps against it
 	# (touch doesn't emulate mouse in this project, so Buttons won't see taps).
@@ -161,6 +192,61 @@ func set_stats(score: int, distance: float, kills: int, chain: int, chain_fracti
 		_chain_bar.size.x = 180.0 * clampf(chain_fraction, 0.0, 1.0)
 
 
+## The progression bar: `bar` of `bar_size` filled, plus this chain's
+## `pending` kills shown in grey after it. ceiling_y = the ceiling's screen y;
+## the bar sits in the middle of the band above it.
+func set_progress(level: int, bar: float, bar_size: float, pending: int, ceiling_y: float) -> void:
+	_progress.visible = true
+	_p_bar = bar
+	_p_size = maxf(bar_size, 0.001)
+	_p_pending = pending
+	var view := get_viewport().get_visible_rect().size
+	_progress.position = Vector2((view.x - PROGRESS_SIZE.x) / 2.0, maxf(ceiling_y * 0.5, 30.0) - PROGRESS_SIZE.y / 2.0)
+	_progress_level.text = "LV %d" % level
+	_progress_level.position = Vector2(-_progress_level.get_minimum_size().x - 12.0, (PROGRESS_SIZE.y - _progress_level.get_minimum_size().y) / 2.0)
+	_progress.queue_redraw()
+
+
+func hide_progress() -> void:
+	_progress.visible = false
+
+
+## A short flash on the bar when a chain is added to it.
+func pulse_progress() -> void:
+	if _p_tween:
+		_p_tween.kill()
+	_p_pulse = 1.0
+	_p_tween = create_tween()
+	_p_tween.tween_method(func(v: float) -> void:
+		_p_pulse = v
+		_progress.queue_redraw(), 1.0, 0.0, 0.35)
+
+
+func show_level_up(level: int) -> void:
+	_banner.text = "LEVEL %d" % level
+	if _banner_tween:
+		_banner_tween.kill()
+	_banner.modulate.a = 1.0
+	_banner.scale = Vector2.ONE
+	_banner_tween = create_tween()
+	_banner_tween.tween_interval(0.6)
+	_banner_tween.tween_property(_banner, "modulate:a", 0.0, 0.5)
+
+
+func _draw_progress() -> void:
+	var s := PROGRESS_SIZE
+	var full := Rect2(Vector2.ZERO, s)
+	_progress.draw_rect(full, PROGRESS_EMPTY)
+	var filled := s.x * clampf(_p_bar / _p_size, 0.0, 1.0)
+	var pending := minf(s.x * _p_pending / _p_size, s.x - filled)
+	if pending > 0.0:
+		_progress.draw_rect(Rect2(filled, 0, pending, s.y), PROGRESS_PENDING)
+	if filled > 0.0:
+		_progress.draw_rect(Rect2(0, 0, filled, s.y), PROGRESS_FILL)
+	var outline := Color(1, 1, 1, 0.35 + 0.65 * _p_pulse)
+	_progress.draw_rect(full.grow(2.0 + 3.0 * _p_pulse), outline, false, 2.0)
+
+
 func show_start(best: int) -> void:
 	var lines := "left tap - shift\n"
 	lines += "right tap - forward\n"
@@ -175,14 +261,15 @@ func show_game_over(stats: Dictionary) -> void:
 	var lines := "GAME OVER\n\n"
 	if SHOW_DISTANCE_UI:
 		lines += "Distance  %d m\n" % int(stats["distance"])
-	if SHOW_KILLS_UI and not SHOW_SCORE_UI:
+	if not SHOW_SCORE_UI:
 		lines += "Kills  %d\n" % stats["kills"]
+		lines += "Level reached  %d\n" % stats["level"]
+		lines += "Longest combo  %d\n" % stats["best_chain"]
 	if SHOW_SCORE_UI:
 		lines += "Kills  %d      Best chain  x%d\n\n" % [stats["kills"], stats["best_chain"]]
 		lines += "Score  %d\n" % stats["score"]
 		lines += ("NEW BEST!\n" if stats["new_best"] else "Best  %d\n" % stats["best"])
-	if SHOW_DISTANCE_UI or SHOW_KILLS_UI or SHOW_SCORE_UI:
-		lines += "\n"
+	lines += "\n"
 	lines += "Press or tap to retry"
 	_message.text = lines
 	_message.visible = true

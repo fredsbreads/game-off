@@ -1,16 +1,15 @@
 class_name Level
 extends Node2D
 ## Owns the endless floor and ceiling and the enemies on them.
-## Builds it ahead of the player by laying random enemy patterns end to end
-## (see patterns.gd), and draws the visible part as grey boxes.
+## Builds it ahead of the player by laying enemy chains end to end: the
+## hand-made patterns for levels 1-3, generated chains from level 4 (see
+## patterns.gd). Draws the visible part as grey boxes.
 ##
 ## The ground is still a strip of tiles so hazards (e.g. spikes) can come
 ## back later as pattern steps; for now it's all plain ground.
 
 const AHEAD_TILES := 48            # always have this much level built ahead
 const RUNWAY_TILES := 16.0         # the first enemy appears this far in
-const TILES_PER_DIFFICULTY := 200.0
-const BREATHER_CHANCE := 0.15      # sometimes drop in an easy pattern
 const SIGN_EVERY := 50             # distance marker every N tiles
 
 const GROUND_A := Color(0.36, 0.38, 0.44)
@@ -25,12 +24,14 @@ var enemies: Array[Enemy] = []
 ## Enemies are added here (a layer above the grey freeze effect, so they
 ## keep their colour during the kill pause). Set by main.gd.
 var enemy_parent: Node = self
-var section_log: Array = []        # [start_x, name], for debugging deaths
+## The level whose chains are being laid out (set by main.gd).
+var level := 1
+## Each chain laid so far: {start, row, name, enemies}. Used to rebuild what's
+## ahead on a level-up, and to name the chain the player died in.
+var sections: Array = []
 
-var _patterns: Array = []
-var _cursor := RUNWAY_TILES        # where the next pattern's first enemy goes
+var _cursor := RUNWAY_TILES        # where the next chain's first enemy goes
 var _cursor_row := Rules.Row.FLOOR # ...and its row (the row the last one ended in)
-var _last_name := ""
 var _rng := RandomNumberGenerator.new()
 var _view_left := 0.0
 var _view_size := Vector2(1024, 576)
@@ -38,17 +39,6 @@ var _view_size := Vector2(1024, 576)
 
 func _ready() -> void:
 	_rng.randomize()
-	for p in Patterns.LIST:
-		if not Patterns.INCLUDE_BEATS and Patterns.has_beats(p["steps"]):
-			continue
-		var parsed := Patterns.parse(p["steps"])
-		if not parsed["errors"].is_empty():
-			push_error("pattern %s: %s" % [p["name"], parsed["errors"]])
-			continue
-		parsed["name"] = p["name"]
-		parsed["difficulty"] = p["difficulty"]
-		_patterns.append(parsed)
-	section_log.append([0.0, "runway"])
 
 
 func set_seed(value: int) -> void:
@@ -57,30 +47,34 @@ func set_seed(value: int) -> void:
 
 func ensure_generated(player_x: float) -> void:
 	while _cursor < player_x + AHEAD_TILES:
-		_append_pattern(_pick_pattern(_cursor - start_x))
+		_append_pattern(_pick_pattern())
 	while tiles.size() < _cursor + Patterns.BREAK:
 		tiles.append(Rules.Tile.GROUND)
 
 
-func _pick_pattern(at_distance: float) -> Dictionary:
-	var top := clampi(1 + int(at_distance / TILES_PER_DIFFICULTY), 1, 5)
-	var low := maxi(1, top - 2)
-	if _rng.randf() < BREATHER_CHANCE:
-		top = mini(top, 2)
-		low = 1
-	var candidates: Array = []
-	for p in _patterns:
-		var d: int = p["difficulty"]
-		if d >= low and d <= top and p["name"] != _last_name:
-			candidates.append(p)
-	if candidates.is_empty():
-		candidates = _patterns
-	return candidates[_rng.randi_range(0, candidates.size() - 1)]
+## Levels 1-3: a weighted pick from that level's hand-made pool.
+## Level 4+: a freshly generated chain.
+func _pick_pattern() -> Dictionary:
+	if level >= Patterns.FIRST_GENERATED_LEVEL:
+		return Patterns.generate(level, _rng)
+	var pool := Patterns.pool_for_level(level)
+	var total := 0.0
+	for entry in pool:
+		total += float(entry["weight"])
+	var roll := _rng.randf() * total
+	var chosen: Dictionary = pool.back()["pattern"]
+	for entry in pool:
+		roll -= float(entry["weight"])
+		if roll <= 0.0:
+			chosen = entry["pattern"]
+			break
+	var parsed := Patterns.parse(chosen["steps"])
+	parsed["name"] = chosen["name"]
+	return parsed
 
 
 func _append_pattern(pattern: Dictionary) -> void:
-	_last_name = pattern["name"]
-	section_log.append([_cursor, pattern["name"]])
+	var section := {"start": _cursor, "row": _cursor_row, "name": pattern["name"], "enemies": []}
 	var shape: Array = pattern["enemies"]
 	var last_row := _cursor_row
 	for rel in shape:
@@ -90,10 +84,27 @@ func _append_pattern(pattern: Dictionary) -> void:
 		enemy.row = _cursor_row if int(e.y) == 0 else 1 - _cursor_row
 		enemy_parent.add_child(enemy)
 		enemies.append(enemy)
+		section["enemies"].append(enemy)
 		last_row = enemy.row
+	sections.append(section)
 	var last: Vector2 = shape.back()
 	_cursor += last.x + Patterns.BREAK
 	_cursor_row = last_row
+
+
+## On a level-up: throw away every chain that starts beyond `from_x` (not on
+## screen yet) and lay new ones at the current level. Chains already on
+## screen stay as they are.
+func rebuild_ahead(from_x: float) -> void:
+	while not sections.is_empty() and float(sections.back()["start"]) > from_x:
+		var section: Dictionary = sections.pop_back()
+		for enemy in section["enemies"]:
+			var e: Enemy = enemy
+			if is_instance_valid(e):
+				enemies.erase(e)
+				e.queue_free()
+		_cursor = section["start"]
+		_cursor_row = section["row"]
 
 
 func tile_at(x: float) -> int:
@@ -128,19 +139,22 @@ func hazard_between(from_x: float, to_x: float) -> bool:
 
 
 func section_name_at(x: float) -> String:
-	for i in range(section_log.size() - 1, -1, -1):
-		if section_log[i][0] <= x:
-			return "%s (starts at %.1f)" % [section_log[i][1], section_log[i][0]]
-	return "?"
+	for i in range(sections.size() - 1, -1, -1):
+		if float(sections[i]["start"]) <= x:
+			return "%s (starts at %.1f)" % [sections[i]["name"], sections[i]["start"]]
+	return "runway"
 
 
-## Frees enemies that are dead or scrolled off the left edge.
+## Frees enemies that are dead or scrolled off the left edge, and forgets
+## chains that are well behind.
 func prune(min_x: float) -> void:
 	for i in range(enemies.size() - 1, -1, -1):
 		var e := enemies[i]
 		if not e.alive or e.tile_x < min_x:
 			e.queue_free()
 			enemies.remove_at(i)
+	while sections.size() > 1 and float(sections[1]["start"]) < min_x - 30.0:
+		sections.pop_front()
 
 
 ## left_px and size are the visible area in world pixels.

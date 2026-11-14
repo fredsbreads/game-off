@@ -35,8 +35,31 @@ run upside down.
 - Every kill gets a short hit freeze. If another enemy is under one of your
   markers, it becomes a 0.7 s "your move" pause (tap to skip).
 - Run speed is a constant 6 tiles/s.
-- Score, chain and distance are tracked but **not shown** for now; kills are shown.
+- Score, distance and the kill counter are tracked but **not shown** for now
+  (kills, level reached and longest combo are on the game-over screen).
   Toggle with `SHOW_KILLS_UI` / `SHOW_SCORE_UI` / `SHOW_DISTANCE_UI` at the top of `scripts/hud.gd`.
+
+## Progression
+
+A bar above the ceiling row fills as you chain kills; filling it levels you up.
+
+- Each kill in a chain adds 1 to a grey, temporary part of the bar. When the
+  chain ends it's added for real, multiplied by how the chain ended:
+  - **PERFECT** x1.5: ended on a kill, nothing left to chain, no enemy skipped
+  - **CLEAN** x1: the same, but an enemy was skipped (it was under a marker
+    during the chain and is still alive)
+  - **DROPPED** x0.5: the "your move" pause ran out, or you teleported into
+    empty space while an enemy was under a marker
+  - a one-kill chain counts x1 but never levels you up
+- No overflow. You level up only when a PERFECT or CLEAN chain ends with the
+  bar full.
+- Bar size = 3 x the average chain length at that level (so two perfect
+  chains fill it). See `scripts/progression.gd`.
+- Levels 1-3 use the hand-made patterns; each level adds new ones, which show
+  up twice as often as the previous level's (older ones drop out). From level
+  4, chains are generated: x-2 to x+2 enemies long at level x (at least 3),
+  each step F, V or D with equal odds. On a level-up, the patterns not yet on
+  screen are rebuilt for the new level.
 
 ## Running it
 
@@ -49,15 +72,16 @@ It targets a web export so it can be played in desktop and mobile browsers.
 scenes/main.tscn        the only scene: Level, Player, FX, Camera, HUD
 scripts/
   rules.gd              every gameplay number (distances, cooldown, speeds, scoring)
-  patterns.gd           enemy patterns in step notation (the level design)
+  patterns.gd           enemy patterns in step notation, generated chains, what spawns per level
+  progression.gd        the progression bar and level
   chunk_solver.gd       brute-force "can this be played?" search (validator + bot)
-  main.gd               game flow, input, per-frame rules, scoring
-  level.gd              endless level built from random patterns, grey-box drawing
+  main.gd               game flow, input, per-frame rules, chains and grades
+  level.gd              endless level built from the level's patterns, grey-box drawing
   player.gd             player + landing markers (drawing only; main.gd moves it)
   enemy.gd              grey-box enemy
   camera_rig.gd         follow with fast catch-up after teleports, screen shake
   fx.gd                 trails, rings, slashes, particles, floating text
-  hud.gd                score, chain, messages, rotate-device overlay, flash
+  hud.gd                progression bar, level-up banner, messages, rotate-device overlay, flash
   debug_tools.gd        bot / soak test / screenshots (only with command-line args)
 tools/validate_patterns.gd
 ```
@@ -73,14 +97,15 @@ next enemy relative to the previous one:
 | `F` | same row, 6 ahead | forward right away |
 | `V` | other row, straight across | vertical right away |
 | `D` | other row, 6 ahead | diagonal right away |
-| `F+` `V+` `D+` | same, 3 tiles further | run a beat, then that move (switched off for now: `INCLUDE_BEATS`) |
+| `F+` `V+` `D+` | same, 3 tiles further | run a beat, then that move (not spawned for now: `MAYBE_BEATS`) |
 | `\|` | same row, 10 ahead | chain ends on purpose |
 
-Example: `F V D+ F`. Patterns have a difficulty from 1 to 5; the further you
-get, the harder the patterns it picks, with an occasional easy one.
+Example: `F V D F`. Each hand-made pattern has the level it's introduced at
+(1-3); later levels are generated (see Progression).
 
 After editing patterns, run the validator. It **proves every enemy in each
-pattern can be chained**:
+pattern can be chained**, flags duplicate layouts (mirrors included), checks
+sample generated chains for levels 4-10, and prints the bar size per level:
 
 ```bash
 godot --headless --path . -s tools/validate_patterns.gd
