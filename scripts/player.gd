@@ -117,7 +117,6 @@ func _draw() -> void:
 	if not alive:
 		return
 	var t := Rules.TILE
-	var w := MARKER_SIZE.x * t
 	var h := MARKER_SIZE.y * t
 	# In local coordinates the other row is always ROW_GAP "up" (-y): when
 	# the player is flipped onto the ceiling, that maps down to the floor.
@@ -130,17 +129,22 @@ func _draw() -> void:
 		marker_color.a *= 0.75 + 0.25 * cos(_lit_time * MARKER_LIT_PULSE_SPEED)
 		width = 3.0
 	var fwd := Rules.FORWARD * t
+	# Each marker is as wide as that teleport's kill range: an enemy whose
+	# centre is inside it dies if you make that move now. The across marker
+	# (vertical) is wider because that teleport is more forgiving.
+	var k := Rules.KILL_RADIUS * t * 2.0
+	var kv := Rules.VERTICAL_KILL_RADIUS * t * 2.0
 	# Forward: same row.
-	_draw_marker(Rect2(fwd - w / 2, -h, w, h), 3.0, marker_color, width)
+	_draw_marker(Rect2(fwd - k / 2, -h, k, h), 3.0, marker_color, width)
 	# Vertical and diagonal: the other row (hanging from its surface).
-	_draw_marker(Rect2(-w / 2, -gap, w, h), -gap - 3.0, marker_color, width)
-	_draw_marker(Rect2(fwd - w / 2, -gap, w, h), -gap - 3.0, marker_color, width)
+	_draw_marker(Rect2(-kv / 2, -gap, kv, h), -gap - 3.0, marker_color, width)
+	_draw_marker(Rect2(fwd - k / 2, -gap, k, h), -gap - 3.0, marker_color, width)
 
 
 func _draw_marker(body: Rect2, line_y: float, color: Color, width: float) -> void:
 	draw_rect(body, color, false, width)
 	var cx := body.get_center().x
-	var half := body.size.x * 0.7
+	var half := body.size.x * 0.5 + 4.0
 	draw_line(Vector2(cx - half, line_y), Vector2(cx + half, line_y), color, width + 1.0)
 
 
