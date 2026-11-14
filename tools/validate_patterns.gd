@@ -32,5 +32,36 @@ func _init() -> void:
 		else:
 			failures += 1
 			print("  FAIL  d%d  %-24s %s: %s" % [p["difficulty"], name, p["steps"], ", ".join(problems)])
-	print("%d patterns, %d failed" % [Patterns.LIST.size(), failures])
+	# Different step strings can produce the same layout (e.g. "D V F" and
+	# "F V D"). Mirror images count as the same too: every pattern already
+	# appears mirrored when entered from the other row.
+	var seen := {}
+	var dupes := 0
+	for p in Patterns.LIST:
+		var parsed := Patterns.parse(p["steps"])
+		if not parsed["errors"].is_empty():
+			continue
+		var key := _layout_key(parsed["enemies"])
+		if seen.has(key):
+			dupes += 1
+			print("  DUPE  %s (%s) has the same layout as %s (%s)" % [p["name"], p["steps"], seen[key]["name"], seen[key]["steps"]])
+		else:
+			seen[key] = p
+	print("%d patterns, %d failed, %d duplicate layouts" % [Patterns.LIST.size(), failures, dupes])
+	failures += dupes
 	quit(1 if failures > 0 else 0)
+
+
+## A layout as text, the same for a pattern and its top/bottom mirror image.
+func _layout_key(enemies: Array) -> String:
+	var a: Array[String] = []
+	var b: Array[String] = []
+	for e in enemies:
+		var v: Vector2 = e
+		a.append("%.2f/%d" % [v.x, int(v.y)])
+		b.append("%.2f/%d" % [v.x, 1 - int(v.y)])
+	a.sort()
+	b.sort()
+	var ka := ",".join(a)
+	var kb := ",".join(b)
+	return ka if ka < kb else kb
