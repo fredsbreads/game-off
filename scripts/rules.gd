@@ -31,7 +31,7 @@ const KILL_RADIUS := 0.8
 # enemy across from you up to this many tiles ahead (aiming straight across
 # is a timing call, and a stacked pair otherwise leaves almost no window).
 # Behind you it uses the normal KILL_RADIUS.
-const VERTICAL_KILL_AHEAD := 1.5
+const VERTICAL_KILL_AHEAD := 1.2
 # Running within this many tiles of a live enemy's centre kills you.
 const HIT_RADIUS := 0.55
 
