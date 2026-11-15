@@ -45,7 +45,7 @@ func blood(pos: Vector2, dir_x: float, amount: int = 24, burst: float = 0.0, dir
 	for i in amount:
 		var angle := randf_range(0.1, 1.25)   # away from the surface, and forward
 		var dir := Vector2(cos(angle) * dir_x, sin(angle) * dir_y)
-		var vel := dir * randf_range(200.0, 460.0)
+		var vel := dir * randf_range(300.0, 750.0)
 		var p := pos + Vector2(randf_range(-6, 6), randf_range(-10, 10))
 		var head_start := randf_range(0.4, 1.0) * burst
 		p += vel * head_start + Vector2(0, 0.5 * GRAVITY * head_start * head_start)

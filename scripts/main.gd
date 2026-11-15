@@ -44,7 +44,7 @@ const SAVE_PATH := "user://save.cfg"
 var blood_fx: Fx
 # Kill blood starts this far (seconds) into its flight, so it's already
 # spread out behind the enemy when the "your move" freeze holds it.
-const BLOOD_BURST := 0.3
+const BLOOD_BURST := 0.35
 @onready var hud: Hud = $HUD
 @onready var freeze_effect: FreezeEffect = $FreezeEffect
 
