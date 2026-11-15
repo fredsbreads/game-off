@@ -33,15 +33,11 @@ func kill_burst(pos: Vector2, combo: int) -> void:
 			"color": KILL_COLORS[i % KILL_COLORS.size()]})
 
 
-## Floating text at `pos`. With `follow`, it keeps the same offset from that
-## node instead of staying put in the world (so it doesn't slide off screen
-## when the camera catches up after a teleport).
-func text(pos: Vector2, value: String, size: int, color: Color, follow: Node2D = null, life := 0.7) -> void:
-	var it := {"kind": "text", "t": 0.0, "life": life, "pos": pos, "text": value, "size": size, "color": color}
-	if follow:
-		it["follow"] = follow
-		it["offset"] = pos - follow.position
-	_items.append(it)
+## Floating text at `pos`. `speed` (pixels/s) moves it forward: at the run
+## speed it keeps pace with the player, so it stays put on screen instead of
+## scrolling away with the world.
+func text(pos: Vector2, value: String, size: int, color: Color, speed := 0.0, life := 0.7) -> void:
+	_items.append({"kind": "text", "t": 0.0, "life": life, "pos": pos, "text": value, "size": size, "color": color, "speed": speed})
 
 
 func _ring(pos: Vector2, r0: float, r1: float, life: float, width: float, color: Color) -> void:
@@ -98,9 +94,7 @@ func _draw() -> void:
 				var col: Color = it["color"]
 				col.a = 1.0 - k * k
 				var w := font.get_string_size(value, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
-				var base: Vector2 = it["pos"]
-				if it.has("follow") and is_instance_valid(it["follow"]):
-					base = (it["follow"] as Node2D).position + it["offset"]
+				var base: Vector2 = it["pos"] + Vector2(float(it["speed"]) * float(it["t"]), 0.0)
 				var pos: Vector2 = base - Vector2(w / 2.0, k * 50.0)
 				draw_string_outline(font, pos, value, HORIZONTAL_ALIGNMENT_LEFT, -1, size, 6, Color(0, 0, 0, col.a))
 				draw_string(font, pos, value, HORIZONTAL_ALIGNMENT_LEFT, -1, size, col)

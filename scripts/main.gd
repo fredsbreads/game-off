@@ -498,7 +498,7 @@ func _end_chain(grade: String, word: String = "") -> void:
 			var above := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row) - Rules.TILE * 1.4)
 			if player.row == Rules.Row.CEILING:
 				above.y += Rules.TILE * 2.8
-			fx.text(above, word if word != "" else grade, 30, GRADE_COLORS[grade], player, GRADE_TEXT_LIFE)
+			fx.text(above, word if word != "" else grade, 30, GRADE_COLORS[grade], Rules.RUN_SPEED * Rules.TILE, GRADE_TEXT_LIFE)
 		hud.pulse_progress()
 		if levelled:
 			level.level = progression.level
