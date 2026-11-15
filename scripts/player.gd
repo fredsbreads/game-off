@@ -14,7 +14,7 @@ extends Node2D
 const SHOW_HITBOX := false
 
 const SHEET := preload("res://assets/sprites/kunoichi.png")
-# The run cycle is its own 6-frame strip (with the katana on her back).
+# The run cycle is its own 6-frame strip.
 const RUN_SHEET := preload("res://assets/sprites/kunoichi_run.png")
 const FRAME := Vector2i(96, 96)
 # Where her feet are inside a 96x96 frame: this point sits on the floor.
