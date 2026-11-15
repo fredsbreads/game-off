@@ -23,10 +23,17 @@ const ATTACK_FPS := 14.0
 # frames are a wind-up).
 const ATTACK_START_FRAME := 3
 const FADE_SECONDS := 0.3   # after the death animation, before he's removed
+const OUTLINE_SHADER := preload("res://shaders/enemy_outline.gdshader")
+const GLINT_RATE := 12.0    # how fast the red outline fades in/out
 
 var tile_x := 0.0
 var row := Rules.Row.FLOOR
 var alive := true
+## True while a teleport would slash him (main.gd sets it every frame): he
+## gets a thin red outline.
+var targeted := false
+var _glint := 0.0
+var _material: ShaderMaterial
 
 var _sprite: AnimatedSprite2D
 
@@ -42,6 +49,9 @@ func _ready() -> void:
 	_sprite.scale = Vector2(SPRITE_SCALE, SPRITE_SCALE)
 	_sprite.flip_h = true   # the art faces right; he faces her (left)
 	_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_material = ShaderMaterial.new()
+	_material.shader = OUTLINE_SHADER
+	_sprite.material = _material
 	add_child(_sprite)
 	_sprite.play("idle")
 	# Don't have every enemy breathe in sync.
@@ -63,6 +73,13 @@ func _build_frames() -> SpriteFrames:
 			tex.region = Rect2(Vector2(i * FRAME.x, 0), Vector2(FRAME))
 			frames.add_frame(spec[0], tex)
 	return frames
+
+
+func _process(delta: float) -> void:
+	var want := 1.0 if targeted and alive else 0.0
+	_glint = lerpf(_glint, want, 1.0 - exp(-GLINT_RATE * delta))
+	if _material:
+		_material.set_shader_parameter("glint", _glint)
 
 
 ## Killed: he's out of the game at once (alive = false); the body plays the

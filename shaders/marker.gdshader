@@ -6,6 +6,7 @@ shader_type canvas_item;
 uniform vec4 plain : source_color = vec4(1.0, 1.0, 1.0, 0.32);
 uniform vec4 lit : source_color = vec4(0.95, 0.15, 0.2, 1.0);
 uniform float fill = 0.0;
+uniform float lit_mix = 1.0;   // eases the lit part between plain (0) and lit (1)
 
 void fragment() {
 	float a = texture(TEXTURE, UV).a;
@@ -14,5 +15,5 @@ void fragment() {
 	}
 	// The image (the diagonal sword) has the hilt at the top and the tip at
 	// the bottom.
-	COLOR = UV.y >= 1.0 - fill ? lit : plain;
+	COLOR = UV.y >= 1.0 - fill ? mix(plain, lit, lit_mix) : plain;
 }

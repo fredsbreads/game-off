@@ -110,7 +110,8 @@ const MARKER_LIT := Color(0.95, 0.15, 0.2, 1.0) # an enemy is in this teleport's
 const MARKER_KATANA := preload("res://assets/sprites/kunoichi_sword_diagonal.png")  # hilt top-left, tip bottom-right
 const MARKER_KATANA_SCALE := 1.25
 const MARKER_HEIGHT := 1.65      # tiles above the row's surface (just over an enemy's head)
-const MARKER_FOLLOW_RATE := 30.0 # how fast it slides onto an enemy (higher = snappier)
+const MARKER_FOLLOW_RATE := 16.0 # how fast it glides onto an enemy and back (higher = snappier)
+const MARKER_COLOUR_RATE := 14.0 # how fast it fades between plain and red
 const MARKER_SHADER := preload("res://shaders/marker.gdshader")
 const MARKER_SIZE := Vector2(0.5, 1.1)          # tiles (the hitbox drawing's height)
 const HITBOX_COLOR := Color(0.2, 1.0, 0.4, 0.9)
@@ -127,7 +128,7 @@ var _markers: Array[Sprite2D] = []   # forward, vertical, diagonal
 # For each teleport (forward, vertical, diagonal): the x (tiles) of the enemy
 # it would slash right now, or NAN. main.gd sets these.
 var target_x: Array = [NAN, NAN, NAN]
-var _marker_was_lit: Array = [false, false, false]
+var _marker_lit_mix: Array = [0.0, 0.0, 0.0]
 var frozen := false      # kill pause: hold the current animation frame
 
 var _striking := false    # showing a strike pose
@@ -458,19 +459,17 @@ func _update_markers(delta: float) -> void:
 		# Pointing toward the row it marks (the tip toward the enemy's head).
 		m.scale = Vector2(s, s if own_row else -s)
 		var lit := not is_nan(target_x[i])
-		if lit:
-			var want := Vector2((float(target_x[i]) - x) * t, y)
-			if _marker_was_lit[i]:
-				m.position = m.position.lerp(want, 1.0 - exp(-MARKER_FOLLOW_RATE * delta))
-			else:
-				m.position = Vector2(home_x, y).lerp(want, 1.0 - exp(-MARKER_FOLLOW_RATE * delta))
-		else:
-			m.position = Vector2(home_x, y)   # snap back
-		_marker_was_lit[i] = lit
+		var want := Vector2((float(target_x[i]) - x) * t, y) if lit else Vector2(home_x, y)
+		# Glide there (onto the enemy, or back home), easing out.
+		var k := 1.0 - exp(-MARKER_FOLLOW_RATE * delta)
+		m.position = m.position.lerp(want, k)
+		m.position.y = y   # only x glides; the height is fixed per row
+		_marker_lit_mix[i] = lerpf(float(_marker_lit_mix[i]), 1.0 if lit else 0.0, 1.0 - exp(-MARKER_COLOUR_RATE * delta))
 		var mat := m.material as ShaderMaterial
 		mat.set_shader_parameter("plain", plain)
 		mat.set_shader_parameter("lit", MARKER_LIT)
-		mat.set_shader_parameter("fill", marker_fill if lit else 0.0)
+		mat.set_shader_parameter("lit_mix", _marker_lit_mix[i])
+		mat.set_shader_parameter("fill", marker_fill if lit else 1.0)
 
 
 ## The hitbox as the rules use it: you collide with an enemy in your row if

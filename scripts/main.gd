@@ -427,6 +427,15 @@ func _update_pause_visuals() -> void:
 	player.marker_fill = clampf(_hitstop / KILL_PAUSE, 0.0, 1.0) if chain_pause else 1.0
 	player.target_x = [_slash_target_x(Rules.Move.FORWARD), _slash_target_x(Rules.Move.VERTICAL),
 		_slash_target_x(Rules.Move.DIAGONAL)]
+	# Every enemy a teleport would slash right now gets a red glint.
+	for e in level.enemies:
+		e.targeted = false
+	if state == State.PLAYING and player.alive:
+		for move in [Rules.Move.FORWARD, Rules.Move.VERTICAL, Rules.Move.DIAGONAL]:
+			var tx: float = player.x + Rules.move_dx(move)
+			var trow: int = (1 - player.row) if Rules.move_flips_row(move) else player.row
+			for e in level.enemies_hit_by(move, tx, trow):
+				e.targeted = true
 	player.frozen = paused
 
 
