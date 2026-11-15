@@ -162,9 +162,13 @@ func _draw_marker(x0: float, x1: float, body_top: float, line_y: float, lit: boo
 	# Centred in the body's height (MARKER_SIZE.y tall from body_top).
 	var top := body_top + (MARKER_SIZE.y * t - size.y) * 0.5
 	var points := PackedVector2Array()
+	# On the ceiling the whole player node is flipped upside down; flip the
+	# bolt back so it always reads upright on screen.
+	var upright := row == Rules.Row.CEILING
 	for p in BOLT:
 		var v: Vector2 = p
-		points.append(Vector2(cx - size.x * 0.5 + v.x * size.x, top + v.y * size.y))
+		var vy := 1.0 - v.y if upright else v.y
+		points.append(Vector2(cx - size.x * 0.5 + v.x * size.x, top + vy * size.y))
 	if lit:
 		draw_colored_polygon(points, color)
 	var outline := points.duplicate()
