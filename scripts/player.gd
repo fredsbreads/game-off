@@ -427,17 +427,25 @@ func _draw() -> void:
 	var zv := Rules.marker_zone(Rules.Move.VERTICAL) * t
 	var zd := Rules.marker_zone(Rules.Move.DIAGONAL) * t
 	# Forward: same row. Vertical and diagonal: the other row.
-	_draw_zone_line(fwd - zf.x, fwd + zf.y, 3.0, not is_nan(target_x[0]))
-	_draw_zone_line(-zv.x, zv.y, -gap - 3.0, not is_nan(target_x[1]))
-	_draw_zone_line(fwd - zd.x, fwd + zd.y, -gap - 3.0, not is_nan(target_x[2]))
+	_draw_zone_line(fwd - zf.x, fwd + zf.y, 3.0, target_x[0])
+	_draw_zone_line(-zv.x, zv.y, -gap - 3.0, target_x[1])
+	_draw_zone_line(fwd - zd.x, fwd + zd.y, -gap - 3.0, target_x[2])
 
 
-## The line on the floor/ceiling spanning a landing zone [x0, x1].
-func _draw_zone_line(x0: float, x1: float, line_y: float, lit: bool) -> void:
+## The line on the floor/ceiling spanning a landing zone [x0, x1] (local
+## pixels). Plain, except the part the targeted enemy (at enemy_x tiles, or
+## NAN) is standing on, which is red.
+func _draw_zone_line(x0: float, x1: float, line_y: float, enemy_x: float) -> void:
 	var plain := MARKER_READY if cooldown == 0 else MARKER_COOLDOWN
-	var cx := (x0 + x1) * 0.5
-	var half := (x1 - x0) * 0.5 + 4.0
-	draw_line(Vector2(cx - half, line_y), Vector2(cx + half, line_y), MARKER_LIT if lit else plain, 4.0 if lit else 3.0)
+	draw_line(Vector2(x0, line_y), Vector2(x1, line_y), plain, 3.0)
+	if is_nan(enemy_x):
+		return
+	var t := Rules.TILE
+	var feet := (enemy_x - x) * t
+	var a := maxf(x0, feet - Rules.ENEMY_HALF_WIDTH * t)
+	var b := minf(x1, feet + Rules.ENEMY_HALF_WIDTH * t)
+	if b > a:
+		draw_line(Vector2(a, line_y), Vector2(b, line_y), MARKER_LIT, 4.0)
 
 
 ## Places the three katana markers: over the landing spot, or over the head
