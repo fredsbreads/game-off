@@ -421,6 +421,9 @@ func die(_kind: String) -> void:
 	_dissolve_material.shader = DISSOLVE_SHADER
 	_sprite.material = _dissolve_material
 	_katana.material = _dissolve_material
+	# Already crackling in the death freeze (held still there like the rest).
+	if zap_fx:
+		zap_fx.zap(to_global(BODY_CENTRE), 4, Vector2.ZERO, Vector2(16, 30), 3)
 
 
 ## Called with game time (0 during the death freeze, slowed in the slow
