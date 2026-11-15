@@ -436,7 +436,11 @@ func _teleport(move: int) -> void:
 		for e in hit:
 			if absf(e.tile_x - to_x) < absf(target.tile_x - to_x):
 				target = e
-		to_x = target.tile_x
+		# Except an across teleport onto an enemy behind you: you only get
+		# pulled back onto it if that lets you chain on.
+		var pulls_back: bool = move == Rules.Move.VERTICAL and target.tile_x < to_x
+		if not pulls_back or not _chain_targets(target.tile_x, to_row).is_empty():
+			to_x = target.tile_x
 	player.x = to_x
 	player.row = to_row
 	distance = to_x - START_X

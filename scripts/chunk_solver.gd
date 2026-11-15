@@ -97,7 +97,12 @@ static func step(enemies: Array[Vector2], state: Array, move: int, speed: float,
 				mask |= bit
 				killed = true
 		if killed:
-			return [snap_to, row, 0, mask]   # land exactly on it; no running this frame
+			# Land exactly on it (no running this frame), except: an across
+			# teleport never pulls you back onto an enemy behind you unless
+			# that lets you chain on (same rule as main.gd _teleport).
+			if move == Rules.Move.VERTICAL and snap_to < x and not _can_chain(enemies, mask, snap_to, row):
+				snap_to = x
+			return [snap_to, row, 0, mask]
 		cooldown = Rules.cooldown_frames()
 
 	x += speed / Rules.PHYSICS_FPS
@@ -107,6 +112,18 @@ static func step(enemies: Array[Vector2], state: Array, move: int, speed: float,
 			return []
 	cooldown = maxi(cooldown - 1, 0)
 	return [x, row, cooldown, mask]
+
+
+## True if any live enemy is under one of the markers at (x, row).
+static func _can_chain(enemies: Array[Vector2], mask: int, x: float, row: int) -> bool:
+	for move in [Rules.Move.FORWARD, Rules.Move.VERTICAL, Rules.Move.DIAGONAL]:
+		var tx: float = x + Rules.move_dx(move)
+		var trow: int = (1 - row) if Rules.move_flips_row(move) else row
+		for i in enemies.size():
+			var e := enemies[i]
+			if (mask & (1 << i)) == 0 and int(e.y) == trow and Rules.in_kill_zone(move, e.x, tx):
+				return true
+	return false
 
 
 ## True if a required enemy is too far behind to ever be killed (teleports
