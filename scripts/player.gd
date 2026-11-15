@@ -386,16 +386,13 @@ const BODY_CENTRE := Vector2(0, -38)     # her body's middle, from her feet (loc
 # freezes it with the death moment like the other effects.
 var zap_fx: Fx
 var _zap_timer := 0.0
-# Her katana flies out of her hand, spins back behind her and sticks in the
-# floor, standing up.
-const KATANA := preload("res://assets/sprites/katana.png")   # tip up
-const KATANA_THROW := Vector2(-110, -380)  # pixels/s from her hand (floor; mirrored on the ceiling)
-const KATANA_SPIN := 13.0                  # radians/s while flying
-const KATANA_STUCK_ANGLE := PI + 0.18      # tip down, leaning a little
-const KATANA_SINK := 7.0                   # pixels of blade in the floor
+# Her katana stays in her hand as she dies (blade angled down and forward)
+# and fizzles out with her.
+const KATANA := preload("res://assets/sprites/katana.png")   # tip up, hilt at the bottom
+const FALL_HAND := Vector2(64, 55)        # her front hand in the fall frames (art pixels)
+const KATANA_HELD_ANGLE := 2.3            # radians: tip down and forward
+const KATANA_GRIP := 5.0                  # art pixels of hilt inside her hand
 var _katana: Sprite2D
-var _katana_velocity := Vector2.ZERO
-var _katana_landed := false
 var _dissolve := 0.0
 var _dissolve_material: ShaderMaterial
 
@@ -407,35 +404,23 @@ func die(_kind: String) -> void:
 	_sprite.visible = true
 	_play("fall")   # held during the freeze, then plays as she dissolves
 	_death_velocity = DEATH_PUSH if row == Rules.Row.FLOOR else Vector2(DEATH_PUSH.x, -DEATH_PUSH.y)
+	# The katana in her hand: a child of her, so it tilts, drifts and flips
+	# with her, and shares her dissolve.
 	_katana = Sprite2D.new()
 	_katana.texture = KATANA
 	_katana.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_katana.scale = Vector2(SPRITE_SCALE, SPRITE_SCALE)
-	_katana.top_level = true
-	_katana.visible = false   # shows when time moves again (after the freeze)
-	var up := -1.0 if row == Rules.Row.FLOOR else 1.0
-	_katana.global_position = Vector2(x * Rules.TILE, Rules.surface_y(row) + up * Rules.TILE * 0.7)
-	# From the floor it's flung up; from the ceiling it just drops to the floor.
-	_katana_velocity = KATANA_THROW if row == Rules.Row.FLOOR else Vector2(KATANA_THROW.x, 60.0)
+	_katana.rotation = KATANA_HELD_ANGLE
+	var hand := (FALL_HAND - FEET) * SPRITE_SCALE
+	var blade_dir := Vector2(sin(KATANA_HELD_ANGLE), -cos(KATANA_HELD_ANGLE))   # from hilt to tip
+	var half := KATANA.get_height() * 0.5
+	_katana.position = hand + blade_dir * (half - KATANA_GRIP) * SPRITE_SCALE
+	_katana.z_index = 1
 	add_child(_katana)
 	_dissolve_material = ShaderMaterial.new()
 	_dissolve_material.shader = DISSOLVE_SHADER
 	_sprite.material = _dissolve_material
-
-
-## Her katana: flies up and back, spinning, and sticks in the floor.
-func _animate_katana(delta: float) -> void:
-	if _katana == null or _katana_landed:
-		return
-	_katana.visible = true
-	_katana_velocity.y += 1600.0 * delta
-	_katana.global_position += _katana_velocity * delta
-	_katana.rotation += KATANA_SPIN * delta
-	var half := KATANA.get_height() * SPRITE_SCALE * 0.5
-	if _katana_velocity.y > 0.0 and _katana.global_position.y + half >= Rules.GROUND_Y:
-		_katana_landed = true
-		_katana.rotation = KATANA_STUCK_ANGLE
-		_katana.global_position.y = Rules.GROUND_Y - half + KATANA_SINK
+	_katana.material = _dissolve_material
 
 
 ## Called with game time (0 during the death freeze, slowed in the slow
@@ -446,7 +431,6 @@ func animate_death(delta: float) -> void:
 	_death_velocity *= exp(-3.0 * delta)
 	_death_offset += _death_velocity * delta
 	rotation = lerpf(rotation, DEATH_TILT, 1.0 - exp(-4.0 * delta))
-	_animate_katana(delta)
 	_dissolve = minf(_dissolve + delta / DISSOLVE_TIME, 1.0)
 	_dissolve_material.set_shader_parameter("amount", _dissolve)
 	# Crackles across her body as long as there's some of her left: from
