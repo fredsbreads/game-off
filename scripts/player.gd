@@ -265,8 +265,13 @@ func teleport_afterimages(move: int, from_feet: Vector2, from_row: int) -> void:
 		var k := float(i) / (GHOST_TRAIL_COUNT + 1)
 		# Across: flips halfway. Diagonal: all keep the way she left.
 		var on_row := from_row if (k < 0.5 or diagonal) else row
+		# Forward and diagonal: each copy's sword sits on the teleport line
+		# (the line runs between the sword positions, not her feet).
+		var at := from_feet.lerp(to_feet, k)
+		if not vertical:
+			at = start.lerp(end, k) - sword_point(move, Vector2.ZERO, on_row)
 		# Nearer her = a bit stronger.
-		_ghost(tex, feet, from_feet.lerp(to_feet, k), on_row, GHOST_TRAIL_FILL, Color(0, 0, 0, 0),
+		_ghost(tex, feet, at, on_row, GHOST_TRAIL_FILL, Color(0, 0, 0, 0),
 			GHOST_TRAIL_LIFE, 0.4 + 0.6 * k)
 
 
