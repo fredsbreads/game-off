@@ -486,6 +486,9 @@ const GRADE_COLORS := {
 
 ## A chain is over: add it to the progression bar (see Progression for the
 ## grades), show how it went, and level up if earned.
+const GRADE_TEXT_LIFE := 1.1   # seconds the grade word stays up
+
+
 func _end_chain(grade: String) -> void:
 	if chain > 0:
 		var levelled := progression.add_chain(chain, grade)
@@ -493,7 +496,7 @@ func _end_chain(grade: String) -> void:
 			var above := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row) - Rules.TILE * 1.4)
 			if player.row == Rules.Row.CEILING:
 				above.y += Rules.TILE * 2.8
-			fx.text(above, grade, 30, GRADE_COLORS[grade])
+			fx.text(above, grade, 30, GRADE_COLORS[grade], player, GRADE_TEXT_LIFE)
 		hud.pulse_progress()
 		if levelled:
 			level.level = progression.level
