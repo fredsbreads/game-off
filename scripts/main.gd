@@ -55,6 +55,10 @@ var debug: DebugTools = null
 var _pending_forward := false
 var _pending_vertical := false
 var _pending_frames := 0
+# The buttons the last teleport used. Pressing one of them again during the
+# cooldown that follows is ignored (a quick double press is spam, not intent).
+var _last_forward := false
+var _last_vertical := false
 # Where she was when a pending press could first fire. A single press waits
 # DIAGONAL_WINDOW_FRAMES in case it's a diagonal. While it waits she's
 # committed: running into an enemy doesn't count. When it fires, it hits if
@@ -149,6 +153,8 @@ func _unhandled_input(event: InputEvent) -> void:
 				_request_fullscreen()
 				begin()
 		State.PLAYING:
+			if player.cooldown > 0 and ((button == Rules.Move.FORWARD and _last_forward) or (button == Rules.Move.VERTICAL and _last_vertical)):
+				return   # same button again right after a teleport: ignored
 			if not _pending_forward and not _pending_vertical:
 				_pending_frames = DIAGONAL_WINDOW_FRAMES
 			if button == Rules.Move.FORWARD:
@@ -428,6 +434,8 @@ func _step() -> void:
 
 	# 1. teleport (ignored while on cooldown)
 	if move != Rules.Move.NONE and player.cooldown == 0:
+		_last_forward = move == Rules.Move.FORWARD or move == Rules.Move.DIAGONAL
+		_last_vertical = move == Rules.Move.VERTICAL or move == Rules.Move.DIAGONAL
 		_teleport(move)
 		if _hitstop > 0.0:
 			return   # killed: stay exactly on the enemy, so the markers line up
