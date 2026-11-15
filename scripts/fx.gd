@@ -101,9 +101,7 @@ func _draw() -> void:
 			"trail":
 				var a: Vector2 = it["a"]
 				var b: Vector2 = it["b"]
-				for g in 4:
-					var p := a.lerp(b, g / 4.0)
-					draw_rect(Rect2(p.x - t * 0.25, p.y - t * 0.55, t * 0.5, t * 1.1), Color(0.85, 0.88, 1, 0.3 * fade * (g + 1) / 4.0))
+				# (The afterimages of her along the path are drawn by player.gd.)
 				draw_line(a, b, Color(1, 1, 1, 0.9 * fade), 1.0 + 5.0 * fade)
 			"ring":
 				var r := lerpf(it["r0"], it["r1"], 1.0 - pow(1.0 - k, 3.0))

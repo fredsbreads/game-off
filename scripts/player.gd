@@ -38,6 +38,22 @@ const ARC_T_MAPS := [
 ]
 const ARC_IN_FRONT := [false, false, true]   # as drawn: behind her, or in front
 const ARC_SHADER := preload("res://shaders/swing_arc.gdshader")
+
+# Throw poses for teleports: she throws the sword and flashes to it. The pose
+# lingers where she left as a red outline, and red afterimages of it trail
+# along the path. Forward and diagonal use the forward throw; across uses the
+# vertical throw (sword pointing at the other row).
+const THROW := preload("res://assets/sprites/kunoichi_throw.png")              # 96x96
+const THROW_FEET := RUN_FEET                                                   # drawn over the run pose
+const THROW_VERTICAL := preload("res://assets/sprites/kunoichi_throw_vertical.png")  # 120x120
+const THROW_VERTICAL_FEET := Vector2(59, 102)
+const GHOST_SHADER := preload("res://shaders/ghost.gdshader")
+const GHOST_OUTLINE := Color(1.0, 0.25, 0.3, 0.9)     # the lingering pose where she left
+const GHOST_OUTLINE_FILL := Color(1.0, 0.2, 0.25, 0.2)
+const GHOST_OUTLINE_LIFE := 0.35
+const GHOST_TRAIL_FILL := Color(1.0, 0.3, 0.3, 0.55)  # afterimages along the path
+const GHOST_TRAIL_COUNT := 3
+const GHOST_TRAIL_LIFE := 0.2
 const ARC_SWEEP := 0.08   # seconds to sweep along the swing
 const ARC_HOLD := 0.12    # seconds the full slash stays before fading
 const ARC_FADE := 0.12    # seconds to fade out after that
@@ -165,6 +181,44 @@ func strike() -> void:
 	_arc.scale = Vector2(SPRITE_SCALE, SPRITE_SCALE * (-1.0 if row == Rules.Row.CEILING else 1.0))
 	_arc_time = 0.0
 	_update_arc()
+
+
+## A teleport just happened from from_feet (world, at her feet) in from_row
+## to where she is now: leave the throw pose behind as a fading red outline,
+## and red afterimages of it along the way.
+func teleport_afterimages(move: int, from_feet: Vector2, from_row: int) -> void:
+	var tex: Texture2D = THROW_VERTICAL if move == Rules.Move.VERTICAL else THROW
+	var feet: Vector2 = THROW_VERTICAL_FEET if move == Rules.Move.VERTICAL else THROW_FEET
+	var to_feet := Vector2(x * Rules.TILE, Rules.surface_y(row))
+	_ghost(tex, feet, from_feet, from_row, GHOST_OUTLINE_FILL, GHOST_OUTLINE, GHOST_OUTLINE_LIFE, 1.0)
+	for i in range(1, GHOST_TRAIL_COUNT + 1):
+		var k := float(i) / (GHOST_TRAIL_COUNT + 1)
+		var on_row := from_row if k < 0.5 else row   # flips halfway across
+		# Nearer her = a bit stronger.
+		_ghost(tex, feet, from_feet.lerp(to_feet, k), on_row, GHOST_TRAIL_FILL, Color(0, 0, 0, 0),
+			GHOST_TRAIL_LIFE, 0.4 + 0.6 * k)
+
+
+func _ghost(tex: Texture2D, feet: Vector2, pos: Vector2, on_row: int, fill: Color, outline: Color, life: float, alpha: float) -> void:
+	var g := Sprite2D.new()
+	g.texture = tex
+	g.centered = false
+	g.offset = -feet
+	g.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	g.top_level = true   # stays where it was left
+	g.global_position = pos
+	g.scale = Vector2(SPRITE_SCALE, SPRITE_SCALE * (-1.0 if on_row == Rules.Row.CEILING else 1.0))
+	g.z_index = -2       # behind her and her slash
+	var m := ShaderMaterial.new()
+	m.shader = GHOST_SHADER
+	m.set_shader_parameter("fill", fill)
+	m.set_shader_parameter("outline", outline)
+	g.material = m
+	g.modulate.a = alpha
+	add_child(g)
+	var tween := g.create_tween()
+	tween.tween_property(g, "modulate:a", 0.0, life)
+	tween.tween_callback(g.queue_free)
 
 
 ## The arc runs on real time (even during the kill freeze): sweep, then fade.

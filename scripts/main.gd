@@ -494,6 +494,8 @@ func _step() -> void:
 
 func _teleport(move: int) -> void:
 	var from := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row))
+	var from_feet := Vector2(player.x * Rules.TILE, Rules.surface_y(player.row))
+	var from_row := player.row
 	var to_x := player.x + Rules.move_dx(move)
 	var to_row := (1 - player.row) if Rules.move_flips_row(move) else player.row
 	var hit := level.enemies_hit_by(move, to_x, to_row)
@@ -518,6 +520,7 @@ func _teleport(move: int) -> void:
 	distance = to_x - START_X
 	var to := Vector2(to_x * Rules.TILE, Rules.body_center_y(to_row))
 	fx.teleport_trail(from, to)
+	player.teleport_afterimages(move, from_feet, from_row)
 
 	if hit.is_empty():
 		player.cooldown = Rules.cooldown_frames()
