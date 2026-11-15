@@ -327,7 +327,7 @@ func _physics_process(delta: float) -> void:
 				_pause_elapsed += delta
 				if _hitstop <= 0.0 and _pause_is_chain and _chain_awaiting \
 						and not _pressed_during_pause and not _pending_forward and not _pending_vertical:
-					_end_chain("DROPPED")   # waited too long in the "your move" freeze
+					_end_chain("DROPPED", "TOO SLOW")   # waited too long in the "your move" freeze
 			else:
 				_step()
 				moving = state == State.PLAYING
@@ -410,7 +410,7 @@ func _teleport(move: int) -> void:
 		player.cooldown = Rules.cooldown_frames()
 		fx.landing_ring(to)
 		if _chain_awaiting:
-			_end_chain("DROPPED")   # teleported into empty space while an enemy was in reach
+			_end_chain("DROPPED", "MISSED")   # teleported into empty space while an enemy was in reach
 	else:
 		player.cooldown = 0
 		for e in hit:
@@ -489,14 +489,16 @@ const GRADE_COLORS := {
 const GRADE_TEXT_LIFE := 1.1   # seconds the grade word stays up
 
 
-func _end_chain(grade: String) -> void:
+## word: what to show instead of the grade (a dropped chain says why it
+## dropped: TOO SLOW or MISSED).
+func _end_chain(grade: String, word: String = "") -> void:
 	if chain > 0:
 		var levelled := progression.add_chain(chain, grade)
 		if grade != "SINGLE":
 			var above := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row) - Rules.TILE * 1.4)
 			if player.row == Rules.Row.CEILING:
 				above.y += Rules.TILE * 2.8
-			fx.text(above, grade, 30, GRADE_COLORS[grade], player, GRADE_TEXT_LIFE)
+			fx.text(above, word if word != "" else grade, 30, GRADE_COLORS[grade], player, GRADE_TEXT_LIFE)
 		hud.pulse_progress()
 		if levelled:
 			level.level = progression.level

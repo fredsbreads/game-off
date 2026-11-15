@@ -49,8 +49,9 @@ A bar above the ceiling row fills as you chain kills; filling it levels you up.
     killed the whole spawned chain from its first enemy to its last
   - **CLEAN** x1: ended on a kill, but some of the spawned chain wasn't part
     of it (you joined late or skipped one)
-  - **DROPPED** x0.5: the "your move" pause ran out, or you teleported into
-    empty space while an enemy was under a marker
+  - **dropped** x0.5: the "your move" pause ran out (shows **TOO SLOW**), or
+    you teleported into empty space while an enemy was under a marker
+    (shows **MISSED**)
   - a one-kill chain counts x1 but never levels you up
 - No overflow. You level up only when a PERFECT or CLEAN chain ends with the
   bar full.
