@@ -353,7 +353,19 @@ func _update_pause_visuals() -> void:
 	freeze_effect.set_state(1.0 if flashing else 0.0, 1.0 if chain_pause and not flashing else 0.0)
 	fx.frozen = paused and _pause_elapsed >= FX_FREEZE_AFTER
 	player.markers_lit = chain_pause
+	player.target_forward = _would_slash(Rules.Move.FORWARD)
+	player.target_vertical = _would_slash(Rules.Move.VERTICAL)
+	player.target_diagonal = _would_slash(Rules.Move.DIAGONAL)
 	player.frozen = paused
+
+
+## True if teleporting with `move` right now would land on an enemy.
+func _would_slash(move: int) -> bool:
+	if state != State.PLAYING or not player.alive:
+		return false
+	var tx: float = player.x + Rules.move_dx(move)
+	var trow: int = (1 - player.row) if Rules.move_flips_row(move) else player.row
+	return not level.enemies_hit_by(move, tx, trow).is_empty()
 
 
 func _step() -> void:

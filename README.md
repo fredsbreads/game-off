@@ -34,6 +34,10 @@ run upside down.
 - A tiny cooldown of 0.16 s (10 frames) between teleports, shared by all of them; a kill resets it. A press during the cooldown fires as soon as it ends (`COOLDOWN_SECONDS` in `scripts/rules.gd`).
 - Every kill gets a short hit freeze. If another enemy is under one of your
   markers, it becomes a 0.7 s "your move" pause (tap to skip).
+- Each teleport has a marker at its landing spot: a lightning bolt, hollow
+  and dull by default, solid when that teleport would slash an enemy right
+  now (the line under it spans the kill zone). In the "your move" pause the
+  solid ones pulse.
 - Run speed is a constant 6 tiles/s.
 - Score, distance and the kill counter are tracked but **not shown** for now
   (kills, level reached and longest combo are on the game-over screen).
