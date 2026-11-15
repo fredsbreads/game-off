@@ -34,8 +34,9 @@ run upside down.
 
 - Running into an enemy in your row kills you.
 - Teleporting passes through everything; only the landing spot matters.
-- Landing on an enemy kills it and snaps you exactly onto it (so chains line
-  up). Exception: an across teleport onto an enemy behind you only pulls you
+- Landing on an enemy kills it and puts you 0.7 tiles short of it, facing it
+  (`STRIKE_OFFSET`; chains still line up: the next enemy is then just ahead
+  of a marker's middle). Exception: an across teleport onto an enemy behind you only pulls you
   back onto it if you can chain on from there; otherwise you stay put. It counts if
   any part of the enemy touches the landing zone (the line under the marker).
 - Every landing zone reaches 0.8 tiles behind the landing spot and 1.25

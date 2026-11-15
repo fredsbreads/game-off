@@ -41,6 +41,12 @@ const ENEMY_HALF_WIDTH := 0.3
 # where her body (sprite) touches the enemy's.
 const HIT_RADIUS := 0.95
 
+# A kill lands you this many tiles short of the enemy (facing him at sword's
+# length) instead of on top of him. Every chain step still hits: the next
+# enemy then sits STRIKE_OFFSET ahead of a marker's middle, well inside the
+# zone (KILL_AHEAD + ENEMY_HALF_WIDTH = 1.55).
+const STRIKE_OFFSET := 0.7
+
 # Run speed in tiles per second. Constant for now.
 const RUN_SPEED := 6.0
 

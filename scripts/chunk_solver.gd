@@ -7,7 +7,7 @@ extends RefCounted
 ## It mirrors main.gd's per-frame order exactly:
 ##   1. optional teleport (only if cooldown is 0): forward, vertical or
 ##      diagonal. Landing on an enemy in the target row kills it, snaps you
-##      exactly onto it and ends the frame there.
+##      to STRIKE_OFFSET short of it and ends the frame there.
 ##   2. run forward one frame along your row
 ##   3. running into a live enemy in your row kills you
 ##   4. tick the cooldown down
@@ -97,9 +97,10 @@ static func step(enemies: Array[Vector2], state: Array, move: int, speed: float,
 				mask |= bit
 				killed = true
 		if killed:
-			# Land exactly on it (no running this frame), except: an across
-			# teleport never pulls you back onto an enemy behind you unless
-			# that lets you chain on (same rule as main.gd _teleport).
+			# Land STRIKE_OFFSET short of it (no running this frame), except:
+			# an across teleport never pulls you back unless that lets you
+			# chain on (same rule as main.gd _teleport).
+			snap_to -= Rules.STRIKE_OFFSET
 			if move == Rules.Move.VERTICAL and snap_to < x and not _can_chain(enemies, mask, snap_to, row):
 				snap_to = x
 			return [snap_to, row, 0, mask]

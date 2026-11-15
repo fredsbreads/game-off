@@ -498,16 +498,18 @@ func _teleport(move: int) -> void:
 	var to_row := (1 - player.row) if Rules.move_flips_row(move) else player.row
 	var hit := level.enemies_hit_by(move, to_x, to_row)
 	if not hit.is_empty():
-		# Land exactly on the enemy you hit, so chains can't drift.
+		# Land a fixed distance short of the enemy you hit (STRIKE_OFFSET), so
+		# chains can't drift and she slashes him at sword's length.
 		var target := hit[0]
 		for e in hit:
 			if absf(e.tile_x - to_x) < absf(target.tile_x - to_x):
 				target = e
-		# Except an across teleport onto an enemy behind you: you only get
-		# pulled back onto it if that lets you chain on.
-		var pulls_back: bool = move == Rules.Move.VERTICAL and target.tile_x < to_x
-		if not pulls_back or not _chain_targets(target.tile_x, to_row).is_empty():
-			to_x = target.tile_x
+		var strike_x: float = target.tile_x - Rules.STRIKE_OFFSET
+		# Except an across teleport: it only pulls you back if that lets you
+		# chain on; otherwise you stay where you landed.
+		var pulls_back: bool = move == Rules.Move.VERTICAL and strike_x < to_x
+		if not pulls_back or not _chain_targets(strike_x, to_row).is_empty():
+			to_x = strike_x
 	player.x = to_x
 	player.row = to_row
 	# A combo never runs a frame, so build the level ahead here too (otherwise
