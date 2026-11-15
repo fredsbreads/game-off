@@ -53,9 +53,9 @@ A bar above the ceiling row fills as you chain kills; filling it levels you up.
     you teleported into empty space while an enemy was under a marker
     (shows **MISSED**)
   - a one-kill chain counts x1 but never levels you up
-- When a chain ends, the bar acts it out before counting it: PERFECT grows an
-  extra half in gold, CLEAN turns solid, a dropped chain's lost half crumbles
-  off. (Colours: `PROGRESS_*` at the top of `scripts/hud.gd`.)
+- When a chain ends, the bar acts it out before counting it: PERFECT turns gold
+  and grows an extra half, CLEAN turns solid, a dropped chain keeps half
+  while the other half crumbles off. (Colours: `PROGRESS_*` at the top of `scripts/hud.gd`.)
 - No overflow. You level up only when a PERFECT or CLEAN chain ends with the
   bar full.
 - Bar size = 3 x the average chain length at that level (so two perfect

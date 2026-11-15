@@ -225,8 +225,8 @@ func hide_progress() -> void:
 
 
 ## Shows how a finished chain counts: `kills` were grey (pending) on top of
-## `old_bar`. PERFECT grows an extra half in gold, CLEAN/SINGLE turn solid,
-## DROPPED loses half, which crumbles off. Then the bar flashes and shows
+## `old_bar`. PERFECT turns gold and grows an extra half, CLEAN/SINGLE turn
+## solid, DROPPED keeps half (turning solid) while the other half crumbles off. Then the bar flashes and shows
 ## the real values again (set_progress).
 func show_chain_result(grade: String, kills: int, old_bar: float, bar_size: float, level: int) -> void:
 	var gain := minf(kills * float(Progression.MULTIPLIER[grade]), bar_size - old_bar)
@@ -297,12 +297,15 @@ func _draw_result() -> void:
 		_progress.draw_rect(Rect2(0, 0, base, s.y), PROGRESS_FILL)
 	match _result["grade"]:
 		"PERFECT":
-			_progress.draw_rect(Rect2(base, 0, kills, s.y), PROGRESS_PENDING.lerp(PROGRESS_FILL, hold))
+			# The whole addition turns gold (and grows by half), then solid.
+			var gold := PROGRESS_PENDING.lerp(PROGRESS_BONUS, p).lerp(PROGRESS_FILL, hold)
+			_progress.draw_rect(Rect2(base, 0, kills, s.y), gold)
 			var extra := maxf(gain - kills, 0.0) * p
 			if extra > 0.0:
 				_progress.draw_rect(Rect2(base + kills, 0, extra, s.y), PROGRESS_BONUS.lerp(PROGRESS_FILL, hold))
 		"DROPPED":
-			_progress.draw_rect(Rect2(base, 0, gain, s.y), PROGRESS_PENDING.lerp(PROGRESS_FILL, hold))
+			# The kept half turns solid while the lost half crumbles.
+			_progress.draw_rect(Rect2(base, 0, gain, s.y), PROGRESS_PENDING.lerp(PROGRESS_FILL, p))
 			# The lost half breaks into pieces that fall and fade.
 			var x := base + gain
 			var i := 0
