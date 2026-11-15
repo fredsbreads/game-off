@@ -26,7 +26,8 @@ enum Move { NONE, FORWARD, VERTICAL, DIAGONAL }
 const COOLDOWN_SECONDS := 0.16
 # Misses in a row cost more, so mashing gets you killed: the 1st miss gets
 # the normal cooldown, the 2nd 0.3 s, the 3rd and later 0.5 s. A kill resets
-# the streak, and so does half a second without teleporting.
+# the streak, and so does half a second without teleporting while you could
+# have (time in a cooldown doesn't count).
 const MISS_COOLDOWN_SECONDS := [0.16, 0.3, 0.5]
 const MISS_STREAK_RESET_SECONDS := 0.5
 

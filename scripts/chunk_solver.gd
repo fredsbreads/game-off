@@ -10,10 +10,11 @@ extends RefCounted
 ##      exactly onto it and ends the frame there.
 ##   2. run forward one frame along your row
 ##   3. running into a live enemy in your row kills you
-##   4. tick the cooldown down (and the frames since the last teleport)
+##   4. tick the cooldown down (and, once it's 0, the frames you could have
+##      teleported but didn't)
 ##
 ## Enemies are Vector2(x, row). States are
-## [x, row, cooldown, killed_mask, misses_in_a_row, frames_since_teleport].
+## [x, row, cooldown, killed_mask, misses_in_a_row, idle_frames].
 ##
 ## Used by tools/validate_patterns.gd to prove patterns chain, and by the
 ## debug bot to play the game for soak tests and screenshots.
@@ -25,7 +26,7 @@ const DEDUP_PER_TILE := 20.0    # positions within 0.05 tiles count as the same
 
 ## limit_x: teleports may not land at or past this (level not built there).
 ## required_kills: bitmask of enemies that must all be killed (0 = survive).
-## start: [x, row, cooldown] or [x, row, cooldown, misses, frames_since_teleport].
+## start: [x, row, cooldown] or [x, row, cooldown, misses, idle_frames].
 ## Returns {"ok": bool, "actions": Array (one Move per frame)}.
 static func search(enemies: Array[Vector2], start: Array, goal_x: float, limit_x: float, speed: float, max_frames: int = 3000, required_kills: int = 0) -> Dictionary:
 	# Each history entry: [x, row, cooldown, killed_mask, misses, idle,
@@ -120,7 +121,8 @@ static func step(enemies: Array[Vector2], state: Array, move: int, speed: float,
 		if (mask & (1 << i)) == 0 and int(e.y) == row and absf(e.x - x) < Rules.HIT_RADIUS:
 			return []
 	cooldown = maxi(cooldown - 1, 0)
-	idle = mini(idle + 1, Rules.miss_streak_reset_frames())
+	if cooldown == 0:
+		idle = mini(idle + 1, Rules.miss_streak_reset_frames())
 	return [x, row, cooldown, mask, misses, idle]
 
 

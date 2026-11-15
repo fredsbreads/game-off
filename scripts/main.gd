@@ -55,8 +55,8 @@ var debug: DebugTools = null
 var _pending_forward := false
 var _pending_vertical := false
 var _pending_frames := 0
-# Misses in a row (see Rules.MISS_COOLDOWN_SECONDS) and frames since the last
-# teleport (half a second without one resets the streak).
+# Misses in a row (see Rules.MISS_COOLDOWN_SECONDS) and frames you could
+# have teleported but didn't (half a second of that resets the streak).
 var _misses := 0
 var _idle_frames := 0
 # Where she was when a pending press could first fire. A single press waits
@@ -424,7 +424,8 @@ func _step() -> void:
 	# 4. timers
 	if player.cooldown > 0:
 		player.cooldown -= 1
-	_idle_frames = mini(_idle_frames + 1, Rules.miss_streak_reset_frames())
+	if player.cooldown == 0:   # only time you could have teleported counts
+		_idle_frames = mini(_idle_frames + 1, Rules.miss_streak_reset_frames())
 
 	level.ensure_generated(player.x)
 	level.prune(cam.left() / Rules.TILE - 2.0)
