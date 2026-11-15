@@ -123,7 +123,6 @@ func _ready() -> void:
 	# Her effects too sit above the grey freeze filter, so they stay red in
 	# the "your move" pause instead of turning grey.
 	fx.reparent($EnemyLayer)
-	player.fx = fx   # her death crackles with lightning
 	level.ensure_generated(player.x)
 	cam.snap(player.x)
 	best_score = _load_best()
@@ -719,8 +718,10 @@ func _update_death_visuals() -> void:
 	player.frozen = frozen
 	fx.frozen = frozen
 	blood_fx.frozen = frozen
+	player.zap_fx.frozen = frozen
 	fx.time_scale = speed
 	blood_fx.time_scale = speed
+	player.zap_fx.time_scale = speed
 	if is_instance_valid(_killer):
 		_killer.set_anim_speed(speed)
 	# Grey world, she, he and the blood in colour; fades out with the slow motion.

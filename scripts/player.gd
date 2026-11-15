@@ -156,6 +156,10 @@ func _ready() -> void:
 	_play("idle")
 	add_child(_sprite)
 
+	zap_fx = Fx.new()
+	zap_fx.top_level = true   # world coordinates, drawn over her
+	add_child(zap_fx)
+
 	for i in 3:
 		var m := Sprite2D.new()
 		m.texture = MARKER_KATANA
@@ -376,8 +380,12 @@ const DISSOLVE_SHADER := preload("res://shaders/dissolve.gdshader")
 const DEATH_PUSH := Vector2(-170, -60)   # pixels/s, slowing down
 const DEATH_TILT := -0.5                 # radians she tips back by
 const DISSOLVE_TIME := 0.55              # seconds (game time, so the slow motion stretches it)
-const ZAPS_AT := [0.0, 0.2, 0.45, 0.7]   # dissolve amounts that crackle with lightning
-var fx: Fx                               # main.gd sets this, for the lightning
+const ZAP_EVERY := 0.05                  # seconds (game time) between crackles while she dissolves
+const BODY_CENTRE := Vector2(0, -38)     # her body's middle, from her feet (local, before tilt)
+# Her own effects layer, drawn over her, for the lightning. main.gd slows and
+# freezes it with the death moment like the other effects.
+var zap_fx: Fx
+var _zap_timer := 0.0
 # Her katana flies out of her hand, spins back behind her and sticks in the
 # floor, standing up.
 const KATANA := preload("res://assets/sprites/katana.png")   # tip up
@@ -389,7 +397,6 @@ var _katana: Sprite2D
 var _katana_velocity := Vector2.ZERO
 var _katana_landed := false
 var _dissolve := 0.0
-var _zaps_done := 0
 var _dissolve_material: ShaderMaterial
 
 
@@ -442,11 +449,13 @@ func animate_death(delta: float) -> void:
 	_animate_katana(delta)
 	_dissolve = minf(_dissolve + delta / DISSOLVE_TIME, 1.0)
 	_dissolve_material.set_shader_parameter("amount", _dissolve)
-	while _zaps_done < ZAPS_AT.size() and _dissolve >= float(ZAPS_AT[_zaps_done]):
-		_zaps_done += 1
-		if fx:
-			var up := -1.0 if row == Rules.Row.FLOOR else 1.0
-			fx.zap(global_position + Vector2(0, up * Rules.TILE * 0.55))
+	# Crackles across her body as long as there's some of her left: from
+	# where her body actually is (tilted, drifting), moving with her.
+	_zap_timer -= delta
+	if _zap_timer <= 0.0 and _dissolve < 0.95 and zap_fx:
+		_zap_timer = ZAP_EVERY
+		var centre := to_global(BODY_CENTRE)
+		zap_fx.zap(centre, 2, _death_velocity, Vector2(16, 30), 2)
 
 
 func _process(delta: float) -> void:

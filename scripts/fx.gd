@@ -64,21 +64,22 @@ func blood(pos: Vector2, dir_x: float, amount: int = 24, burst: float = 0.0, dir
 			"color": BLOOD_COLORS[i % BLOOD_COLORS.size()]})
 
 
-## A crackle of lightning around `pos` (her death): a few jagged arcs and
-## sparks.
-func zap(pos: Vector2, arcs: int = 3) -> void:
+## A crackle of lightning over a body centred at `pos` (her death): a few
+## short jagged arcs across it, and sparks. `vel` (pixels/s) moves the arcs
+## along with her; `size` is the body's half-extent the arcs stay within.
+func zap(pos: Vector2, arcs: int = 2, vel: Vector2 = Vector2.ZERO, size: Vector2 = Vector2(18, 34), sparks: int = 3) -> void:
 	for a in arcs:
-		var start := pos + Vector2.from_angle(randf() * TAU) * randf_range(10.0, 30.0)
-		var end := pos + Vector2.from_angle(randf() * TAU) * randf_range(45.0, 85.0)
+		var start := pos + Vector2(randf_range(-1, 1) * size.x, randf_range(-1, 1) * size.y)
+		var end := pos + Vector2(randf_range(-1, 1) * size.x * 1.6, randf_range(-1, 1) * size.y * 1.2)
 		var pts := PackedVector2Array([start])
 		var steps := 5
 		for i in range(1, steps):
 			var p := start.lerp(end, float(i) / steps)
 			var n := (end - start).orthogonal().normalized()
-			pts.append(p + n * randf_range(-14.0, 14.0))
+			pts.append(p + n * randf_range(-8.0, 8.0))
 		pts.append(end)
-		_items.append({"kind": "bolt", "t": 0.0, "life": randf_range(0.08, 0.16), "pts": pts})
-	for i in 6:
+		_items.append({"kind": "bolt", "t": 0.0, "life": randf_range(0.06, 0.12), "pts": pts, "vel": vel})
+	for i in sparks:
 		var dir := Vector2.from_angle(randf() * TAU)
 		_items.append({"kind": "particle", "t": 0.0, "life": randf_range(0.25, 0.45),
 			"pos": pos, "vel": dir * randf_range(120.0, 320.0),
@@ -104,6 +105,12 @@ func _process(real_delta: float) -> void:
 	for i in range(_items.size() - 1, -1, -1):
 		var it := _items[i]
 		it["t"] += delta
+		if it["kind"] == "bolt":
+			var shift: Vector2 = it["vel"] * delta
+			var pts: PackedVector2Array = it["pts"]
+			for p in pts.size():
+				pts[p] += shift
+			it["pts"] = pts
 		if it["kind"] == "particle" or it["kind"] == "blood":
 			it["vel"].y += GRAVITY * delta
 			it["pos"] += it["vel"] * delta
