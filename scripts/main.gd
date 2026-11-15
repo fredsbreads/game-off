@@ -493,14 +493,17 @@ const GRADE_TEXT_LIFE := 1.1   # seconds the grade word stays up
 ## dropped: TOO SLOW or MISSED).
 func _end_chain(grade: String, word: String = "") -> void:
 	if chain > 0:
+		var old_bar := progression.bar
+		var old_size := progression.bar_size()
+		var old_level := progression.level
 		var levelled := progression.add_chain(chain, grade)
+		hud.show_chain_result(grade, chain, old_bar, old_size, old_level)
 		if grade != "SINGLE":
 			var above := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row) - Rules.TILE * 1.4)
 			if player.row == Rules.Row.CEILING:
 				above.y += Rules.TILE * 2.8
 			fx.text(above, word if word != "" else grade, 30, GRADE_COLORS[grade], Rules.RUN_SPEED * Rules.TILE, GRADE_TEXT_LIFE,
 					-1.0 if player.row == Rules.Row.CEILING else 1.0)   # drift away from her row
-		hud.pulse_progress()
 		if levelled:
 			level.level = progression.level
 			level.rebuild_ahead(cam.left() / Rules.TILE + CameraRig.VIEW_TILES + 1.0)

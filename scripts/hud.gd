@@ -49,6 +49,16 @@ const PROGRESS_SIZE := Vector2(320, 12)
 const PROGRESS_FILL := Color(1, 1, 1, 0.9)
 const PROGRESS_PENDING := Color(0.6, 0.6, 0.6, 0.75)   # this chain's kills, not yet counted
 const PROGRESS_EMPTY := Color(1, 1, 1, 0.12)
+const PROGRESS_BONUS := Color(1.0, 0.85, 0.3)        # PERFECT's extra half, growing in
+const PROGRESS_CRUMBLE := Color(0.6, 0.6, 0.6)       # a dropped chain's lost half, falling off
+# When a chain ends, the bar acts out its grade before the kills count:
+# RESULT_ACT seconds of growing / crumbling / turning solid, then a short hold.
+const RESULT_ACT := 0.35
+const RESULT_HOLD := 0.2
+const CRUMBLE_PIECE := 8.0     # pixels
+const CRUMBLE_FALL := 18.0     # pixels the pieces drop
+var _result := {}              # the chain being shown (empty = none)
+var _result_t := 0.0
 var _progress: Control
 var _progress_level: Label
 var _p_bar := 0.0
@@ -148,7 +158,8 @@ func _ready() -> void:
 	_rotate.add_child(_rotate_sprite)
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	_process_result(delta)
 	_rotate.visible = needs_portrait()
 	var view := get_viewport().get_visible_rect().size
 	if _rotate.visible:
@@ -200,6 +211,8 @@ func set_progress(level: int, bar: float, bar_size: float, pending: int, ceiling
 	_p_bar = bar
 	_p_size = maxf(bar_size, 0.001)
 	_p_pending = pending
+	if not _result.is_empty():
+		level = _result["level"]
 	var view := get_viewport().get_visible_rect().size
 	_progress.position = Vector2((view.x - PROGRESS_SIZE.x) / 2.0, maxf(ceiling_y * 0.5, 30.0) - PROGRESS_SIZE.y / 2.0)
 	_progress_level.text = "LV %d" % level
@@ -209,6 +222,27 @@ func set_progress(level: int, bar: float, bar_size: float, pending: int, ceiling
 
 func hide_progress() -> void:
 	_progress.visible = false
+
+
+## Shows how a finished chain counts: `kills` were grey (pending) on top of
+## `old_bar`. PERFECT grows an extra half in gold, CLEAN/SINGLE turn solid,
+## DROPPED loses half, which crumbles off. Then the bar flashes and shows
+## the real values again (set_progress).
+func show_chain_result(grade: String, kills: int, old_bar: float, bar_size: float, level: int) -> void:
+	var gain := minf(kills * float(Progression.MULTIPLIER[grade]), bar_size - old_bar)
+	_result = {"grade": grade, "kills": float(kills), "base": old_bar, "gain": maxf(gain, 0.0),
+		"size": maxf(bar_size, 0.001), "level": level}
+	_result_t = 0.0
+
+
+func _process_result(delta: float) -> void:
+	if _result.is_empty():
+		return
+	_result_t += delta
+	_progress.queue_redraw()
+	if _result_t >= RESULT_ACT + RESULT_HOLD:
+		_result = {}
+		pulse_progress()
 
 
 ## A short flash on the bar when a chain is added to it.
@@ -237,6 +271,10 @@ func _draw_progress() -> void:
 	var s := PROGRESS_SIZE
 	var full := Rect2(Vector2.ZERO, s)
 	_progress.draw_rect(full, PROGRESS_EMPTY)
+	if not _result.is_empty():
+		_draw_result()
+		_progress.draw_rect(full.grow(2.0), Color(1, 1, 1, 0.35), false, 2.0)
+		return
 	var filled := s.x * clampf(_p_bar / _p_size, 0.0, 1.0)
 	var pending := minf(s.x * _p_pending / _p_size, s.x - filled)
 	if pending > 0.0:
@@ -245,6 +283,39 @@ func _draw_progress() -> void:
 		_progress.draw_rect(Rect2(0, 0, filled, s.y), PROGRESS_FILL)
 	var outline := Color(1, 1, 1, 0.35 + 0.65 * _p_pulse)
 	_progress.draw_rect(full.grow(2.0 + 3.0 * _p_pulse), outline, false, 2.0)
+
+
+func _draw_result() -> void:
+	var s := PROGRESS_SIZE
+	var px := s.x / float(_result["size"])
+	var base := minf(float(_result["base"]) * px, s.x)
+	var kills := minf(float(_result["kills"]) * px, s.x - base)
+	var gain := minf(float(_result["gain"]) * px, s.x - base)
+	var p := ease(clampf(_result_t / RESULT_ACT, 0.0, 1.0), 0.4)   # fast start, soft end
+	var hold := clampf((_result_t - RESULT_ACT) / RESULT_HOLD, 0.0, 1.0)
+	if base > 0.0:
+		_progress.draw_rect(Rect2(0, 0, base, s.y), PROGRESS_FILL)
+	match _result["grade"]:
+		"PERFECT":
+			_progress.draw_rect(Rect2(base, 0, kills, s.y), PROGRESS_PENDING.lerp(PROGRESS_FILL, hold))
+			var extra := maxf(gain - kills, 0.0) * p
+			if extra > 0.0:
+				_progress.draw_rect(Rect2(base + kills, 0, extra, s.y), PROGRESS_BONUS.lerp(PROGRESS_FILL, hold))
+		"DROPPED":
+			_progress.draw_rect(Rect2(base, 0, gain, s.y), PROGRESS_PENDING.lerp(PROGRESS_FILL, hold))
+			# The lost half breaks into pieces that fall and fade.
+			var x := base + gain
+			var i := 0
+			while x < base + kills - 0.01:
+				var w := minf(CRUMBLE_PIECE, base + kills - x)
+				var fall := CRUMBLE_FALL * p * (0.7 + 0.15 * (i % 3))
+				var c := PROGRESS_CRUMBLE
+				c.a = 1.0 - p
+				_progress.draw_rect(Rect2(x + 1.0, fall, w - 2.0, s.y), c)
+				x += w
+				i += 1
+		_:   # CLEAN, SINGLE: counts as it is
+			_progress.draw_rect(Rect2(base, 0, kills, s.y), PROGRESS_PENDING.lerp(PROGRESS_FILL, p))
 
 
 func show_start(best: int) -> void:
