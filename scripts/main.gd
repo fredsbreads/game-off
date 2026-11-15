@@ -40,6 +40,7 @@ const DEATH_SLOW_SPEED := 0.03  # slow motion starts at this speed, eases back t
 const DEATH_ZOOM_HOLD := 0.7    # seconds into the slow motion before the zoom starts easing out
 const DEATH_ZOOM := 0.45        # 45 % closer during the freeze
 const DEATH_FOCUS_X := 0.45     # ...with the clash moved to 45 % across the screen
+const DEATH_ZOOM_OUT := -0.15   # then out to 15 % wider than normal, centred on it
 const DEATH_FLASH := Color(1, 1, 1, 0.4)
 const DEATH_FLASH_TIME := 0.15
 const DEATH_ZOOM_RATE := 7.0      # how fast the camera pushes in (lower = slower, smoother)
@@ -409,7 +410,7 @@ func _physics_process(delta: float) -> void:
 	var run_px := Rules.RUN_SPEED * Rules.TILE if moving else 0.0
 	cam.follow(player.x, run_px, delta)
 	# The real top-left of the view (a zoom can pan it left of cam.left()).
-	level.set_view(minf(cam.left(), cam.position.x), cam.visible_world_size())
+	level.set_view(minf(cam.left(), cam.position.x), cam.shown_world_size())
 	hud.set_stats(score(), distance, kills, chain, 0.0)
 	var to_screen := get_viewport_rect().size.x / (CameraRig.VIEW_TILES * Rules.TILE)
 	hud.set_progress(progression.level, progression.bar, progression.bar_size(), chain,
@@ -708,7 +709,8 @@ func _update_death_visuals() -> void:
 	var frozen := speed == 0.0
 	if _state_time >= DEATH_FREEZE + DEATH_ZOOM_HOLD and not _death_released:
 		_death_released = true
-		cam.hold_zoom(_death_focus, 0.0, 2.5)   # ease back out, well into the slow motion
+		# Ease back out, past normal, staying centred on the death.
+		cam.hold_zoom(_death_focus, DEATH_ZOOM_OUT, 2.5, 0.5)
 	player.frozen = frozen
 	fx.frozen = frozen
 	blood_fx.frozen = frozen

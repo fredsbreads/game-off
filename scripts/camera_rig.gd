@@ -27,12 +27,19 @@ var _hold := 0.0
 var _hold_target := 0.0
 var _hold_focus := Vector2.ZERO
 var _hold_rate := 12.0
-var _hold_peak := 0.0       # the amount asked for most recently (>0)
-var _hold_frac := -1.0      # screen x (0-1) to pan the focus to; < 0 = don't pan
+var _hold_frac := 0.5       # screen x (0-1) to pan the focus to
+var _pan := 0.0             # 0 = no pan, 1 = focus at _hold_frac (eased)
+var _pan_target := 0.0
 
 
 func left() -> float:
 	return _left
+
+
+## What's on screen right now, in world pixels: wider than
+## visible_world_size() while zoomed out (the death camera).
+func shown_world_size() -> Vector2:
+	return visible_world_size() / (1.0 + minf(_hold, 0.0))
 
 
 ## Size of the visible area in world pixels (always VIEW_TILES wide).
@@ -61,6 +68,7 @@ func follow(player_x: float, run_px_per_s: float, delta: float) -> void:
 	if _shake_time > 0.0:
 		_shake_time -= delta
 	_hold += (_hold_target - _hold) * (1.0 - exp(-_hold_rate * delta))
+	_pan += (_pan_target - _pan) * (1.0 - exp(-_hold_rate * delta))
 	if _punch_time >= 0.0:
 		_punch_time += delta
 		if _punch_time > PUNCH_IN + PUNCH_OUT:
@@ -73,16 +81,16 @@ func punch(focus_world: Vector2) -> void:
 	_punch_time = 0.0
 
 
-## Zoom in by `amount` (0.45 = 45 % closer) around a world point and hold it
-## until called again with 0. `rate`: how fast it eases there.
+## Zoom by `amount` around a world point and hold it (0.45 = 45 % closer,
+## -0.15 = 15 % further out, 0 = normal). `rate`: how fast it eases there.
 ## `screen_frac`: also pan so the focus sits this far across the screen
-## (0.5 = middle) at full zoom.
+## (0.5 = middle); < 0 = no pan.
 func hold_zoom(focus_world: Vector2, amount: float, rate: float = 12.0, screen_frac: float = -1.0) -> void:
 	_hold_focus = focus_world
 	_hold_target = amount
 	_hold_rate = rate
-	if amount > 0.0:
-		_hold_peak = amount
+	_pan_target = 1.0 if screen_frac >= 0.0 else 0.0
+	if screen_frac >= 0.0:
 		_hold_frac = screen_frac
 
 
@@ -111,12 +119,11 @@ func _apply() -> void:
 		# Zoom in around the kill point: it stays put on screen.
 		top_left = _punch_focus - (_punch_focus - top_left) / (1.0 + p)
 		z *= 1.0 + p
-	if _hold > 0.001:
+	if absf(_hold) > 0.001 or _pan > 0.001:
 		var zoomed := _hold_focus - (_hold_focus - top_left) / (1.0 + _hold)
-		if _hold_frac >= 0.0 and _hold_peak > 0.0:
-			var view_w := VIEW_TILES * Rules.TILE / (1.0 + _hold)
-			var panned_x := _hold_focus.x - _hold_frac * view_w
-			zoomed.x = lerpf(zoomed.x, panned_x, clampf(_hold / _hold_peak, 0.0, 1.0))
+		var view_w := VIEW_TILES * Rules.TILE / (1.0 + _hold)
+		var panned_x := _hold_focus.x - _hold_frac * view_w
+		zoomed.x = lerpf(zoomed.x, panned_x, clampf(_pan, 0.0, 1.0))
 		top_left = zoomed
 		z *= 1.0 + _hold
 	zoom = Vector2(z, z)
