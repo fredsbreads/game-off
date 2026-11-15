@@ -55,6 +55,11 @@ var debug: DebugTools = null
 var _pending_forward := false
 var _pending_vertical := false
 var _pending_frames := 0
+# Where she was when a pending press could first fire. A single press waits
+# DIAGONAL_WINDOW_FRAMES in case it's a diagonal; when it fires, it fires
+# from here, so a marker that was lit when you pressed still hits.
+var _press_x := 0.0
+var _press_x_set := false
 var _last_touch_msec := -100000
 # Which Shift keys are down, by location (see _shift_press_is_fresh).
 var _shift_held := {}
@@ -286,6 +291,7 @@ func _clear_pending() -> void:
 	_pending_forward = false
 	_pending_vertical = false
 	_pending_frames = 0
+	_press_x_set = false
 
 
 ## The move to make this frame from the buttons pressed, waiting a few
@@ -375,7 +381,14 @@ func _step() -> void:
 	if debug and debug.bot:
 		move = debug.think()
 	else:
+		# The press arrived since the last frame, so this is where she was.
+		if (_pending_forward or _pending_vertical) and not _press_x_set and player.cooldown == 0:
+			_press_x = player.x
+			_press_x_set = true
+		var from_x := _press_x if _press_x_set else player.x
 		move = _take_pending_move(player.cooldown == 0)
+		if move != Rules.Move.NONE and player.cooldown == 0:
+			player.x = from_x
 
 	# 1. teleport (ignored while on cooldown)
 	if move != Rules.Move.NONE and player.cooldown == 0:
@@ -389,6 +402,17 @@ func _step() -> void:
 
 	# 3. running into an enemy in your row
 	if not level.enemies_at(player.x, Rules.HIT_RADIUS, player.row).is_empty():
+		# A press still waiting for a possible diagonal goes first: she
+		# pressed before the contact, so she teleports from where she pressed.
+		if _press_x_set and player.cooldown == 0:
+			var pressed := Rules.Move.FORWARD if _pending_forward else Rules.Move.VERTICAL
+			player.x = _press_x
+			_clear_pending()
+			_teleport(pressed)
+			if _hitstop > 0.0:
+				return
+			if level.enemies_at(player.x, Rules.HIT_RADIUS, player.row).is_empty():
+				return
 		_die("hit")
 		return
 

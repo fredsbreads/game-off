@@ -25,13 +25,16 @@ enum Move { NONE, FORWARD, VERTICAL, DIAGONAL }
 # Counted in whole frames: 0.16 s rounds up to 10 frames (~0.167 s).
 const COOLDOWN_SECONDS := 0.16
 
-# Landing within this many tiles of an enemy's centre kills it.
+# Each teleport's landing zone (what the line under its marker shows): this
+# many tiles either side of the landing spot.
 const KILL_RADIUS := 0.8
-# The vertical teleport is more forgiving AHEAD of you only: it kills an
-# enemy across from you up to this many tiles ahead (aiming straight across
-# is a timing call, and a stacked pair otherwise leaves almost no window).
-# Behind you it uses the normal KILL_RADIUS.
+# The vertical teleport's zone reaches further AHEAD of you only (aiming
+# straight across is a timing call, and a stacked pair otherwise leaves
+# almost no window). Behind you it uses the normal KILL_RADIUS.
 const VERTICAL_KILL_AHEAD := 1.2
+# An enemy is killed if any part of it touches the landing zone, so the zone
+# for its centre is wider by half its width (enemies are 0.6 tiles wide).
+const ENEMY_HALF_WIDTH := 0.3
 # Running within this many tiles of a live enemy's centre kills you.
 const HIT_RADIUS := 0.55
 
@@ -48,11 +51,18 @@ static func cooldown_frames() -> int:
 	return ceili(COOLDOWN_SECONDS * PHYSICS_FPS)
 
 
-## Kill zone for a move, as [tiles behind the landing spot, tiles ahead].
-static func kill_zone(move: int) -> Vector2:
+## The landing zone a marker's line shows, as [tiles behind the landing
+## spot, tiles ahead]. An enemy touching it dies.
+static func marker_zone(move: int) -> Vector2:
 	if move == Move.VERTICAL:
 		return Vector2(KILL_RADIUS, VERTICAL_KILL_AHEAD)
 	return Vector2(KILL_RADIUS, KILL_RADIUS)
+
+
+## Kill zone for an enemy's CENTRE, as [tiles behind, tiles ahead]: the
+## marker zone plus half an enemy's width each side.
+static func kill_zone(move: int) -> Vector2:
+	return marker_zone(move) + Vector2(ENEMY_HALF_WIDTH, ENEMY_HALF_WIDTH)
 
 
 ## True if an enemy at enemy_x is killed by `move` landing at landing_x.

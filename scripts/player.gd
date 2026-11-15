@@ -136,13 +136,13 @@ func _draw() -> void:
 	var gap := Rules.ROW_GAP * t
 
 	var fwd := Rules.FORWARD * t
-	# The line under each bolt spans that teleport's kill zone: an enemy whose
-	# centre is inside it dies if you make that move now. The across marker
+	# The line under each bolt spans that teleport's landing zone: an enemy
+	# touching it dies if you make that move now. The across marker
 	# (vertical) reaches further ahead because that teleport is more
 	# forgiving forward.
-	var zf := Rules.kill_zone(Rules.Move.FORWARD) * t
-	var zv := Rules.kill_zone(Rules.Move.VERTICAL) * t
-	var zd := Rules.kill_zone(Rules.Move.DIAGONAL) * t
+	var zf := Rules.marker_zone(Rules.Move.FORWARD) * t
+	var zv := Rules.marker_zone(Rules.Move.VERTICAL) * t
+	var zd := Rules.marker_zone(Rules.Move.DIAGONAL) * t
 	# Forward: same row.
 	_draw_marker(fwd - zf.x, fwd + zf.y, -h, 3.0, target_forward)
 	# Vertical and diagonal: the other row (hanging from its surface).

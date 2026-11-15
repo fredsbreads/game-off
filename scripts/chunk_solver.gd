@@ -116,7 +116,7 @@ static func _left_required_behind(enemies: Array[Vector2], state: Array, require
 	var mask: int = state[3]
 	for i in enemies.size():
 		var bit := 1 << i
-		if (required_kills & bit) != 0 and (mask & bit) == 0 and enemies[i].x < x - Rules.KILL_RADIUS:
+		if (required_kills & bit) != 0 and (mask & bit) == 0 and enemies[i].x < x - Rules.kill_zone(Rules.Move.FORWARD).x:
 			return true
 	return false
 

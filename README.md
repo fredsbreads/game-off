@@ -30,13 +30,17 @@ run upside down.
 
 - Running into an enemy in your row kills you.
 - Teleporting passes through everything; only the landing spot matters.
-- Landing on an enemy kills it and snaps you exactly onto it.
+- Landing on an enemy kills it and snaps you exactly onto it. It counts if
+  any part of the enemy touches the landing zone (the line under the marker).
+- A single press waits up to 4 frames in case the other button follows (a
+  diagonal), then teleports from where you were when you pressed. If you'd
+  run into an enemy during that wait, the teleport goes first.
 - A tiny cooldown of 0.16 s (10 frames) between teleports, shared by all of them; a kill resets it. A press during the cooldown fires as soon as it ends (`COOLDOWN_SECONDS` in `scripts/rules.gd`).
 - Every kill gets a short hit freeze. If another enemy is under one of your
   markers, it becomes a 0.7 s "your move" pause (tap to skip).
 - Each teleport has a marker at its landing spot: a lightning bolt, hollow
   and dull by default, solid when that teleport would slash an enemy right
-  now (the line under it spans the kill zone). In the "your move" pause the
+  now (an enemy touching the line under it counts). In the "your move" pause the
   solid ones pulse.
 - Run speed is a constant 6 tiles/s.
 - Score, distance and the kill counter are tracked but **not shown** for now
