@@ -21,6 +21,7 @@ var _items: Array[Dictionary] = []
 var frozen := false
 ## Slow motion (the death moment): effects run at this speed.
 var time_scale := 1.0
+var bolt_alpha := 1.0   # lightning fades with her as she dissolves
 
 
 ## from / to are body centres in pixels.
@@ -178,8 +179,9 @@ func _draw() -> void:
 				draw_rect(Rect2(it["pos"] - Vector2(s, 2.0), Vector2(s * 2.0, 3.0)), col)
 			"bolt":
 				var pts: PackedVector2Array = it["pts"]
-				draw_polyline(pts, Color(1.0, 0.2, 0.25, 0.9 * fade), 5.0)
-				draw_polyline(pts, Color(1.0, 0.95, 0.9, fade), 2.0)
+				var a := fade * bolt_alpha
+				draw_polyline(pts, Color(1.0, 0.2, 0.25, 0.9 * a), 5.0)
+				draw_polyline(pts, Color(1.0, 0.95, 0.9, a), 2.0)
 			"particle":
 				var col: Color = it["color"]
 				col.a = fade

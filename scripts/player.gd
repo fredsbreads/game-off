@@ -436,6 +436,8 @@ func animate_death(delta: float) -> void:
 	rotation = lerpf(rotation, DEATH_TILT, 1.0 - exp(-4.0 * delta))
 	_dissolve = minf(_dissolve + delta / DISSOLVE_TIME, 1.0)
 	_dissolve_material.set_shader_parameter("amount", _dissolve)
+	if zap_fx:
+		zap_fx.bolt_alpha = 1.0 - _dissolve
 
 
 ## Lightning over her body and along her sword, moving with `vel`.
