@@ -86,6 +86,24 @@ func zap(pos: Vector2, arcs: int = 2, vel: Vector2 = Vector2.ZERO, size: Vector2
 			"color": [Color(1.0, 0.95, 0.9), Color(1.0, 0.3, 0.3)][i % 2]})
 
 
+## A jagged arc along a line (lightning running down her sword), moving with `vel`.
+func zap_line(a: Vector2, b: Vector2, vel: Vector2 = Vector2.ZERO) -> void:
+	var pts := PackedVector2Array([a])
+	var steps := 5
+	var n := (b - a).orthogonal().normalized()
+	for i in range(1, steps):
+		pts.append(a.lerp(b, float(i) / steps) + n * randf_range(-6.0, 6.0))
+	pts.append(b)
+	_items.append({"kind": "bolt", "t": 0.0, "life": randf_range(0.06, 0.12), "pts": pts, "vel": vel})
+
+
+## Removes the lightning arcs (so frozen lightning can flicker: redrawn each time).
+func clear_bolts() -> void:
+	for i in range(_items.size() - 1, -1, -1):
+		if _items[i]["kind"] == "bolt":
+			_items.remove_at(i)
+
+
 ## Floating text at `pos`. `speed` (pixels/s) moves it forward: at the run
 ## speed it keeps pace with the player, so it stays put on screen instead of
 ## scrolling away with the world. `rise` 1 drifts it up as it fades, -1 down.

@@ -381,7 +381,9 @@ const DEATH_PUSH := Vector2(-170, -60)   # pixels/s, slowing down
 const DEATH_TILT := -0.5                 # radians she tips back by
 const DISSOLVE_TIME := 0.55              # seconds (game time, so the slow motion stretches it)
 const ZAP_EVERY := 0.05                  # seconds (game time) between crackles while she dissolves
-const BODY_CENTRE := Vector2(0, -38)     # her body's middle, from her feet (local, before tilt)
+const FLICKER_EVERY := 0.06              # seconds (real time): the frozen lightning redraws this often
+var _flicker_timer := 0.0
+const BODY_CENTRE := Vector2(0, -54)     # her body's middle, from her feet (local, before tilt)
 # Her own effects layer, drawn over her, for the lightning. main.gd slows and
 # freezes it with the death moment like the other effects.
 var zap_fx: Fx
@@ -421,9 +423,8 @@ func die(_kind: String) -> void:
 	_dissolve_material.shader = DISSOLVE_SHADER
 	_sprite.material = _dissolve_material
 	_katana.material = _dissolve_material
-	# Already crackling in the death freeze (held still there like the rest).
-	if zap_fx:
-		zap_fx.zap(to_global(BODY_CENTRE), 4, Vector2.ZERO, Vector2(16, 30), 3)
+	# Already crackling in the death freeze (and flickering: see _process).
+	_crackle(Vector2.ZERO, 4, 3)
 
 
 ## Called with game time (0 during the death freeze, slowed in the slow
@@ -439,10 +440,19 @@ func animate_death(delta: float) -> void:
 	# Crackles across her body as long as there's some of her left: from
 	# where her body actually is (tilted, drifting), moving with her.
 	_zap_timer -= delta
-	if _zap_timer <= 0.0 and _dissolve < 0.95 and zap_fx:
+	if _zap_timer <= 0.0 and _dissolve < 0.95:
 		_zap_timer = ZAP_EVERY
-		var centre := to_global(BODY_CENTRE)
-		zap_fx.zap(centre, 2, _death_velocity, Vector2(16, 30), 2)
+		_crackle(_death_velocity, 2, 2)
+
+
+## Lightning over her body and along her sword, moving with `vel`.
+func _crackle(vel: Vector2, arcs: int, sparks: int) -> void:
+	if zap_fx == null:
+		return
+	zap_fx.zap(to_global(BODY_CENTRE), arcs, vel, Vector2(16, 30), sparks)
+	if _katana:
+		var half := KATANA.get_height() * 0.5
+		zap_fx.zap_line(_katana.to_global(Vector2(0, half)), _katana.to_global(Vector2(0, -half)), vel)
 
 
 func _process(delta: float) -> void:
@@ -453,6 +463,13 @@ func _process(delta: float) -> void:
 	if _arc_time > ARC_NONE:
 		_arc_time += delta
 		_update_arc()
+	# Death freeze: everything's held still, but the lightning flickers.
+	if not alive and frozen and zap_fx:
+		_flicker_timer -= delta
+		if _flicker_timer <= 0.0:
+			_flicker_timer = FLICKER_EVERY
+			zap_fx.clear_bolts()
+			_crackle(Vector2.ZERO, 4, 0)
 	if _hidden_left > 0.0:
 		_hidden_left -= delta
 		_sprite.visible = _hidden_left <= 0.0
