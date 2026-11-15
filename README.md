@@ -89,6 +89,7 @@ A bar above the ceiling row fills as you chain kills; filling it levels you up.
 ## Art
 
 - Enemy: "Martial Hero 3" asset pack (CC0, see `assets/sprites/martial_hero/License.txt`).
+- `art/`: layered Piskel sources for the Red Flash sprites (the game uses the flattened PNGs in `assets/sprites`).
 
 ## Running it
 
