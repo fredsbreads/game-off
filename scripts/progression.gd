@@ -4,8 +4,10 @@ extends RefCounted
 ##
 ## Each kill in a chain adds 1 to a temporary portion. When the chain ends,
 ## that portion is added to the bar, multiplied by how the chain ended:
-##   PERFECT  ended on a kill, nothing more to chain, no enemy skipped  x1.5
-##   CLEAN    ended on a kill, nothing more to chain, an enemy skipped  x1
+##   PERFECT  ended on a kill, nothing more to chain, and this chain
+##            killed the whole spawned chain, first enemy to last       x1.5
+##   CLEAN    ended on a kill, nothing more to chain, but some of the
+##            spawned chain wasn't part of it (skipped or joined late)  x1
 ##   DROPPED  the "your move" freeze ran out, or you teleported into empty
 ##            space while an enemy was under a marker                   x0.5
 ##   SINGLE   a one-kill chain                                           x1

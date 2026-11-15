@@ -64,7 +64,7 @@ var _pause_is_chain := false    # true = the longer "your move" pause
 # Chain tracking (see Progression for the rules):
 var _chain_awaiting := false     # an enemy is under a marker: your move
 var _pressed_during_pause := false
-var _chain_candidates := {}      # instance id -> killed? (enemies seen under a marker)
+var _chain_killed: Array[int] = []   # instance ids killed in this chain
 var _state_time := 0.0
 var _paused_at_msec := 0
 
@@ -423,17 +423,15 @@ func _teleport(move: int) -> void:
 			cam.punch(to)
 			_chain_awaiting = true
 			_pressed_during_pause = false
-			for t in targets:
-				var id := t.get_instance_id()
-				if not _chain_candidates.has(id):
-					_chain_candidates[id] = false
 		else:
 			# Nothing left to chain: the chain ends here, on a kill.
-			var skipped := false
-			for id in _chain_candidates:
-				if not _chain_candidates[id]:
-					skipped = true
-			_end_chain("SINGLE" if chain == 1 else ("CLEAN" if skipped else "PERFECT"))
+			# PERFECT only if this chain killed the whole spawned chain, first
+			# enemy to last; otherwise CLEAN.
+			var whole := not _chain_killed.is_empty()
+			for id in level.section_ids_of(_chain_killed.back()):
+				if not _chain_killed.has(id):
+					whole = false
+			_end_chain("SINGLE" if chain == 1 else ("PERFECT" if whole else "CLEAN"))
 
 
 ## Live enemies under any marker at this spot, i.e. what one more press
@@ -469,7 +467,7 @@ func _kill(e: Enemy) -> void:
 	kills += 1
 	chain += 1
 	best_chain = maxi(best_chain, chain)
-	_chain_candidates[e.get_instance_id()] = true
+	_chain_killed.append(e.get_instance_id())
 	var points := Rules.KILL_POINTS * chain
 	kill_score += points
 
@@ -506,7 +504,7 @@ func _end_chain(grade: String) -> void:
 	chain = 0
 	_chain_awaiting = false
 	_pressed_during_pause = false
-	_chain_candidates.clear()
+	_chain_killed.clear()
 
 
 func _die(kind: String) -> void:

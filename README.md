@@ -45,9 +45,10 @@ A bar above the ceiling row fills as you chain kills; filling it levels you up.
 
 - Each kill in a chain adds 1 to a grey, temporary part of the bar. When the
   chain ends it's added for real, multiplied by how the chain ended:
-  - **PERFECT** x1.5: ended on a kill, nothing left to chain, no enemy skipped
-  - **CLEAN** x1: the same, but an enemy was skipped (it was under a marker
-    during the chain and is still alive)
+  - **PERFECT** x1.5: ended on a kill, nothing left to chain, and the chain
+    killed the whole spawned chain from its first enemy to its last
+  - **CLEAN** x1: ended on a kill, but some of the spawned chain wasn't part
+    of it (you joined late or skipped one)
   - **DROPPED** x0.5: the "your move" pause ran out, or you teleported into
     empty space while an enemy was under a marker
   - a one-kill chain counts x1 but never levels you up

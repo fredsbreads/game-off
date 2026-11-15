@@ -74,7 +74,7 @@ func _pick_pattern() -> Dictionary:
 
 
 func _append_pattern(pattern: Dictionary) -> void:
-	var section := {"start": _cursor, "row": _cursor_row, "name": pattern["name"], "enemies": []}
+	var section := {"start": _cursor, "row": _cursor_row, "name": pattern["name"], "enemies": [], "ids": []}
 	var shape: Array = pattern["enemies"]
 	var last_row := _cursor_row
 	for rel in shape:
@@ -85,6 +85,7 @@ func _append_pattern(pattern: Dictionary) -> void:
 		enemy_parent.add_child(enemy)
 		enemies.append(enemy)
 		section["enemies"].append(enemy)
+		section["ids"].append(enemy.get_instance_id())
 		last_row = enemy.row
 	sections.append(section)
 	var last: Vector2 = shape.back()
@@ -136,6 +137,15 @@ func hazard_between(from_x: float, to_x: float) -> bool:
 		if i >= 0 and i < tiles.size() and Rules.is_hazard(tiles[i]):
 			return true
 	return false
+
+
+## The instance ids of every enemy in the spawned chain (section) that the
+## enemy with instance id `id` belongs to, or [] if it's not in one.
+func section_ids_of(id: int) -> Array:
+	for section in sections:
+		if section["ids"].has(id):
+			return section["ids"]
+	return []
 
 
 func section_name_at(x: float) -> String:
