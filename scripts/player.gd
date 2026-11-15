@@ -380,7 +380,6 @@ const DISSOLVE_SHADER := preload("res://shaders/dissolve.gdshader")
 const DEATH_PUSH := Vector2(-170, -60)   # pixels/s, slowing down
 const DEATH_TILT := -0.5                 # radians she tips back by
 const DISSOLVE_TIME := 0.55              # seconds (game time, so the slow motion stretches it)
-const ZAP_EVERY := 0.05                  # seconds (game time) between crackles while she dissolves
 const FLICKER_EVERY := 0.06              # seconds (real time): the frozen lightning redraws this often
 const FREEZE_SPARKLE := 0.14             # share of her pixels glowing in the death freeze
 var _flicker_timer := 0.0
@@ -388,7 +387,6 @@ const BODY_CENTRE := Vector2(0, -54)     # her body's middle, from her feet (loc
 # Her own effects layer, drawn over her, for the lightning. main.gd slows and
 # freezes it with the death moment like the other effects.
 var zap_fx: Fx
-var _zap_timer := 0.0
 # Her katana stays in her right hand as she dies (the far arm, so it's drawn
 # behind her; blade angled down and back) and fizzles out with her.
 const KATANA := preload("res://assets/sprites/katana.png")   # tip up, hilt at the bottom
@@ -438,12 +436,6 @@ func animate_death(delta: float) -> void:
 	rotation = lerpf(rotation, DEATH_TILT, 1.0 - exp(-4.0 * delta))
 	_dissolve = minf(_dissolve + delta / DISSOLVE_TIME, 1.0)
 	_dissolve_material.set_shader_parameter("amount", _dissolve)
-	# Crackles across her body as long as there's some of her left: from
-	# where her body actually is (tilted, drifting), moving with her.
-	_zap_timer -= delta
-	if _zap_timer <= 0.0 and _dissolve < 0.95:
-		_zap_timer = ZAP_EVERY
-		_crackle(_death_velocity, 2, 2)
 
 
 ## Lightning over her body and along her sword, moving with `vel`.
@@ -464,17 +456,21 @@ func _process(delta: float) -> void:
 	if _arc_time > ARC_NONE:
 		_arc_time += delta
 		_update_arc()
-	# Death freeze: everything's held still, but the lightning flickers.
-	if not alive and frozen and zap_fx:
+	# Death: the lightning flickers on real time (freeze, slow motion and
+	# all) as long as there's some of her left, moving with her body.
+	if not alive and zap_fx and _dissolve < 0.95:
 		_flicker_timer -= delta
 		if _flicker_timer <= 0.0:
 			_flicker_timer = FLICKER_EVERY
 			zap_fx.clear_bolts()
-			_crackle(Vector2.ZERO, 4, 0)
-			# Her pixels already flash (re-scattered each flicker); she only
-			# starts disappearing when time moves again.
-			_dissolve_material.set_shader_parameter("sparkle", FREEZE_SPARKLE)
-			_dissolve_material.set_shader_parameter("seed", randf() * 100.0)
+			if frozen:
+				_crackle(Vector2.ZERO, 4, 0)
+				# Her pixels already flash (re-scattered each flicker); she
+				# only starts disappearing when time moves again.
+				_dissolve_material.set_shader_parameter("sparkle", FREEZE_SPARKLE)
+				_dissolve_material.set_shader_parameter("seed", randf() * 100.0)
+			else:
+				_crackle(_death_velocity, 3, 1)
 	if _hidden_left > 0.0:
 		_hidden_left -= delta
 		_sprite.visible = _hidden_left <= 0.0

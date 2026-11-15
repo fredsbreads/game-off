@@ -122,7 +122,8 @@ func _process(real_delta: float) -> void:
 	var delta := real_delta * time_scale
 	for i in range(_items.size() - 1, -1, -1):
 		var it := _items[i]
-		it["t"] += delta
+		# Lightning ages on real time, so it keeps flickering in slow motion.
+		it["t"] += real_delta if it["kind"] == "bolt" else delta
 		if it["kind"] == "bolt":
 			var shift: Vector2 = it["vel"] * delta
 			var pts: PackedVector2Array = it["pts"]
