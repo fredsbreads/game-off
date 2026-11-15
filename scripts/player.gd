@@ -371,39 +371,51 @@ func _update_arc() -> void:
 		_arc.visible = false
 
 
+# Her death: she's knocked back a little and fizzles out, as if zapped.
+const DISSOLVE_SHADER := preload("res://shaders/dissolve.gdshader")
+const DEATH_PUSH := Vector2(-170, -60)   # pixels/s, slowing down
+const DEATH_TILT := -0.5                 # radians she tips back by
+const DISSOLVE_TIME := 0.55              # seconds (game time, so the slow motion stretches it)
+const ZAPS_AT := [0.0, 0.2, 0.45, 0.7]   # dissolve amounts that crackle with lightning
+var fx: Fx                               # main.gd sets this, for the lightning
+var _dissolve := 0.0
+var _zaps_done := 0
+var _dissolve_material: ShaderMaterial
+
+
 func die(_kind: String) -> void:
 	_striking = false
 	alive = false
-	# Knocked back and up; from the ceiling she just drops.
-	_death_velocity = Vector2(-220, -420) if row == Rules.Row.FLOOR else Vector2(-220, 60)
-	_play("fall")
+	_hidden_left = 0.0
+	_sprite.visible = true
+	_sprite.pause()   # frozen in the pose she was hit in
+	_death_velocity = DEATH_PUSH if row == Rules.Row.FLOOR else Vector2(DEATH_PUSH.x, -DEATH_PUSH.y)
+	_dissolve_material = ShaderMaterial.new()
+	_dissolve_material.shader = DISSOLVE_SHADER
+	_sprite.material = _dissolve_material
 
 
-var _landed := false
-const LIE_LIFT := 16.0   # pixels: lying on her side, her body's middle sits this far above the floor
-
-
-## Knocked back, spinning, until she lands on the floor; then she lies there.
+## Called with game time (0 during the death freeze, slowed in the slow
+## motion): she drifts back, tips, and fizzles out with crackles of lightning.
 func animate_death(delta: float) -> void:
-	if _landed:
+	if delta <= 0.0:
 		return
-	_death_velocity.y += 1600.0 * delta
+	_death_velocity *= exp(-3.0 * delta)
 	_death_offset += _death_velocity * delta
-	rotation -= 8.0 * delta
-	var feet_y := Rules.surface_y(row) + _death_offset.y
-	if _death_velocity.y > 0.0 and feet_y >= Rules.GROUND_Y:
-		_landed = true
-		_death_offset.y = Rules.GROUND_Y - Rules.surface_y(row) - LIE_LIFT
-		_death_velocity = Vector2.ZERO
-		rotation = -PI / 2.0   # on her side, head the way she was knocked
-		_sprite.pause()
+	rotation = lerpf(rotation, DEATH_TILT, 1.0 - exp(-4.0 * delta))
+	_dissolve = minf(_dissolve + delta / DISSOLVE_TIME, 1.0)
+	_dissolve_material.set_shader_parameter("amount", _dissolve)
+	while _zaps_done < ZAPS_AT.size() and _dissolve >= float(ZAPS_AT[_zaps_done]):
+		_zaps_done += 1
+		if fx:
+			var up := -1.0 if row == Rules.Row.FLOOR else 1.0
+			fx.zap(global_position + Vector2(0, up * Rules.TILE * 0.55))
 
 
 func _process(delta: float) -> void:
 	position = Vector2(x * Rules.TILE, Rules.surface_y(row)) + _death_offset
-	# On the ceiling the whole player (sprite and markers) is upside down
-	# (until she's fallen and lies on the floor).
-	scale.y = -1.0 if row == Rules.Row.CEILING and not _landed else 1.0
+	# On the ceiling the whole player (sprite and markers) is upside down.
+	scale.y = -1.0 if row == Rules.Row.CEILING else 1.0
 
 	if _arc_time > ARC_NONE:
 		_arc_time += delta

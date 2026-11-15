@@ -64,6 +64,27 @@ func blood(pos: Vector2, dir_x: float, amount: int = 24, burst: float = 0.0, dir
 			"color": BLOOD_COLORS[i % BLOOD_COLORS.size()]})
 
 
+## A crackle of lightning around `pos` (her death): a few jagged arcs and
+## sparks.
+func zap(pos: Vector2, arcs: int = 3) -> void:
+	for a in arcs:
+		var start := pos + Vector2.from_angle(randf() * TAU) * randf_range(10.0, 30.0)
+		var end := pos + Vector2.from_angle(randf() * TAU) * randf_range(45.0, 85.0)
+		var pts := PackedVector2Array([start])
+		var steps := 5
+		for i in range(1, steps):
+			var p := start.lerp(end, float(i) / steps)
+			var n := (end - start).orthogonal().normalized()
+			pts.append(p + n * randf_range(-14.0, 14.0))
+		pts.append(end)
+		_items.append({"kind": "bolt", "t": 0.0, "life": randf_range(0.08, 0.16), "pts": pts})
+	for i in 6:
+		var dir := Vector2.from_angle(randf() * TAU)
+		_items.append({"kind": "particle", "t": 0.0, "life": randf_range(0.25, 0.45),
+			"pos": pos, "vel": dir * randf_range(120.0, 320.0),
+			"color": [Color(1.0, 0.95, 0.9), Color(1.0, 0.3, 0.3)][i % 2]})
+
+
 ## Floating text at `pos`. `speed` (pixels/s) moves it forward: at the run
 ## speed it keeps pace with the player, so it stays put on screen instead of
 ## scrolling away with the world. `rise` 1 drifts it up as it fades, -1 down.
@@ -129,6 +150,10 @@ func _draw() -> void:
 				col.a = minf(1.0, fade * 3.0)   # fades out over its last third
 				var s: float = it["size"]
 				draw_rect(Rect2(it["pos"] - Vector2(s, 2.0), Vector2(s * 2.0, 3.0)), col)
+			"bolt":
+				var pts: PackedVector2Array = it["pts"]
+				draw_polyline(pts, Color(1.0, 0.2, 0.25, 0.9 * fade), 5.0)
+				draw_polyline(pts, Color(1.0, 0.95, 0.9, fade), 2.0)
 			"particle":
 				var col: Color = it["color"]
 				col.a = fade

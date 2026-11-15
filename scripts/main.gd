@@ -123,6 +123,7 @@ func _ready() -> void:
 	# Her effects too sit above the grey freeze filter, so they stay red in
 	# the "your move" pause instead of turning grey.
 	fx.reparent($EnemyLayer)
+	player.fx = fx   # her death crackles with lightning
 	level.ensure_generated(player.x)
 	cam.snap(player.x)
 	best_score = _load_best()
