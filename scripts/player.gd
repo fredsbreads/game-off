@@ -20,14 +20,23 @@ const FRAME := Vector2i(96, 96)
 # Where her feet are inside a 96x96 frame: this point sits on the floor.
 const FEET := Vector2(47, 88)
 const RUN_FEET := Vector2(47, 86)   # the run strip's feet sit 2 px higher
+# Attacks: three separate strike poses (with their slash arcs) on a bigger
+# 170x170 canvas, her body in the same place as the run frames + (37, 37).
+const ATTACK_SHEET := preload("res://assets/sprites/kunoichi_attack.png")
+const ATTACK_FRAME := Vector2i(170, 170)
+const ATTACK_FEET := RUN_FEET + Vector2(37, 37)
+const ATTACK_COUNT := 3
+# How long a strike pose shows at least (real time, not counting freezes).
+const ATTACK_HOLD := 0.2
 # Drawn size: 1.5 = each art pixel is 1.5 game units (she's ~100 units tall).
 # Purely visual; the hitbox below is set by the rules, not the art.
 const SPRITE_SCALE := 1.5
-# [sheet, row on the sheet, frame count, frames per second, loop, feet]
+# [sheet, row on the sheet, frame count, frames per second, loop, feet, frame size]
 const ANIMS := {
-	"idle": [SHEET, 0, 6, 8.0, true, FEET],
-	"run": [RUN_SHEET, 0, 6, 12.0, true, RUN_FEET],
-	"fall": [SHEET, 5, 3, 10.0, true, FEET],
+	"idle": [SHEET, 0, 6, 8.0, true, FEET, FRAME],
+	"run": [RUN_SHEET, 0, 6, 12.0, true, RUN_FEET, FRAME],
+	"fall": [SHEET, 5, 3, 10.0, true, FEET, FRAME],
+	"attack": [ATTACK_SHEET, 0, ATTACK_COUNT, 0.0, false, ATTACK_FEET, ATTACK_FRAME],
 }
 
 const MARKER_READY := Color(1, 1, 1, 0.32)      # dull, can teleport
@@ -54,6 +63,8 @@ var target_diagonal := false
 var frozen := false      # kill pause: hold the current animation frame
 
 var _lit_time := 0.0
+var _attack_left := 0.0   # > 0 while a strike pose is showing
+var _last_attack := -1
 var _death_offset := Vector2.ZERO
 var _death_velocity := Vector2.ZERO
 var _sprite: AnimatedSprite2D
@@ -86,7 +97,8 @@ func _build_frames() -> SpriteFrames:
 		for i in int(spec[2]):
 			var tex := AtlasTexture.new()
 			tex.atlas = spec[0]
-			tex.region = Rect2(Vector2(i * FRAME.x, int(spec[1]) * FRAME.y), Vector2(FRAME))
+			var size: Vector2i = spec[6]
+			tex.region = Rect2(Vector2(i * size.x, int(spec[1]) * size.y), Vector2(size))
 			frames.add_frame(anim, tex)
 	return frames
 
@@ -98,7 +110,20 @@ func _play(anim: String) -> void:
 	_sprite.play(anim)
 
 
+## A kill: show one of the strike poses (never the same one twice in a row).
+## It stays through the kill freeze, then for ATTACK_HOLD of real play.
+func strike() -> void:
+	var pick := randi() % ATTACK_COUNT
+	if pick == _last_attack:
+		pick = (pick + 1 + randi() % (ATTACK_COUNT - 1)) % ATTACK_COUNT
+	_last_attack = pick
+	_attack_left = ATTACK_HOLD
+	_play("attack")
+	_sprite.frame = pick
+
+
 func die(_kind: String) -> void:
+	_attack_left = 0.0
 	alive = false
 	_death_velocity = Vector2(-220, -420)
 	_play("fall")
@@ -117,9 +142,13 @@ func _process(delta: float) -> void:
 	scale.y = -1.0 if row == Rules.Row.CEILING else 1.0
 
 	if alive:
-		var want := "run" if running else "idle"
-		if _sprite.animation != want:
-			_play(want)
+		if _attack_left > 0.0:
+			if not frozen:
+				_attack_left -= delta
+		else:
+			var want := "run" if running else "idle"
+			if _sprite.animation != want:
+				_play(want)
 	_sprite.speed_scale = 0.0 if frozen else 1.0
 
 	queue_redraw()

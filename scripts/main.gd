@@ -523,6 +523,7 @@ func _teleport(move: int) -> void:
 			_end_chain("DROPPED", "MISSED")   # teleported into empty space while an enemy was in reach
 	else:
 		player.cooldown = 0
+		player.strike()
 		for e in hit:
 			_kill(e)
 		var targets := _chain_targets(to_x, to_row)
