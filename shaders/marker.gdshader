@@ -1,5 +1,5 @@
 shader_type canvas_item;
-// A teleport marker: the katana's silhouette. Plain by default; the part
+// A teleport marker: a small katana silhouette. Plain by default; the part
 // within `fill` of the tip (0 = none, 1 = all) is `lit`. During the "your
 // move" freeze the fill drains toward the tip as time runs out.
 
@@ -12,6 +12,7 @@ void fragment() {
 	if (a == 0.0) {
 		discard;
 	}
-	// The image has the tip at the top (UV.y = 0) and the hilt at the bottom.
-	COLOR = UV.y <= fill ? lit : plain;
+	// The image (the diagonal sword) has the hilt at the top and the tip at
+	// the bottom.
+	COLOR = UV.y >= 1.0 - fill ? lit : plain;
 }

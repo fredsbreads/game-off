@@ -425,9 +425,8 @@ func _update_pause_visuals() -> void:
 	blood_fx.frozen = fx.frozen
 	# Lit markers drain during the "your move" freeze as the time runs out.
 	player.marker_fill = clampf(_hitstop / KILL_PAUSE, 0.0, 1.0) if chain_pause else 1.0
-	player.target_forward = _would_slash(Rules.Move.FORWARD)
-	player.target_vertical = _would_slash(Rules.Move.VERTICAL)
-	player.target_diagonal = _would_slash(Rules.Move.DIAGONAL)
+	player.target_x = [_slash_target_x(Rules.Move.FORWARD), _slash_target_x(Rules.Move.VERTICAL),
+		_slash_target_x(Rules.Move.DIAGONAL)]
 	player.frozen = paused
 
 
@@ -440,6 +439,20 @@ func _would_slash(move: int, from_x: float = NAN) -> bool:
 	var tx: float = x + Rules.move_dx(move)
 	var trow: int = (1 - player.row) if Rules.move_flips_row(move) else player.row
 	return not level.enemies_hit_by(move, tx, trow).is_empty()
+
+
+## The x (tiles) of the enemy teleporting with `move` right now would slash
+## (the nearest to the landing spot), or NAN if none.
+func _slash_target_x(move: int) -> float:
+	if state != State.PLAYING or not player.alive:
+		return NAN
+	var tx: float = player.x + Rules.move_dx(move)
+	var trow: int = (1 - player.row) if Rules.move_flips_row(move) else player.row
+	var best := NAN
+	for e in level.enemies_hit_by(move, tx, trow):
+		if is_nan(best) or absf(e.tile_x - tx) < absf(best - tx):
+			best = e.tile_x
+	return best
 
 
 func _step() -> void:
