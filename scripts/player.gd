@@ -386,11 +386,11 @@ const BODY_CENTRE := Vector2(0, -38)     # her body's middle, from her feet (loc
 # freezes it with the death moment like the other effects.
 var zap_fx: Fx
 var _zap_timer := 0.0
-# Her katana stays in her hand as she dies (blade angled down and forward)
-# and fizzles out with her.
+# Her katana stays in her right hand as she dies (the far arm, so it's drawn
+# behind her; blade angled down and back) and fizzles out with her.
 const KATANA := preload("res://assets/sprites/katana.png")   # tip up, hilt at the bottom
-const FALL_HAND := Vector2(64, 55)        # her front hand in the fall frames (art pixels)
-const KATANA_HELD_ANGLE := 2.3            # radians: tip down and forward
+const FALL_HAND := Vector2(35, 56)        # her right hand in the fall frames (art pixels)
+const KATANA_HELD_ANGLE := 3.7            # radians: tip down and back
 const KATANA_GRIP := 5.0                  # art pixels of hilt inside her hand
 var _katana: Sprite2D
 var _dissolve := 0.0
@@ -415,7 +415,7 @@ func die(_kind: String) -> void:
 	var blade_dir := Vector2(sin(KATANA_HELD_ANGLE), -cos(KATANA_HELD_ANGLE))   # from hilt to tip
 	var half := KATANA.get_height() * 0.5
 	_katana.position = hand + blade_dir * (half - KATANA_GRIP) * SPRITE_SCALE
-	_katana.z_index = 1
+	_katana.z_index = -1   # her right arm is the far one: behind her body
 	add_child(_katana)
 	_dissolve_material = ShaderMaterial.new()
 	_dissolve_material.shader = DISSOLVE_SHADER
