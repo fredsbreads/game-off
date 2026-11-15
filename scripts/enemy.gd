@@ -1,30 +1,77 @@
 class_name Enemy
 extends Node2D
-## A grey-box enemy on the floor, or hanging upside down from the ceiling.
-## Kills you if you run into it in its row; dies if you teleport onto it.
+## The default enemy: a sword fighter on the floor, or hanging upside down
+## from the ceiling. Kills you if you run into it in its row; dies if you
+## teleport onto it. Art: "Martial Hero 3" (CC0), assets/sprites/martial_hero.
+##
+## Only the look lives here. Hits and kills use the rules' numbers (an enemy
+## counts as Rules.ENEMY_HALF_WIDTH * 2 tiles wide), not the art.
 
-const BODY_COLOR := Color(0.86, 0.27, 0.32)
-const EYE_COLOR := Color(1, 1, 1)
+const IDLE := preload("res://assets/sprites/martial_hero/idle.png")
+const DEATH := preload("res://assets/sprites/martial_hero/death.png")
+const FRAME := Vector2i(126, 126)
+# The point between his feet inside a frame: this sits on the floor.
+const FEET := Vector2(66, 82)
+# Drawn size: each art pixel is this many game units (he's ~82 units tall,
+# a little shorter than her).
+const SPRITE_SCALE := 2.0
+const IDLE_FPS := 10.0
+const DEATH_FPS := 16.0
+const FADE_SECONDS := 0.3   # after the death animation, before he's removed
 
 var tile_x := 0.0
 var row := Rules.Row.FLOOR
 var alive := true
 
+var _sprite: AnimatedSprite2D
+
 
 func _ready() -> void:
 	position = Vector2(tile_x * Rules.TILE, Rules.surface_y(row))
 	scale.y = -1.0 if row == Rules.Row.CEILING else 1.0
+	_sprite = AnimatedSprite2D.new()
+	_sprite.sprite_frames = _build_frames()
+	_sprite.centered = false
+	# Flipped, so his feet are FEET mirrored inside the frame.
+	_sprite.offset = Vector2(-(FRAME.x - FEET.x), -FEET.y)
+	_sprite.scale = Vector2(SPRITE_SCALE, SPRITE_SCALE)
+	_sprite.flip_h = true   # the art faces right; he faces her (left)
+	_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	add_child(_sprite)
+	_sprite.play("idle")
+	# Don't have every enemy breathe in sync.
+	_sprite.frame = randi() % _sprite.sprite_frames.get_frame_count("idle")
+	_sprite.animation_finished.connect(_on_animation_finished)
 
 
+func _build_frames() -> SpriteFrames:
+	var frames := SpriteFrames.new()
+	frames.remove_animation("default")
+	for spec in [["idle", IDLE, IDLE_FPS, true], ["death", DEATH, DEATH_FPS, false]]:
+		var sheet: Texture2D = spec[1]
+		frames.add_animation(spec[0])
+		frames.set_animation_speed(spec[0], spec[2])
+		frames.set_animation_loop(spec[0], spec[3])
+		for i in sheet.get_width() / FRAME.x:
+			var tex := AtlasTexture.new()
+			tex.atlas = sheet
+			tex.region = Rect2(Vector2(i * FRAME.x, 0), Vector2(FRAME))
+			frames.add_frame(spec[0], tex)
+	return frames
+
+
+## Killed: he's out of the game at once (alive = false); the body plays the
+## death animation, fades and removes itself.
 func die() -> void:
 	alive = false
-	visible = false
+	if _sprite:
+		_sprite.play("death")
+	else:
+		queue_free()
 
 
-func _draw() -> void:
-	var t := Rules.TILE
-	var w := t * 0.6
-	var h := t * 0.9
-	draw_rect(Rect2(-w / 2, -h, w, h), BODY_COLOR)
-	# Eye facing left, toward the player.
-	draw_rect(Rect2(-w / 2 + 5, -h + 12, 9, 9), EYE_COLOR)
+func _on_animation_finished() -> void:
+	if _sprite.animation == "death":
+		var tween := create_tween()
+		tween.tween_property(self, "modulate:a", 0.0, FADE_SECONDS)
+		tween.tween_callback(queue_free)

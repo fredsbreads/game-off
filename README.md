@@ -86,6 +86,10 @@ A bar above the ceiling row fills as you chain kills; filling it levels you up.
   each step F, V or D with equal odds. On a level-up, the patterns not yet on
   screen are rebuilt for the new level.
 
+## Art
+
+- Enemy: "Martial Hero 3" asset pack (CC0, see `assets/sprites/martial_hero/License.txt`).
+
 ## Running it
 
 Open the folder in **Godot 4.3** (GL Compatibility renderer) and press Play.
@@ -103,7 +107,7 @@ scripts/
   main.gd               game flow, input, per-frame rules, chains and grades
   level.gd              endless level built from the level's patterns, grey-box drawing
   player.gd             player + landing markers (drawing only; main.gd moves it)
-  enemy.gd              grey-box enemy
+  enemy.gd              enemy sprite (idle, death animation)
   camera_rig.gd         follow with fast catch-up after teleports, screen shake
   fx.gd                 trails, rings, slashes, particles, floating text
   hud.gd                progression bar, level-up banner, messages, rotate-device overlay, flash
