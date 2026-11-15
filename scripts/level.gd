@@ -29,6 +29,8 @@ var level := 1
 ## Each chain laid so far: {start, row, name, enemies}. Used to rebuild what's
 ## ahead on a level-up, and to name the chain the player died in.
 var sections: Array = []
+# Killed enemies' bodies: they stay where they fell until well behind.
+var corpses: Array = []
 
 # Practice mode: no enemies at all (N key, or the button on the pause
 # screen). Static, so it stays on across retries.
@@ -186,6 +188,12 @@ func prune(min_x: float) -> void:
 		if e.tile_x < min_x:
 			e.queue_free()
 			enemies.remove_at(i)
+	for i in range(corpses.size() - 1, -1, -1):
+		var c: Enemy = corpses[i]
+		if not is_instance_valid(c) or c.tile_x < min_x:
+			if is_instance_valid(c):
+				c.queue_free()
+			corpses.remove_at(i)
 	while sections.size() > 1 and float(sections[1]["start"]) < min_x - 30.0:
 		sections.pop_front()
 

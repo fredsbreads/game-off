@@ -374,20 +374,36 @@ func _update_arc() -> void:
 func die(_kind: String) -> void:
 	_striking = false
 	alive = false
-	_death_velocity = Vector2(-220, -420)
+	# Knocked back and up; from the ceiling she just drops.
+	_death_velocity = Vector2(-220, -420) if row == Rules.Row.FLOOR else Vector2(-220, 60)
 	_play("fall")
 
 
+var _landed := false
+const LIE_LIFT := 16.0   # pixels: lying on her side, her body's middle sits this far above the floor
+
+
+## Knocked back, spinning, until she lands on the floor; then she lies there.
 func animate_death(delta: float) -> void:
+	if _landed:
+		return
 	_death_velocity.y += 1600.0 * delta
 	_death_offset += _death_velocity * delta
 	rotation -= 8.0 * delta
+	var feet_y := Rules.surface_y(row) + _death_offset.y
+	if _death_velocity.y > 0.0 and feet_y >= Rules.GROUND_Y:
+		_landed = true
+		_death_offset.y = Rules.GROUND_Y - Rules.surface_y(row) - LIE_LIFT
+		_death_velocity = Vector2.ZERO
+		rotation = -PI / 2.0   # on her side, head the way she was knocked
+		_sprite.pause()
 
 
 func _process(delta: float) -> void:
 	position = Vector2(x * Rules.TILE, Rules.surface_y(row)) + _death_offset
-	# On the ceiling the whole player (sprite and markers) is upside down.
-	scale.y = -1.0 if row == Rules.Row.CEILING else 1.0
+	# On the ceiling the whole player (sprite and markers) is upside down
+	# (until she's fallen and lies on the floor).
+	scale.y = -1.0 if row == Rules.Row.CEILING and not _landed else 1.0
 
 	if _arc_time > ARC_NONE:
 		_arc_time += delta

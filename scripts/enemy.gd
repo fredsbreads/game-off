@@ -22,7 +22,6 @@ const ATTACK_FPS := 14.0
 # Start the attack on the slash frame, so it lands right as she touches him (the first
 # frames are a wind-up).
 const ATTACK_START_FRAME := 3
-const FADE_SECONDS := 0.3   # after the death animation, before he's removed
 const OUTLINE_SHADER := preload("res://shaders/enemy_outline.gdshader")
 const GLINT_RATE := 12.0    # how fast the red outline fades in/out
 
@@ -91,7 +90,7 @@ func clear_glint() -> void:
 
 
 ## Killed: he's out of the game at once (alive = false); the body plays the
-## death animation, fades and removes itself.
+## death animation and stays where he fell.
 func die() -> void:
 	alive = false
 	if _sprite:
@@ -116,8 +115,5 @@ func attack() -> void:
 func _on_animation_finished() -> void:
 	if _sprite.animation == "attack":
 		_sprite.play("idle")
-		return
-	if _sprite.animation == "death":
-		var tween := create_tween()
-		tween.tween_property(self, "modulate:a", 0.0, FADE_SECONDS)
-		tween.tween_callback(queue_free)
+	# After "death" the body just stays (level.gd removes it once it's well
+	# behind the camera).

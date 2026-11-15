@@ -41,6 +41,7 @@ const DEATH_ZOOM_HOLD := 0.7    # seconds into the slow motion before the zoom s
 const DEATH_ZOOM := 0.45        # 45 % closer during the freeze
 const DEATH_FOCUS_X := 0.45     # ...with the clash moved to 45 % across the screen
 const DEATH_ZOOM_OUT := -0.15   # then out to 15 % wider than normal, centred on it
+const PRUNE_BEHIND_TILES := 12.0 # enemies/bodies are removed this far behind the screen
 const DEATH_FLASH := Color(1, 1, 1, 0.4)
 const DEATH_FLASH_TIME := 0.15
 const DEATH_ZOOM_RATE := 7.0      # how fast the camera pushes in (lower = slower, smoother)
@@ -516,7 +517,9 @@ func _step() -> void:
 		player.cooldown -= 1
 
 	level.ensure_generated(player.x)
-	level.prune(cam.left() / Rules.TILE - 2.0)
+	# Keep enemies and bodies a while after they scroll off the left: the
+	# death camera pulls back and shows that stretch again.
+	level.prune(cam.left() / Rules.TILE - PRUNE_BEHIND_TILES)
 
 
 func _teleport(move: int) -> void:
@@ -612,7 +615,8 @@ func _bot_acts_in_pause() -> void:
 
 func _kill(e: Enemy) -> void:
 	e.die()
-	level.enemies.erase(e)   # out of the game now; the body removes itself later
+	level.enemies.erase(e)   # out of the game now; the body stays (level.corpses)
+	level.corpses.append(e)
 	kills += 1
 	chain += 1
 	best_chain = maxi(best_chain, chain)
