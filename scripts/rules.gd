@@ -27,18 +27,19 @@ const COOLDOWN_SECONDS := 0.16
 
 # Each teleport's landing zone (what the line under its marker shows), the
 # same for all three: this many tiles behind and ahead of the landing spot.
-# It reaches further ahead so pressing a little early still hits. AHEAD is
-# also long enough that a miss never leaves you doomed: an enemy just past
-# the zone is far enough away to teleport again once the cooldown ends
-# (HIT_RADIUS + one cooldown of running = 0.55 + 1.0 = 1.55 = AHEAD + half
-# an enemy's width).
+# It reaches further ahead so pressing a little early still hits.
+# After a miss, an enemy just past the zone can still be unavoidable: it's
+# within HIT_RADIUS + one cooldown of running (0.75 + 1.0 = 1.75 tiles) but
+# outside the zone (AHEAD + half an enemy = 1.55). That small gap is on
+# purpose: it's what makes blind mashing risky.
 const KILL_BEHIND := 0.8
 const KILL_AHEAD := 1.25
 # An enemy is killed if any part of it touches the landing zone, so the zone
 # for its centre is wider by half its width (enemies are 0.6 tiles wide).
 const ENEMY_HALF_WIDTH := 0.3
-# Running within this many tiles of a live enemy's centre kills you.
-const HIT_RADIUS := 0.55
+# Running within this many tiles of a live enemy's centre kills you: about
+# where her body (sprite) touches the enemy's.
+const HIT_RADIUS := 0.75
 
 # Run speed in tiles per second. Constant for now.
 const RUN_SPEED := 6.0

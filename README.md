@@ -35,9 +35,10 @@ run upside down.
   back onto it if you can chain on from there; otherwise you stay put. It counts if
   any part of the enemy touches the landing zone (the line under the marker).
 - Every landing zone reaches 0.8 tiles behind the landing spot and 1.25
-  ahead (`KILL_BEHIND` / `KILL_AHEAD` in `scripts/rules.gd`). Far enough
-  ahead that a miss never dooms you: an enemy just past the zone leaves time
-  to teleport again after the cooldown.
+  ahead (`KILL_BEHIND` / `KILL_AHEAD` in `scripts/rules.gd`), so pressing a
+  little early still hits.
+- You die when your body touches an enemy (`HIT_RADIUS`, 0.75 tiles between
+  centres).
 - A single press waits up to 4 frames in case the other button follows (a
   diagonal). While it waits you're committed: running into an enemy doesn't
   count. It hits if it would have hit from anywhere between where you pressed
