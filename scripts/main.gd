@@ -676,6 +676,8 @@ func _die(kind: String, killer: Enemy = null) -> void:
 	_death_released = false
 	player.running = false
 	player.die(kind)
+	for e in level.enemies:
+		e.clear_glint()   # no red glints lingering on the death moment
 	var body := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row))
 	_death_focus = body
 	if killer:

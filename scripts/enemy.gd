@@ -82,6 +82,14 @@ func _process(delta: float) -> void:
 		_material.set_shader_parameter("glint", _glint)
 
 
+## Drop the red glint at once (no fade), e.g. when she dies.
+func clear_glint() -> void:
+	targeted = false
+	_glint = 0.0
+	if _material:
+		_material.set_shader_parameter("glint", 0.0)
+
+
 ## Killed: he's out of the game at once (alive = false); the body plays the
 ## death animation, fades and removes itself.
 func die() -> void:
