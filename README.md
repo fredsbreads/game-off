@@ -47,11 +47,7 @@ run upside down.
   diagonal). While it waits you're committed: running into an enemy doesn't
   count. It hits if it would have hit from anywhere between where you pressed
   and where you are when it fires.
-- A tiny cooldown of 0.16 s (10 frames) between teleports, shared by all of them; a kill resets it. A press during the cooldown fires as soon as it ends (`COOLDOWN_SECONDS` in `scripts/rules.gd`).
-- Misses in a row cost more, so mashing gets you killed: 0.16 s after the
-  first, 0.3 s after the second, 0.5 s after the third and later. A kill or
-  half a second without teleporting once the cooldown is over resets the
-  streak (`MISS_COOLDOWN_SECONDS`).
+- A short cooldown of 0.2 s (12 frames) between teleports, shared by all of them; a kill resets it. A press during the cooldown fires as soon as it ends (`COOLDOWN_SECONDS` in `scripts/rules.gd`).
 - Every kill gets a short hit freeze. If another enemy is under one of your
   markers, it becomes a 0.7 s "your move" pause (tap to skip).
 - Each teleport has a marker at its landing spot: a lightning bolt, hollow

@@ -22,14 +22,8 @@ enum Move { NONE, FORWARD, VERTICAL, DIAGONAL }
 
 # Time before you can teleport again, shared by every teleport. Just enough
 # to stop absurdly fast spamming. A kill always resets it.
-# Counted in whole frames: 0.16 s rounds up to 10 frames (~0.167 s).
-const COOLDOWN_SECONDS := 0.16
-# Misses in a row cost more, so mashing gets you killed: the 1st miss gets
-# the normal cooldown, the 2nd 0.3 s, the 3rd and later 0.5 s. A kill resets
-# the streak, and so does half a second without teleporting while you could
-# have (time in a cooldown doesn't count).
-const MISS_COOLDOWN_SECONDS := [0.16, 0.3, 0.5]
-const MISS_STREAK_RESET_SECONDS := 0.5
+# Counted in whole frames: 0.2 s = 12 frames.
+const COOLDOWN_SECONDS := 0.2
 
 # Each teleport's landing zone (what the line under its marker shows), the
 # same for all three: this many tiles behind and ahead of the landing spot.
@@ -58,16 +52,6 @@ enum Tile { GROUND, SPIKES }
 
 static func cooldown_frames() -> int:
 	return ceili(COOLDOWN_SECONDS * PHYSICS_FPS)
-
-
-## Cooldown after the `misses`-th miss in a row (1 = the first).
-static func miss_cooldown_frames(misses: int) -> int:
-	var i := clampi(misses - 1, 0, MISS_COOLDOWN_SECONDS.size() - 1)
-	return ceili(float(MISS_COOLDOWN_SECONDS[i]) * PHYSICS_FPS)
-
-
-static func miss_streak_reset_frames() -> int:
-	return ceili(MISS_STREAK_RESET_SECONDS * PHYSICS_FPS)
 
 
 ## The landing zone a marker's line shows, as [tiles behind the landing

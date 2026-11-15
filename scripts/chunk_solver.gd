@@ -10,11 +10,9 @@ extends RefCounted
 ##      exactly onto it and ends the frame there.
 ##   2. run forward one frame along your row
 ##   3. running into a live enemy in your row kills you
-##   4. tick the cooldown down (and, once it's 0, the frames you could have
-##      teleported but didn't)
+##   4. tick the cooldown down
 ##
-## Enemies are Vector2(x, row). States are
-## [x, row, cooldown, killed_mask, misses_in_a_row, idle_frames].
+## Enemies are Vector2(x, row). States are [x, row, cooldown, killed_mask].
 ##
 ## Used by tools/validate_patterns.gd to prove patterns chain, and by the
 ## debug bot to play the game for soak tests and screenshots.
@@ -26,14 +24,13 @@ const DEDUP_PER_TILE := 20.0    # positions within 0.05 tiles count as the same
 
 ## limit_x: teleports may not land at or past this (level not built there).
 ## required_kills: bitmask of enemies that must all be killed (0 = survive).
-## start: [x, row, cooldown] or [x, row, cooldown, misses, idle_frames].
 ## Returns {"ok": bool, "actions": Array (one Move per frame)}.
 static func search(enemies: Array[Vector2], start: Array, goal_x: float, limit_x: float, speed: float, max_frames: int = 3000, required_kills: int = 0) -> Dictionary:
-	# Each history entry: [x, row, cooldown, killed_mask, misses, idle,
-	# parent_index, action]
-	var misses: int = start[3] if start.size() > 3 else 0
-	var idle: int = start[4] if start.size() > 4 else Rules.miss_streak_reset_frames()
-	var first: Array = [start[0], start[1], start[2], 0, misses, mini(idle, Rules.miss_streak_reset_frames()), -1, Rules.Move.NONE]
+	# Each history entry: [x, row, cooldown, killed_mask, parent_index, action]
+	var first: Array = start.duplicate()
+	first.append(0)
+	first.append(-1)
+	first.append(Rules.Move.NONE)
 	var history: Array = [first]
 	var frontier: Array[int] = [0]
 
@@ -54,10 +51,9 @@ static func search(enemies: Array[Vector2], start: Array, goal_x: float, limit_x
 				var new_index := history.size() - 1
 				if result[0] >= goal_x and (int(result[3]) & required_kills) == required_kills:
 					return {"ok": true, "actions": _path(history, new_index)}
-				# States at (almost) the same spot, row, kills and miss streak
-				# are interchangeable; keep the one that can teleport soonest.
-				var streak: int = result[4] if result[5] < Rules.miss_streak_reset_frames() else 0
-				var key := "%d|%d|%d|%d" % [roundi(result[0] * DEDUP_PER_TILE), result[1], result[3], streak]
+				# States at (almost) the same spot, row and kills are
+				# interchangeable; keep the one that can teleport soonest.
+				var key := "%d|%d|%d" % [roundi(result[0] * DEDUP_PER_TILE), result[1], result[3]]
 				if seen.has(key):
 					var slot: int = seen[key]
 					var kept: Array = history[next[slot]]
@@ -81,15 +77,10 @@ static func step(enemies: Array[Vector2], state: Array, move: int, speed: float,
 	var row: int = state[1]
 	var cooldown: int = state[2]
 	var mask: int = state[3]
-	var misses: int = state[4]
-	var idle: int = state[5]
 
 	if move != Rules.Move.NONE:
 		if cooldown > 0:
 			return []
-		if idle >= Rules.miss_streak_reset_frames():
-			misses = 0
-		idle = 0
 		x += Rules.move_dx(move)
 		if Rules.move_flips_row(move):
 			row = 1 - row
@@ -111,9 +102,8 @@ static func step(enemies: Array[Vector2], state: Array, move: int, speed: float,
 			# that lets you chain on (same rule as main.gd _teleport).
 			if move == Rules.Move.VERTICAL and snap_to < x and not _can_chain(enemies, mask, snap_to, row):
 				snap_to = x
-			return [snap_to, row, 0, mask, 0, idle]
-		misses += 1
-		cooldown = Rules.miss_cooldown_frames(misses)
+			return [snap_to, row, 0, mask]
+		cooldown = Rules.cooldown_frames()
 
 	x += speed / Rules.PHYSICS_FPS
 	for i in enemies.size():
@@ -121,9 +111,7 @@ static func step(enemies: Array[Vector2], state: Array, move: int, speed: float,
 		if (mask & (1 << i)) == 0 and int(e.y) == row and absf(e.x - x) < Rules.HIT_RADIUS:
 			return []
 	cooldown = maxi(cooldown - 1, 0)
-	if cooldown == 0:
-		idle = mini(idle + 1, Rules.miss_streak_reset_frames())
-	return [x, row, cooldown, mask, misses, idle]
+	return [x, row, cooldown, mask]
 
 
 ## True if any live enemy is under one of the markers at (x, row).
@@ -154,6 +142,6 @@ static func _path(history: Array, index: int) -> Array:
 	var actions: Array = []
 	while index > 0:
 		var entry: Array = history[index]
-		actions.push_front(entry[7])
-		index = entry[6]
+		actions.push_front(entry[5])
+		index = entry[4]
 	return actions
