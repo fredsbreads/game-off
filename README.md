@@ -41,7 +41,7 @@ run upside down.
 - Every landing zone reaches 0.8 tiles behind the landing spot and 1.25
   ahead (`KILL_BEHIND` / `KILL_AHEAD` in `scripts/rules.gd`), so pressing a
   little early still hits.
-- You die when your body touches an enemy (`HIT_RADIUS`, 0.75 tiles between
+- You die when your body touches an enemy (`HIT_RADIUS`, 0.95 tiles between
   centres).
 - A single press waits up to 4 frames in case the other button follows (a
   diagonal). While it waits you're committed: running into an enemy doesn't
