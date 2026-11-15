@@ -183,9 +183,7 @@ func section_name_at(x: float) -> String:
 func prune(min_x: float) -> void:
 	for i in range(enemies.size() - 1, -1, -1):
 		var e := enemies[i]
-		if not e.alive:
-			enemies.remove_at(i)   # the body removes itself after dying
-		elif e.tile_x < min_x:
+		if e.tile_x < min_x:
 			e.queue_free()
 			enemies.remove_at(i)
 	while sections.size() > 1 and float(sections[1]["start"]) < min_x - 30.0:

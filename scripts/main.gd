@@ -540,6 +540,7 @@ func _bot_acts_in_pause() -> void:
 
 func _kill(e: Enemy) -> void:
 	e.die()
+	level.enemies.erase(e)   # out of the game now; the body removes itself later
 	kills += 1
 	chain += 1
 	best_chain = maxi(best_chain, chain)
