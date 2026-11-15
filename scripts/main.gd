@@ -118,6 +118,9 @@ func _ready() -> void:
 	level.enemy_parent = $EnemyLayer
 	blood_fx = Fx.new()
 	$EnemyLayer.add_child(blood_fx)
+	# Her effects too sit above the grey freeze filter, so they stay red in
+	# the "your move" pause instead of turning grey.
+	fx.reparent($EnemyLayer)
 	level.ensure_generated(player.x)
 	cam.snap(player.x)
 	best_score = _load_best()

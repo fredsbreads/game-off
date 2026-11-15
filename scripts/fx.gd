@@ -5,7 +5,14 @@ extends Node2D
 ## to hold them mid-air during the kill pause.
 
 const GRAVITY := 900.0
-const KILL_COLORS := [Color(1, 1, 1), Color(1, 0.45, 0.4), Color(1, 0.85, 0.5)]
+# Her effects are all reds, each a slightly different one so they don't merge
+# into one red blur: the teleport line scarlet, the landing ring darker, the
+# kill ring bright, the slash streak pale, the sparks a mix.
+const TRAIL_COLOR := Color(1.0, 0.25, 0.3)
+const LANDING_RING_COLOR := Color(0.75, 0.12, 0.18, 0.85)
+const KILL_RING_COLOR := Color(1.0, 0.35, 0.3, 0.9)
+const SLASH_COLOR := Color(1.0, 0.62, 0.6)
+const KILL_COLORS := [Color(1.0, 0.3, 0.28), Color(0.85, 0.08, 0.14), Color(1.0, 0.55, 0.5)]
 const BLOOD_COLORS := [Color(0.9, 0.08, 0.1), Color(1.0, 0.18, 0.15), Color(0.7, 0.03, 0.06)]
 const STAIN_SECONDS := 4.0   # how long a drop of blood stays on the floor
 
@@ -22,13 +29,13 @@ func teleport_trail(from: Vector2, to: Vector2) -> void:
 
 
 func landing_ring(pos: Vector2) -> void:
-	_ring(pos, 10.0, 46.0, 0.25, 3.0, Color(1, 1, 1, 0.8))
+	_ring(pos, 10.0, 46.0, 0.25, 3.0, LANDING_RING_COLOR)
 
 
 ## Bigger and brighter the longer the chain.
 func kill_burst(pos: Vector2, combo: int) -> void:
 	var c := mini(combo, 8)
-	_ring(pos, 12.0, 60.0 + 10.0 * c, 0.3, 4.0 + c * 0.5, Color(1, 0.9, 0.7, 0.9))
+	_ring(pos, 12.0, 60.0 + 10.0 * c, 0.3, 4.0 + c * 0.5, KILL_RING_COLOR)
 	_items.append({"kind": "slash", "t": 0.0, "life": 0.16, "pos": pos, "len": 80.0 + 10.0 * c})
 	for i in 8 + c * 3:
 		var dir := Vector2.from_angle(randf_range(-PI, 0.2))
@@ -102,7 +109,7 @@ func _draw() -> void:
 				var a: Vector2 = it["a"]
 				var b: Vector2 = it["b"]
 				# (The afterimages of her along the path are drawn by player.gd.)
-				draw_line(a, b, Color(1, 0.25, 0.3, 0.9 * fade), 1.0 + 5.0 * fade)
+				draw_line(a, b, Color(TRAIL_COLOR, 0.9 * fade), 1.0 + 5.0 * fade)
 			"ring":
 				var r := lerpf(it["r0"], it["r1"], 1.0 - pow(1.0 - k, 3.0))
 				var col: Color = it["color"]
@@ -113,7 +120,7 @@ func _draw() -> void:
 				var half: float = it["len"] / 2.0
 				var pos: Vector2 = it["pos"]
 				var grow := minf(1.0, k * 4.0)
-				draw_line(pos - dir * half, pos - dir * half + dir * half * 2.0 * grow, Color(1, 1, 1, fade), 2.0 + 6.0 * fade)
+				draw_line(pos - dir * half, pos - dir * half + dir * half * 2.0 * grow, Color(SLASH_COLOR, fade), 2.0 + 6.0 * fade)
 			"blood":
 				var s: float = it["size"]
 				draw_rect(Rect2(it["pos"] - Vector2(s, s) * 0.5, Vector2(s, s)), it["color"])
