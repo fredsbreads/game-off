@@ -619,7 +619,9 @@ func _end_chain(grade: String, word: String = "") -> void:
 					-1.0 if player.row == Rules.Row.CEILING else 1.0)   # drift away from her row
 		if levelled:
 			level.level = progression.level
-			level.rebuild_ahead(cam.left() / Rules.TILE + CameraRig.VIEW_TILES + 1.0)
+			# Only groups well past the right edge get rebuilt (a sprite reaches
+			# beyond its spot, so one just off screen could already show).
+			level.rebuild_ahead(cam.left() / Rules.TILE + CameraRig.VIEW_TILES + 3.0)
 			level.ensure_generated(player.x)
 			hud.show_level_up(progression.level)
 			if debug:
