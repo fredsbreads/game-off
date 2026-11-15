@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dkf8wij5rvdo8"
-path="res://.godot/imported/kunoichi_attack.png-aca07e86b2e83edff1c63533340add72.ctex"
+uid="uid://co0co3tdpv0ol"
+path="res://.godot/imported/arc0_t.png-9695ad8fe297d60504a44a8e63470f7d.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/sprites/kunoichi_attack.png"
-dest_files=["res://.godot/imported/kunoichi_attack.png-aca07e86b2e83edff1c63533340add72.ctex"]
+source_file="res://assets/sprites/attack/arc0_t.png"
+dest_files=["res://.godot/imported/arc0_t.png-9695ad8fe297d60504a44a8e63470f7d.ctex"]
 
 [params]
 

@@ -20,9 +20,26 @@ const FRAME := Vector2i(96, 96)
 # Where her feet are inside a 96x96 frame: this point sits on the floor.
 const FEET := Vector2(47, 88)
 const RUN_FEET := Vector2(47, 86)   # the run strip's feet sit 2 px higher
-# Attacks: three separate strike poses (with their slash arcs) on a bigger
-# 170x170 canvas, her body in the same place as the run frames + (37, 37).
-const ATTACK_SHEET := preload("res://assets/sprites/kunoichi_attack.png")
+# Attacks: three separate strike poses on a bigger 170x170 canvas, her body
+# in the same place as the run frames + (37, 37). Each has its own slash arc,
+# played separately: it sweeps along the swing, then fades, while the pose
+# stays. Made from art/red_flash_attack_frames.piskel by
+# tools/build_attack_arcs.py.
+const ATTACK_SHEET := preload("res://assets/sprites/attack/poses.png")
+const ARC_TEXTURES := [
+	preload("res://assets/sprites/attack/arc0.png"),
+	preload("res://assets/sprites/attack/arc1.png"),
+	preload("res://assets/sprites/attack/arc2.png"),
+]
+const ARC_T_MAPS := [
+	preload("res://assets/sprites/attack/arc0_t.png"),
+	preload("res://assets/sprites/attack/arc1_t.png"),
+	preload("res://assets/sprites/attack/arc2_t.png"),
+]
+const ARC_IN_FRONT := [false, false, true]   # as drawn: behind her, or in front
+const ARC_SHADER := preload("res://shaders/swing_arc.gdshader")
+const ARC_SWEEP := 0.08   # seconds to sweep along the swing
+const ARC_FADE := 0.12    # seconds to fade out after that
 const ATTACK_FRAME := Vector2i(170, 170)
 const ATTACK_FEET := RUN_FEET + Vector2(37, 37)
 const ATTACK_COUNT := 3
@@ -65,6 +82,9 @@ var frozen := false      # kill pause: hold the current animation frame
 var _lit_time := 0.0
 var _attack_left := 0.0   # > 0 while a strike pose is showing
 var _last_attack := -1
+var _arc: Sprite2D
+var _arc_material: ShaderMaterial
+var _arc_time := -1.0     # seconds since the arc started; < 0 = none
 var _death_offset := Vector2.ZERO
 var _death_velocity := Vector2.ZERO
 var _sprite: AnimatedSprite2D
@@ -79,6 +99,17 @@ func _ready() -> void:
 	_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_play("idle")
 	add_child(_sprite)
+
+	_arc_material = ShaderMaterial.new()
+	_arc_material.shader = ARC_SHADER
+	_arc = Sprite2D.new()
+	_arc.material = _arc_material
+	_arc.centered = false
+	_arc.offset = -ATTACK_FEET
+	_arc.scale = Vector2(SPRITE_SCALE, SPRITE_SCALE)
+	_arc.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_arc.visible = false
+	add_child(_arc)
 
 	# Drawn after (on top of) the sprite.
 	_hitbox = Node2D.new()
@@ -120,6 +151,24 @@ func strike() -> void:
 	_attack_left = ATTACK_HOLD
 	_play("attack")
 	_sprite.frame = pick
+	_arc.texture = ARC_TEXTURES[pick]
+	_arc_material.set_shader_parameter("t_map", ARC_T_MAPS[pick])
+	_arc.z_index = 1 if ARC_IN_FRONT[pick] else -1
+	_arc_time = 0.0
+	_update_arc()
+
+
+## The arc runs on real time (even during the kill freeze): sweep, then fade.
+func _update_arc() -> void:
+	if _arc_time < 0.0 or not alive:
+		_arc.visible = false
+		return
+	_arc.visible = true
+	_arc_material.set_shader_parameter("progress", clampf(_arc_time / ARC_SWEEP, 0.0, 1.0))
+	_arc_material.set_shader_parameter("fade", 1.0 - clampf((_arc_time - ARC_SWEEP) / ARC_FADE, 0.0, 1.0))
+	if _arc_time >= ARC_SWEEP + ARC_FADE:
+		_arc_time = -1.0
+		_arc.visible = false
 
 
 func die(_kind: String) -> void:
@@ -141,6 +190,9 @@ func _process(delta: float) -> void:
 	# On the ceiling the whole player (sprite and markers) is upside down.
 	scale.y = -1.0 if row == Rules.Row.CEILING else 1.0
 
+	if _arc_time >= 0.0:
+		_arc_time += delta
+		_update_arc()
 	if alive:
 		if _attack_left > 0.0:
 			if not frozen:
