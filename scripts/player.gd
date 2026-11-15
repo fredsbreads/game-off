@@ -382,6 +382,7 @@ const DEATH_TILT := -0.5                 # radians she tips back by
 const DISSOLVE_TIME := 0.55              # seconds (game time, so the slow motion stretches it)
 const ZAP_EVERY := 0.05                  # seconds (game time) between crackles while she dissolves
 const FLICKER_EVERY := 0.06              # seconds (real time): the frozen lightning redraws this often
+const FREEZE_SPARKLE := 0.14             # share of her pixels glowing in the death freeze
 var _flicker_timer := 0.0
 const BODY_CENTRE := Vector2(0, -54)     # her body's middle, from her feet (local, before tilt)
 # Her own effects layer, drawn over her, for the lightning. main.gd slows and
@@ -470,6 +471,10 @@ func _process(delta: float) -> void:
 			_flicker_timer = FLICKER_EVERY
 			zap_fx.clear_bolts()
 			_crackle(Vector2.ZERO, 4, 0)
+			# Her pixels already flash (re-scattered each flicker); she only
+			# starts disappearing when time moves again.
+			_dissolve_material.set_shader_parameter("sparkle", FREEZE_SPARKLE)
+			_dissolve_material.set_shader_parameter("seed", randf() * 100.0)
 	if _hidden_left > 0.0:
 		_hidden_left -= delta
 		_sprite.visible = _hidden_left <= 0.0

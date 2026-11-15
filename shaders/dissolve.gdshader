@@ -7,6 +7,10 @@ uniform vec4 edge_hot : source_color = vec4(1.0, 0.95, 0.9, 1.0);
 uniform vec4 edge_red : source_color = vec4(1.0, 0.15, 0.2, 1.0);
 uniform float edge = 0.14;
 uniform float block = 2.0;   // art pixels per dissolving block
+// Before she dissolves (the death freeze): a scattering of her blocks glow
+// without vanishing. `sparkle` = how many (0..1); change `seed` to re-scatter.
+uniform float sparkle = 0.0;
+uniform float seed = 0.0;
 
 varying vec4 tint;
 
@@ -24,7 +28,13 @@ void fragment() {
 		discard;
 	}
 	if (amount <= 0.0) {
-		COLOR = c;
+		vec2 cell = floor(UV / TEXTURE_PIXEL_SIZE / block);
+		float s = hash(cell + vec2(seed, seed * 1.7));
+		if (s < sparkle) {
+			COLOR = vec4(mix(edge_hot.rgb, edge_red.rgb, s / max(sparkle, 0.001)), c.a);
+		} else {
+			COLOR = c;
+		}
 	} else {
 		vec2 cell = floor(UV / TEXTURE_PIXEL_SIZE / block);
 		float n = hash(cell);
