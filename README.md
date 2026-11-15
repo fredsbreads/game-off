@@ -27,7 +27,7 @@ Practice mode: `N` (or the "Enemies" button on the pause screen) removes
 every enemy so you can play around with the teleports. Press again and they
 spawn again just off screen. It stays on across retries.
 
-The three bolts show exactly where each teleport lands. On the ceiling you
+The three katana markers show exactly where each teleport lands. On the ceiling you
 run upside down.
 
 ## Rules
@@ -51,10 +51,11 @@ run upside down.
 - A short cooldown of 0.2 s (12 frames) between teleports, shared by all of them; a kill resets it. A press of the other button during the cooldown fires as soon as it ends; pressing the same button again is ignored (`COOLDOWN_SECONDS` in `scripts/rules.gd`).
 - Every kill gets a short hit freeze. If another enemy is under one of your
   markers, it becomes a 0.7 s "your move" pause (tap to skip).
-- Each teleport has a marker at its landing spot: a lightning bolt, hollow
-  and dull by default, solid when that teleport would slash an enemy right
-  now (an enemy touching the line under it counts). In the "your move" pause the
-  solid ones pulse.
+- Each teleport has a marker at its landing spot: a katana silhouette standing
+  on its tip (where she'd throw the sword). Plain by default, red when that
+  teleport would slash an enemy right now (an enemy touching the line under
+  it counts). In the "your move" pause the red drains toward the tip as the
+  time to act runs out.
 - Run speed is a constant 6 tiles/s.
 - Score, distance and the kill counter are tracked but **not shown** for now
   (kills, level reached and perfect combos are on the game-over screen).

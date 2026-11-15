@@ -5,10 +5,10 @@ extends Node2D
 ## the kunoichi sprite, the three landing markers (forward, across,
 ## diagonal) and, while SHOW_HITBOX is on, her hitbox.
 ##
-## Each marker is a lightning bolt at that teleport's landing spot, with a
-## line under it as wide as its kill zone. Hollow and dull by default; solid
-## ("lit") when that teleport would slash an enemy right now. In the "your
-## move" freeze the lit ones pulse.
+## Each marker is a katana silhouette at that teleport's landing spot, with a
+## line under it as wide as its kill zone. Plain by default; red ("lit") when
+## that teleport would slash an enemy right now. In the "your move" freeze
+## the red drains as the time to act runs out.
 
 # Show the hitbox outline over the sprite (for tuning; turn off for release).
 const SHOW_HITBOX := false
@@ -99,15 +99,17 @@ const ANIMS := {
 	"attack": [ATTACK_SHEET, 0, ATTACK_COUNT, 0.0, false, ATTACK_FEET, ATTACK_FRAME],
 }
 
-const MARKER_READY := Color(1, 1, 1, 0.32)      # dull, can teleport
-const MARKER_COOLDOWN := Color(1, 1, 1, 0.12)   # dull, in the cooldown
-const MARKER_LIT := Color(1, 1, 1, 0.95)        # an enemy is in this teleport's kill zone
-const MARKER_LIT_PULSE_SPEED := 18.0            # lit markers pulse in the freeze
-const MARKER_SIZE := Vector2(0.5, 1.1)          # tiles (also the hitbox drawing's height)
-const BOLT_SIZE := Vector2(0.55, 0.95)          # tiles
-# The bolt's outline, in a 1x1 box (x right, y down).
-const BOLT := [Vector2(0.45, 0.0), Vector2(0.9, 0.0), Vector2(0.62, 0.4), Vector2(0.88, 0.4),
-	Vector2(0.28, 1.0), Vector2(0.45, 0.56), Vector2(0.12, 0.56)]
+# Teleport markers: a katana silhouette standing on its tip in the row it
+# lands in (where she'd throw the sword). Plain by default, red when that
+# teleport would slash an enemy. In the "your move" freeze the red drains
+# back toward the tip as the time to act runs out.
+const MARKER_READY := Color(1, 1, 1, 0.32)      # plain, can teleport
+const MARKER_COOLDOWN := Color(1, 1, 1, 0.12)   # plain, in the cooldown
+const MARKER_LIT := Color(0.95, 0.15, 0.2, 1.0) # an enemy is in this teleport's kill zone
+const MARKER_KATANA := preload("res://assets/sprites/marker_katana.png")  # tip up, hilt down
+const MARKER_KATANA_SCALE := 3.0
+const MARKER_SHADER := preload("res://shaders/marker.gdshader")
+const MARKER_SIZE := Vector2(0.5, 1.1)          # tiles (the hitbox drawing's height)
 const HITBOX_COLOR := Color(0.2, 1.0, 0.4, 0.9)
 
 var x := 0.0
@@ -115,14 +117,16 @@ var row := Rules.Row.FLOOR
 var cooldown := 0
 var running := false
 var alive := true
-var markers_lit := false   # the "your move" freeze: lit markers pulse
+# How much of a lit marker is red (1 = all). main.gd drains it during the
+# "your move" freeze.
+var marker_fill := 1.0
+var _markers: Array[Sprite2D] = []   # forward, vertical, diagonal
 # Which teleports would slash an enemy right now (main.gd sets these).
 var target_forward := false
 var target_vertical := false
 var target_diagonal := false
 var frozen := false      # kill pause: hold the current animation frame
 
-var _lit_time := 0.0
 var _striking := false    # showing a strike pose
 var _strike_time := 0.0
 const STRIKE_MIN := 0.035  # the pose shows at least this long (~2 frames)
@@ -147,6 +151,16 @@ func _ready() -> void:
 	_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_play("idle")
 	add_child(_sprite)
+
+	for i in 3:
+		var m := Sprite2D.new()
+		m.texture = MARKER_KATANA
+		m.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		var mat := ShaderMaterial.new()
+		mat.shader = MARKER_SHADER
+		m.material = mat
+		add_child(m)
+		_markers.append(m)
 
 	_arc_material = ShaderMaterial.new()
 	_arc_material.shader = ARC_SHADER
@@ -367,7 +381,6 @@ func animate_death(delta: float) -> void:
 
 
 func _process(delta: float) -> void:
-	_lit_time = _lit_time + delta if markers_lit else 0.0
 	position = Vector2(x * Rules.TILE, Rules.surface_y(row)) + _death_offset
 	# On the ceiling the whole player (sprite and markers) is upside down.
 	scale.y = -1.0 if row == Rules.Row.CEILING else 1.0
@@ -393,55 +406,48 @@ func _process(delta: float) -> void:
 
 
 func _draw() -> void:
+	for m in _markers:
+		m.visible = alive
 	if not alive:
 		return
 	var t := Rules.TILE
-	var h := MARKER_SIZE.y * t
 	# In local coordinates the other row is always ROW_GAP "up" (-y): when
 	# the player is flipped onto the ceiling, that maps down to the floor.
 	var gap := Rules.ROW_GAP * t
 
 	var fwd := Rules.FORWARD * t
-	# The line under each bolt spans that teleport's landing zone: an enemy
+	# The line under each katana spans that teleport's landing zone: an enemy
 	# touching it dies if you make that move now.
 	var zf := Rules.marker_zone(Rules.Move.FORWARD) * t
 	var zv := Rules.marker_zone(Rules.Move.VERTICAL) * t
 	var zd := Rules.marker_zone(Rules.Move.DIAGONAL) * t
-	# Forward: same row.
-	_draw_marker(fwd - zf.x, fwd + zf.y, -h, 3.0, target_forward)
-	# Vertical and diagonal: the other row (hanging from its surface).
-	_draw_marker(-zv.x, zv.y, -gap, -gap - 3.0, target_vertical)
-	_draw_marker(fwd - zd.x, fwd + zd.y, -gap, -gap - 3.0, target_diagonal)
+	# Forward: same row. Vertical and diagonal: the other row.
+	_draw_marker(0, fwd - zf.x, fwd + zf.y, 0.0, 3.0, target_forward)
+	_draw_marker(1, -zv.x, zv.y, -gap, -gap - 3.0, target_vertical)
+	_draw_marker(2, fwd - zd.x, fwd + zd.y, -gap, -gap - 3.0, target_diagonal)
 
 
-## A bolt over the kill zone [x0, x1]; body_top = the top of a body standing
-## in that row (local y), line_y = where the zone line goes.
-func _draw_marker(x0: float, x1: float, body_top: float, line_y: float, lit: bool) -> void:
-	var t := Rules.TILE
-	var color := MARKER_READY if cooldown == 0 else MARKER_COOLDOWN
-	if lit:
-		color = MARKER_LIT
-		if markers_lit:
-			color.a *= 0.75 + 0.25 * cos(_lit_time * MARKER_LIT_PULSE_SPEED)
-	var size := BOLT_SIZE * t
+## Marker i over the kill zone [x0, x1]; surface_y = that row's surface
+## (local y; the other row is "up", -gap), line_y = where the zone line goes.
+func _draw_marker(i: int, x0: float, x1: float, surface_y: float, line_y: float, lit: bool) -> void:
+	var plain := MARKER_READY if cooldown == 0 else MARKER_COOLDOWN
 	var cx := (x0 + x1) * 0.5
-	# Centred in the body's height (MARKER_SIZE.y tall from body_top).
-	var top := body_top + (MARKER_SIZE.y * t - size.y) * 0.5
-	var points := PackedVector2Array()
-	# On the ceiling the whole player node is flipped upside down; flip the
-	# bolt back so it always reads upright on screen.
-	var upright := row == Rules.Row.CEILING
-	for p in BOLT:
-		var v: Vector2 = p
-		var vy := 1.0 - v.y if upright else v.y
-		points.append(Vector2(cx - size.x * 0.5 + v.x * size.x, top + vy * size.y))
-	if lit:
-		draw_colored_polygon(points, color)
-	var outline := points.duplicate()
-	outline.append(points[0])
-	draw_polyline(outline, color, 3.0 if lit else 2.0)
+	# The katana stands on its tip on that row's surface, hilt toward the
+	# middle of the corridor: in her own row the tip points down (+y), in
+	# the other row up (-y). The image has the tip at the top.
+	var m := _markers[i]
+	var s := MARKER_KATANA_SCALE
+	var half_h := MARKER_KATANA.get_height() * s * 0.5
+	var own_row := surface_y == 0.0
+	m.scale = Vector2(s, -s if own_row else s)
+	m.position = Vector2(cx, surface_y - half_h if own_row else surface_y + half_h)
+	var mat := m.material as ShaderMaterial
+	mat.set_shader_parameter("plain", plain)
+	mat.set_shader_parameter("lit", MARKER_LIT)
+	mat.set_shader_parameter("fill", marker_fill if lit else 0.0)
+	var line_color := MARKER_LIT if lit else plain
 	var half := (x1 - x0) * 0.5 + 4.0
-	draw_line(Vector2(cx - half, line_y), Vector2(cx + half, line_y), color, 4.0 if lit else 3.0)
+	draw_line(Vector2(cx - half, line_y), Vector2(cx + half, line_y), line_color, 4.0 if lit else 3.0)
 
 
 ## The hitbox as the rules use it: you collide with an enemy in your row if

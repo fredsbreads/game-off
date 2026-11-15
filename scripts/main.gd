@@ -423,7 +423,8 @@ func _update_pause_visuals() -> void:
 	freeze_effect.set_state(1.0 if flashing else 0.0, 1.0 if chain_pause and not flashing else 0.0)
 	fx.frozen = paused and _pause_elapsed >= FX_FREEZE_AFTER
 	blood_fx.frozen = fx.frozen
-	player.markers_lit = chain_pause
+	# Lit markers drain during the "your move" freeze as the time runs out.
+	player.marker_fill = clampf(_hitstop / KILL_PAUSE, 0.0, 1.0) if chain_pause else 1.0
 	player.target_forward = _would_slash(Rules.Move.FORWARD)
 	player.target_vertical = _would_slash(Rules.Move.VERTICAL)
 	player.target_diagonal = _would_slash(Rules.Move.DIAGONAL)
