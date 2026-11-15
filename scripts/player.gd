@@ -52,6 +52,10 @@ const THROW_VERTICAL := preload("res://assets/sprites/kunoichi_throw_vertical_bo
 const THROW_VERTICAL_SWORD := preload("res://assets/sprites/kunoichi_throw_vertical_sword.png")
 const THROW_VERTICAL_FEET := Vector2(59, 102)
 const SWORD_FLIGHT := 0.07   # seconds the thrown sword takes; she appears when it lands
+# The middle of the sword in each throw image (art pixels): it flies, and the
+# teleport line runs, between these points at the start and where she lands.
+const THROW_SWORD_CENTRE := Vector2(75.5, 41.5)
+const THROW_VERTICAL_SWORD_CENTRE := Vector2(54.5, 16.5)
 const GHOST_SHADER := preload("res://shaders/ghost.gdshader")
 const GHOST_OUTLINE := Color(1.0, 0.25, 0.3, 0.9)     # the lingering pose where she left
 const GHOST_OUTLINE_FILL := Color(1.0, 0.2, 0.25, 0.2)
@@ -205,12 +209,18 @@ func teleport_afterimages(move: int, from_feet: Vector2, from_row: int) -> void:
 	var st := stance.create_tween()
 	st.tween_interval(SWORD_FLIGHT)
 	st.tween_callback(stance.queue_free)
-	# 2. ...the sword flies to where she lands...
-	var flying := _sprite_at(sword, feet, from_feet, from_row)
+	# 2. ...the sword flies to where she lands (flipping halfway if she
+	# changes rows)...
+	var centre: Vector2 = THROW_VERTICAL_SWORD_CENTRE if vertical else THROW_SWORD_CENTRE
+	var flying := _sprite_at(sword, centre, sword_point(move, from_feet, from_row), from_row)
 	flying.z_index = 2
 	var ft := flying.create_tween()
-	ft.tween_property(flying, "global_position", to_feet, SWORD_FLIGHT)
+	ft.tween_property(flying, "global_position", sword_point(move, to_feet, row), SWORD_FLIGHT)
 	ft.tween_callback(flying.queue_free)
+	if row != from_row:
+		var flip := flying.create_tween()
+		flip.tween_interval(SWORD_FLIGHT * 0.5)
+		flip.tween_callback(func() -> void: flying.scale.y = -flying.scale.y)
 	# 3. ...and she appears there when it lands. The stance stays behind as a
 	# fading red outline.
 	_hidden_left = SWORD_FLIGHT
@@ -222,6 +232,18 @@ func teleport_afterimages(move: int, from_feet: Vector2, from_row: int) -> void:
 		# Nearer her = a bit stronger.
 		_ghost(tex, feet, from_feet.lerp(to_feet, k), on_row, GHOST_TRAIL_FILL, Color(0, 0, 0, 0),
 			GHOST_TRAIL_LIFE, 0.4 + 0.6 * k)
+
+
+## Where the sword is in her throw pose for `move`, standing at feet_pos in
+## on_row (world pixels). Flipped like her on the ceiling.
+func sword_point(move: int, feet_pos: Vector2, on_row: int) -> Vector2:
+	var vertical := move == Rules.Move.VERTICAL
+	var centre: Vector2 = THROW_VERTICAL_SWORD_CENTRE if vertical else THROW_SWORD_CENTRE
+	var feet: Vector2 = THROW_VERTICAL_FEET if vertical else THROW_FEET
+	var d := (centre - feet) * SPRITE_SCALE
+	if on_row == Rules.Row.CEILING:
+		d.y = -d.y
+	return feet_pos + d
 
 
 ## A plain sprite of one of her poses, left in the world at pos (her feet).

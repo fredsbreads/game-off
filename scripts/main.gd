@@ -519,6 +519,10 @@ func _teleport(move: int) -> void:
 	level.ensure_generated(player.x)
 	distance = to_x - START_X
 	var to := Vector2(to_x * Rules.TILE, Rules.body_center_y(to_row))
+	if move != Rules.Move.VERTICAL:
+		# Forward and diagonal: the line runs at sword height, along the throw.
+		from = player.sword_point(move, from_feet, from_row)
+		to = player.sword_point(move, Vector2(to_x * Rules.TILE, Rules.surface_y(to_row)), to_row)
 	fx.teleport_trail(from, to)
 	player.teleport_afterimages(move, from_feet, from_row)
 
