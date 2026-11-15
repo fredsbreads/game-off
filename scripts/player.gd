@@ -56,6 +56,19 @@ const SWORD_FLIGHT := 0.07   # seconds the thrown sword takes; she appears when 
 # teleport line runs, between these points at the start and where she lands.
 const THROW_SWORD_CENTRE := Vector2(75.5, 41.5)
 const THROW_VERTICAL_SWORD_CENTRE := Vector2(54.5, 16.5)
+# Diagonal teleports throw the sword at an angle: the one from the second
+# attack (hilt top-left, blade down and forward), mirrored to point up when
+# she goes floor -> ceiling.
+const DIAGONAL_SWORD := preload("res://assets/sprites/kunoichi_sword_diagonal.png")
+const DIAGONAL_SWORD_CENTRE := Vector2(12, 11)
+# Kills: she flashes red when she appears in her strike pose, and red copies
+# of that pose linger just behind her (toward where she came from).
+const STRIKE_FLASH := Color(1.0, 0.3, 0.3)
+const STRIKE_FLASH_TIME := 0.15
+const STRIKE_GHOSTS := 2
+const STRIKE_GHOST_STEP := 0.35   # tiles between copies
+const STRIKE_GHOST_FILL := Color(1.0, 0.25, 0.3, 0.5)
+const STRIKE_GHOST_LIFE := 0.25
 const GHOST_SHADER := preload("res://shaders/ghost.gdshader")
 const GHOST_OUTLINE := Color(1.0, 0.25, 0.3, 0.9)     # the lingering pose where she left
 const GHOST_OUTLINE_FILL := Color(1.0, 0.2, 0.25, 0.2)
@@ -111,6 +124,7 @@ var _strike_time := 0.0
 const STRIKE_MIN := 0.035  # the pose shows at least this long (~2 frames)
 var _last_attack := -1
 var _hidden_left := 0.0   # > 0: not shown yet (the thrown sword is still flying)
+var _last_from_feet := Vector2.ZERO   # where the last teleport started
 var _arc: Sprite2D
 var _arc_material: ShaderMaterial
 const ARC_NONE := -100.0
@@ -184,6 +198,7 @@ func strike() -> void:
 	_strike_time = 0.0
 	_play("attack")
 	_sprite.frame = pick
+	_strike_flair(pick)
 	_arc.texture = ARC_TEXTURES[pick]
 	_arc_material.set_shader_parameter("t_map", ARC_T_MAPS[pick])
 	_arc.z_index = 1 if ARC_IN_FRONT[pick] else -1
@@ -212,12 +227,19 @@ func teleport_afterimages(move: int, from_feet: Vector2, from_row: int) -> void:
 	# 2. ...the sword flies to where she lands (flipping halfway if she
 	# changes rows)...
 	var centre: Vector2 = THROW_VERTICAL_SWORD_CENTRE if vertical else THROW_SWORD_CENTRE
-	var flying := _sprite_at(sword, centre, sword_point(move, from_feet, from_row), from_row)
+	var diagonal := move == Rules.Move.DIAGONAL
+	if diagonal:
+		sword = DIAGONAL_SWORD
+		centre = DIAGONAL_SWORD_CENTRE
+	# (The diagonal sword points down and forward as drawn: flip it when
+	# going up from the floor.)
+	var sword_row := (Rules.Row.CEILING if from_row == Rules.Row.FLOOR else Rules.Row.FLOOR) if diagonal else from_row
+	var flying := _sprite_at(sword, centre, sword_point(move, from_feet, from_row), sword_row)
 	flying.z_index = 2
 	var ft := flying.create_tween()
 	ft.tween_property(flying, "global_position", sword_point(move, to_feet, row), SWORD_FLIGHT)
 	ft.tween_callback(flying.queue_free)
-	if row != from_row:
+	if row != from_row and not diagonal:
 		var flip := flying.create_tween()
 		flip.tween_interval(SWORD_FLIGHT * 0.5)
 		flip.tween_callback(func() -> void: flying.scale.y = -flying.scale.y)
@@ -225,13 +247,35 @@ func teleport_afterimages(move: int, from_feet: Vector2, from_row: int) -> void:
 	# fading red outline.
 	_hidden_left = SWORD_FLIGHT
 	_sprite.visible = false
+	_last_from_feet = from_feet
 	_ghost(tex, feet, from_feet, from_row, GHOST_OUTLINE_FILL, GHOST_OUTLINE, GHOST_OUTLINE_LIFE, 1.0, SWORD_FLIGHT)
 	for i in range(1, GHOST_TRAIL_COUNT + 1):
 		var k := float(i) / (GHOST_TRAIL_COUNT + 1)
-		var on_row := from_row if k < 0.5 else row   # flips halfway across
+		# Across: flips halfway. Diagonal: all keep the way she left.
+		var on_row := from_row if (k < 0.5 or diagonal) else row
 		# Nearer her = a bit stronger.
 		_ghost(tex, feet, from_feet.lerp(to_feet, k), on_row, GHOST_TRAIL_FILL, Color(0, 0, 0, 0),
 			GHOST_TRAIL_LIFE, 0.4 + 0.6 * k)
+
+
+## When she appears in a strike pose: a quick red flash on her, and red copies
+## of the pose just behind her (toward where she came from).
+func _strike_flair(pick: int) -> void:
+	var delay := _hidden_left
+	var flash := _sprite.create_tween()
+	if delay > 0.0:
+		flash.tween_interval(delay)
+	flash.tween_callback(func() -> void: _sprite.modulate = STRIKE_FLASH)
+	flash.tween_property(_sprite, "modulate", Color.WHITE, STRIKE_FLASH_TIME)
+	var here := Vector2(x * Rules.TILE, Rules.surface_y(row))
+	var back := (_last_from_feet - here)
+	if back.length() < 1.0:
+		return
+	back = back.normalized() * STRIKE_GHOST_STEP * Rules.TILE
+	var tex: Texture2D = _sprite.sprite_frames.get_frame_texture("attack", pick)
+	for i in range(1, STRIKE_GHOSTS + 1):
+		_ghost(tex, ATTACK_FEET, here + back * i, row, STRIKE_GHOST_FILL, Color(0, 0, 0, 0),
+			STRIKE_GHOST_LIFE, 1.0 - 0.35 * (i - 1), delay)
 
 
 ## Where the sword is in her throw pose for `move`, standing at feet_pos in
