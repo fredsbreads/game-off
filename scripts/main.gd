@@ -55,6 +55,10 @@ var debug: DebugTools = null
 var _pending_forward := false
 var _pending_vertical := false
 var _pending_frames := 0
+# Misses in a row (see Rules.MISS_COOLDOWN_SECONDS) and frames since the last
+# teleport (half a second without one resets the streak).
+var _misses := 0
+var _idle_frames := 0
 # Where she was when a pending press could first fire. A single press waits
 # DIAGONAL_WINDOW_FRAMES in case it's a diagonal. While it waits she's
 # committed: running into an enemy doesn't count. When it fires, it hits if
@@ -420,12 +424,16 @@ func _step() -> void:
 	# 4. timers
 	if player.cooldown > 0:
 		player.cooldown -= 1
+	_idle_frames = mini(_idle_frames + 1, Rules.miss_streak_reset_frames())
 
 	level.ensure_generated(player.x)
 	level.prune(cam.left() / Rules.TILE - 2.0)
 
 
 func _teleport(move: int) -> void:
+	if _idle_frames >= Rules.miss_streak_reset_frames():
+		_misses = 0
+	_idle_frames = 0
 	var from := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row))
 	var to_x := player.x + Rules.move_dx(move)
 	var to_row := (1 - player.row) if Rules.move_flips_row(move) else player.row
@@ -448,11 +456,13 @@ func _teleport(move: int) -> void:
 	fx.teleport_trail(from, to)
 
 	if hit.is_empty():
-		player.cooldown = Rules.cooldown_frames()
+		_misses += 1
+		player.cooldown = Rules.miss_cooldown_frames(_misses)
 		fx.landing_ring(to)
 		if _chain_awaiting:
 			_end_chain("DROPPED", "MISSED")   # teleported into empty space while an enemy was in reach
 	else:
+		_misses = 0
 		player.cooldown = 0
 		for e in hit:
 			_kill(e)

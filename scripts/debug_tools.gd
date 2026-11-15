@@ -105,7 +105,7 @@ func _replan() -> void:
 	for e in main.level.enemies:
 		if e.alive and e.tile_x > px - 1.0 and e.tile_x < px + PLAN_AHEAD_TILES + 8.0:
 			near.append(Vector2(e.tile_x, e.row))
-	var start := [px, main.player.row, main.player.cooldown]
+	var start := [px, main.player.row, main.player.cooldown, main._misses, main._idle_frames]
 	var limit := px + PLAN_AHEAD_TILES + 30.0
 	# Play like a person going for chains: try to kill every enemy in range,
 	# and only fall back to just surviving if that's impossible.
@@ -119,7 +119,7 @@ func _replan() -> void:
 		result = ChunkSolver.search(near, start, goal, limit, Rules.RUN_SPEED)
 	_plan = result["actions"]
 	_predicted.clear()
-	var st: Array = [px, main.player.row, main.player.cooldown, 0]
+	var st: Array = [px, main.player.row, main.player.cooldown, 0, main._misses, mini(main._idle_frames, Rules.miss_streak_reset_frames())]
 	for act in _plan:
 		_predicted.append([st[0], st[1], st[2]])
 		var nxt := ChunkSolver.step(near, st, act, Rules.RUN_SPEED, limit)
