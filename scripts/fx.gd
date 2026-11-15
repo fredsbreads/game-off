@@ -102,7 +102,7 @@ func _draw() -> void:
 				var a: Vector2 = it["a"]
 				var b: Vector2 = it["b"]
 				# (The afterimages of her along the path are drawn by player.gd.)
-				draw_line(a, b, Color(1, 1, 1, 0.9 * fade), 1.0 + 5.0 * fade)
+				draw_line(a, b, Color(1, 0.25, 0.3, 0.9 * fade), 1.0 + 5.0 * fade)
 			"ring":
 				var r := lerpf(it["r0"], it["r1"], 1.0 - pow(1.0 - k, 3.0))
 				var col: Color = it["color"]

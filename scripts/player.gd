@@ -43,10 +43,15 @@ const ARC_SHADER := preload("res://shaders/swing_arc.gdshader")
 # lingers where she left as a red outline, and red afterimages of it trail
 # along the path. Forward and diagonal use the forward throw; across uses the
 # vertical throw (sword pointing at the other row).
-const THROW := preload("res://assets/sprites/kunoichi_throw.png")              # 96x96
-const THROW_FEET := RUN_FEET                                                   # drawn over the run pose
-const THROW_VERTICAL := preload("res://assets/sprites/kunoichi_throw_vertical.png")  # 120x120
+# Each pose is split into her body and the sword (same canvas, so they line
+# up): the sword flies to where she lands, then she appears there.
+const THROW := preload("res://assets/sprites/kunoichi_throw_body.png")              # 96x96
+const THROW_SWORD := preload("res://assets/sprites/kunoichi_throw_sword.png")
+const THROW_FEET := RUN_FEET                                                        # drawn over the run pose
+const THROW_VERTICAL := preload("res://assets/sprites/kunoichi_throw_vertical_body.png")  # 120x120
+const THROW_VERTICAL_SWORD := preload("res://assets/sprites/kunoichi_throw_vertical_sword.png")
 const THROW_VERTICAL_FEET := Vector2(59, 102)
+const SWORD_FLIGHT := 0.07   # seconds the thrown sword takes; she appears when it lands
 const GHOST_SHADER := preload("res://shaders/ghost.gdshader")
 const GHOST_OUTLINE := Color(1.0, 0.25, 0.3, 0.9)     # the lingering pose where she left
 const GHOST_OUTLINE_FILL := Color(1.0, 0.2, 0.25, 0.2)
@@ -101,9 +106,11 @@ var _striking := false    # showing a strike pose
 var _strike_time := 0.0
 const STRIKE_MIN := 0.035  # the pose shows at least this long (~2 frames)
 var _last_attack := -1
+var _hidden_left := 0.0   # > 0: not shown yet (the thrown sword is still flying)
 var _arc: Sprite2D
 var _arc_material: ShaderMaterial
-var _arc_time := -1.0     # seconds since the arc started; < 0 = none
+const ARC_NONE := -100.0
+var _arc_time := ARC_NONE  # seconds since the arc started (negative: waiting for her to land)
 var _death_offset := Vector2.ZERO
 var _death_velocity := Vector2.ZERO
 var _sprite: AnimatedSprite2D
@@ -179,7 +186,7 @@ func strike() -> void:
 	# Placed where she is now (and flipped like her on the ceiling).
 	_arc.global_position = Vector2(x * Rules.TILE, Rules.surface_y(row))
 	_arc.scale = Vector2(SPRITE_SCALE, SPRITE_SCALE * (-1.0 if row == Rules.Row.CEILING else 1.0))
-	_arc_time = 0.0
+	_arc_time = -_hidden_left   # starts when she appears (after the thrown sword lands)
 	_update_arc()
 
 
@@ -187,10 +194,28 @@ func strike() -> void:
 ## to where she is now: leave the throw pose behind as a fading red outline,
 ## and red afterimages of it along the way.
 func teleport_afterimages(move: int, from_feet: Vector2, from_row: int) -> void:
-	var tex: Texture2D = THROW_VERTICAL if move == Rules.Move.VERTICAL else THROW
-	var feet: Vector2 = THROW_VERTICAL_FEET if move == Rules.Move.VERTICAL else THROW_FEET
+	var vertical := move == Rules.Move.VERTICAL
+	var tex: Texture2D = THROW_VERTICAL if vertical else THROW
+	var sword: Texture2D = THROW_VERTICAL_SWORD if vertical else THROW_SWORD
+	var feet: Vector2 = THROW_VERTICAL_FEET if vertical else THROW_FEET
 	var to_feet := Vector2(x * Rules.TILE, Rules.surface_y(row))
-	_ghost(tex, feet, from_feet, from_row, GHOST_OUTLINE_FILL, GHOST_OUTLINE, GHOST_OUTLINE_LIFE, 1.0)
+	# 1. She stands in the throw stance where she was (sword gone from her hand)...
+	var stance := _sprite_at(tex, feet, from_feet, from_row)
+	stance.z_index = 1
+	var st := stance.create_tween()
+	st.tween_interval(SWORD_FLIGHT)
+	st.tween_callback(stance.queue_free)
+	# 2. ...the sword flies to where she lands...
+	var flying := _sprite_at(sword, feet, from_feet, from_row)
+	flying.z_index = 2
+	var ft := flying.create_tween()
+	ft.tween_property(flying, "global_position", to_feet, SWORD_FLIGHT)
+	ft.tween_callback(flying.queue_free)
+	# 3. ...and she appears there when it lands. The stance stays behind as a
+	# fading red outline.
+	_hidden_left = SWORD_FLIGHT
+	_sprite.visible = false
+	_ghost(tex, feet, from_feet, from_row, GHOST_OUTLINE_FILL, GHOST_OUTLINE, GHOST_OUTLINE_LIFE, 1.0, SWORD_FLIGHT)
 	for i in range(1, GHOST_TRAIL_COUNT + 1):
 		var k := float(i) / (GHOST_TRAIL_COUNT + 1)
 		var on_row := from_row if k < 0.5 else row   # flips halfway across
@@ -199,7 +224,8 @@ func teleport_afterimages(move: int, from_feet: Vector2, from_row: int) -> void:
 			GHOST_TRAIL_LIFE, 0.4 + 0.6 * k)
 
 
-func _ghost(tex: Texture2D, feet: Vector2, pos: Vector2, on_row: int, fill: Color, outline: Color, life: float, alpha: float) -> void:
+## A plain sprite of one of her poses, left in the world at pos (her feet).
+func _sprite_at(tex: Texture2D, feet: Vector2, pos: Vector2, on_row: int) -> Sprite2D:
 	var g := Sprite2D.new()
 	g.texture = tex
 	g.centered = false
@@ -208,6 +234,13 @@ func _ghost(tex: Texture2D, feet: Vector2, pos: Vector2, on_row: int, fill: Colo
 	g.top_level = true   # stays where it was left
 	g.global_position = pos
 	g.scale = Vector2(SPRITE_SCALE, SPRITE_SCALE * (-1.0 if on_row == Rules.Row.CEILING else 1.0))
+	add_child(g)
+	return g
+
+
+## delay: seconds before it shows (then it fades over `life`).
+func _ghost(tex: Texture2D, feet: Vector2, pos: Vector2, on_row: int, fill: Color, outline: Color, life: float, alpha: float, delay: float = 0.0) -> void:
+	var g := _sprite_at(tex, feet, pos, on_row)
 	g.z_index = -2       # behind her and her slash
 	var m := ShaderMaterial.new()
 	m.shader = GHOST_SHADER
@@ -215,22 +248,25 @@ func _ghost(tex: Texture2D, feet: Vector2, pos: Vector2, on_row: int, fill: Colo
 	m.set_shader_parameter("outline", outline)
 	g.material = m
 	g.modulate.a = alpha
-	add_child(g)
 	var tween := g.create_tween()
+	if delay > 0.0:
+		g.visible = false
+		tween.tween_interval(delay)
+		tween.tween_callback(func() -> void: g.visible = true)
 	tween.tween_property(g, "modulate:a", 0.0, life)
 	tween.tween_callback(g.queue_free)
 
 
 ## The arc runs on real time (even during the kill freeze): sweep, then fade.
 func _update_arc() -> void:
-	if _arc_time < 0.0 or not alive:
+	if _arc_time < 0.0 or not alive:   # none, or not started yet
 		_arc.visible = false
 		return
 	_arc.visible = true
 	_arc_material.set_shader_parameter("progress", clampf(_arc_time / ARC_SWEEP, 0.0, 1.0))
 	_arc_material.set_shader_parameter("fade", 1.0 - clampf((_arc_time - ARC_SWEEP - ARC_HOLD) / ARC_FADE, 0.0, 1.0))
 	if _arc_time >= ARC_SWEEP + ARC_HOLD + ARC_FADE:
-		_arc_time = -1.0
+		_arc_time = ARC_NONE
 		_arc.visible = false
 
 
@@ -253,9 +289,12 @@ func _process(delta: float) -> void:
 	# On the ceiling the whole player (sprite and markers) is upside down.
 	scale.y = -1.0 if row == Rules.Row.CEILING else 1.0
 
-	if _arc_time >= 0.0:
+	if _arc_time > ARC_NONE:
 		_arc_time += delta
 		_update_arc()
+	if _hidden_left > 0.0:
+		_hidden_left -= delta
+		_sprite.visible = _hidden_left <= 0.0
 	if alive:
 		_strike_time += delta
 		if _striking and not frozen and _strike_time >= STRIKE_MIN:
