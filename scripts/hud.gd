@@ -41,6 +41,11 @@ var _pause_button: Control
 var _pause_dim: ColorRect
 var _flip_button: Control
 const FLIP_BUTTON_SIZE := Vector2(300, 64)
+# Practice mode toggle on the pause screen (N on a keyboard), plus a small
+# note in the corner while enemies are off.
+var _enemies_button: Control
+var _enemies_off_label: Label
+var _enemies_off := false
 var _message_before_pause := ""
 var _message_visible_before_pause := false
 
@@ -130,6 +135,16 @@ func _ready() -> void:
 	_message.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 
 	add_child(_flip_button)   # above the pause message
+	_enemies_button = Control.new()
+	_enemies_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_enemies_button.size = FLIP_BUTTON_SIZE
+	_enemies_button.visible = false
+	_enemies_button.draw.connect(_draw_enemies_button)
+	add_child(_enemies_button)
+	_enemies_off_label = _label(20, Vector2(20, 14))
+	_enemies_off_label.text = "NO ENEMIES (N)"
+	_enemies_off_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.6))
+	_enemies_off_label.visible = false
 
 	_rotate = _rect(Color(0.05, 0.05, 0.07, 1))
 	_rotate.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -172,6 +187,9 @@ func _process(delta: float) -> void:
 	_chain_bar.position = _chain_bar_bg.position
 	_pause_button.position = Vector2(right - PAUSE_BUTTON_SIZE - PAUSE_BUTTON_MARGIN, PAUSE_BUTTON_MARGIN)
 	_flip_button.position = Vector2((view.x - FLIP_BUTTON_SIZE.x) / 2.0, view.y * 0.5 + 90.0)
+	# Below the flip button when that shows, else in its place.
+	var enemies_y := view.y * 0.5 + (170.0 if _flip_button.visible else 90.0)
+	_enemies_button.position = Vector2((view.x - FLIP_BUTTON_SIZE.x) / 2.0, enemies_y)
 
 
 ## True on a phone/tablet held sideways in the browser: play is upright there.
@@ -362,6 +380,7 @@ func show_paused(paused: bool, can_flip: bool = false) -> void:
 	_pause_dim.visible = paused
 	_pause_button.visible = not paused
 	_flip_button.visible = paused and can_flip
+	_enemies_button.visible = paused
 	if paused:
 		_message_before_pause = _message.text
 		_message_visible_before_pause = _message.visible
@@ -370,6 +389,27 @@ func show_paused(paused: bool, can_flip: bool = false) -> void:
 	else:
 		_message.text = _message_before_pause
 		_message.visible = _message_visible_before_pause
+
+
+func set_enemies_off(off: bool) -> void:
+	_enemies_off = off
+	_enemies_off_label.visible = off
+	_enemies_button.queue_redraw()
+
+
+func enemies_button_contains(pos: Vector2) -> bool:
+	return _enemies_button.visible and _enemies_button.get_rect().grow(10.0).has_point(pos)
+
+
+func _draw_enemies_button() -> void:
+	var s := FLIP_BUTTON_SIZE
+	_enemies_button.draw_rect(Rect2(Vector2.ZERO, s), Color(1, 1, 1, 0.12))
+	_enemies_button.draw_rect(Rect2(Vector2.ZERO, s), Color(1, 1, 1, 0.7), false, 2.0)
+	var font := ThemeDB.fallback_font
+	var text := "Enemies: off" if _enemies_off else "Enemies: on"
+	var size := 26
+	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+	_enemies_button.draw_string(font, Vector2((s.x - w) / 2.0, s.y / 2.0 + size * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color.WHITE)
 
 
 func flip_button_contains(pos: Vector2) -> bool:

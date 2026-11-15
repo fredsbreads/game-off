@@ -98,6 +98,7 @@ func _ready() -> void:
 	cam.snap(player.x)
 	best_score = _load_best()
 	hud.show_start(best_score)
+	hud.set_enemies_off(Level.enemies_off)   # practice mode stays on across retries
 
 
 func score() -> int:
@@ -124,11 +125,19 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 			JavaScriptBridge.eval("window.redFlashSetFlip(!window.redFlashFlip)", true)
 			return
+		if (tap and hud.enemies_button_contains(_screen_pos(event))) or _is_enemies_key(event):
+			get_viewport().set_input_as_handled()
+			_toggle_enemies()
+			return
 		# Any other key, click or tap resumes (it doesn't also teleport).
 		if _is_press(event):
 			get_viewport().set_input_as_handled()
 			if Time.get_ticks_msec() - _paused_at_msec >= RESUME_GUARD * 1000.0:
 				_set_paused(false)
+		return
+	if _is_enemies_key(event):
+		get_viewport().set_input_as_handled()
+		_toggle_enemies()
 		return
 	if state == State.PLAYING and (event.is_action_pressed("pause") or _is_pause_button_press(event)):
 		get_viewport().set_input_as_handled()
@@ -250,6 +259,24 @@ func _request_fullscreen() -> void:
 
 ## Left half of the screen = vertical, right half = forward.
 ## Returns Rules.Move.FORWARD, Rules.Move.VERTICAL or Rules.Move.NONE.
+func _is_enemies_key(event: InputEvent) -> bool:
+	return event is InputEventKey and event.pressed and event.physical_keycode == KEY_N
+
+
+## Practice mode: no enemies (or back on: they spawn just off screen).
+func _toggle_enemies() -> void:
+	var off := not Level.enemies_off
+	level.set_enemies_off(off, cam.left() / Rules.TILE + CameraRig.VIEW_TILES + 1.0)
+	hud.set_enemies_off(off)
+	if off:
+		# Drop any chain in progress without grading it.
+		chain = 0
+		_chain_awaiting = false
+		_pressed_during_pause = false
+		_chain_killed.clear()
+		_hitstop = 0.0
+
+
 func _button_from_event(event: InputEvent) -> int:
 	if event is InputEventScreenTouch and event.pressed:
 		return _button_for_screen_x(_screen_pos(event).x)

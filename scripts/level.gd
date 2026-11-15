@@ -30,6 +30,10 @@ var level := 1
 ## ahead on a level-up, and to name the chain the player died in.
 var sections: Array = []
 
+# Practice mode: no enemies at all (N key, or the button on the pause
+# screen). Static, so it stays on across retries.
+static var enemies_off := false
+
 var _cursor := RUNWAY_TILES        # where the next chain's first enemy goes
 var _cursor_row := Rules.Row.FLOOR # ...and its row (the row the last one ended in)
 var _rng := RandomNumberGenerator.new()
@@ -79,9 +83,13 @@ func _append_pattern(pattern: Dictionary) -> void:
 	var last_row := _cursor_row
 	for rel in shape:
 		var e: Vector2 = rel
+		var row: int = _cursor_row if int(e.y) == 0 else 1 - _cursor_row
+		if enemies_off:
+			last_row = row   # keep the layout the same, just empty
+			continue
 		var enemy := Enemy.new()
 		enemy.tile_x = _cursor + e.x
-		enemy.row = _cursor_row if int(e.y) == 0 else 1 - _cursor_row
+		enemy.row = row
 		enemy_parent.add_child(enemy)
 		enemies.append(enemy)
 		section["enemies"].append(enemy)
@@ -91,6 +99,21 @@ func _append_pattern(pattern: Dictionary) -> void:
 	var last: Vector2 = shape.back()
 	_cursor += last.x + Patterns.BREAK
 	_cursor_row = last_row
+
+
+## Switches enemies off (removes every one) or back on (enemies spawn again
+## from from_x, e.g. just off the right edge of the screen).
+func set_enemies_off(off: bool, from_x: float) -> void:
+	enemies_off = off
+	if off:
+		for e in enemies:
+			if is_instance_valid(e):
+				e.queue_free()
+		enemies.clear()
+		for section in sections:
+			section["enemies"] = []
+	else:
+		rebuild_ahead(from_x)
 
 
 ## On a level-up: throw away every chain that starts beyond `from_x` (not on

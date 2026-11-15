@@ -23,7 +23,11 @@ The original single-row short/long version is kept on the `short-long-version` b
 Pause with `P` / `Esc` or the button in the top-right corner; any key or tap resumes.
 The game also pauses itself when the window or app loses focus.
 
-The three outlines show exactly where each teleport lands. On the ceiling you
+Practice mode: `N` (or the "Enemies" button on the pause screen) removes
+every enemy so you can play around with the teleports. Press again and they
+spawn again just off screen. It stays on across retries.
+
+The three bolts show exactly where each teleport lands. On the ceiling you
 run upside down.
 
 ## Rules
