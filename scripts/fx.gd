@@ -37,13 +37,20 @@ func kill_burst(pos: Vector2, combo: int) -> void:
 
 ## A spray of blood from `pos`, flung mostly toward `dir_x` (+1 right, -1
 ## left) and upward. Drops that reach the floor leave a stain for a while.
-func blood(pos: Vector2, dir_x: float, amount: int = 24) -> void:
+## `burst`: start the drops this many seconds into their flight (each a
+## random share of it), so a spray that freezes at once (the "your move"
+## pause) is already spread out behind the enemy instead of on top of him.
+## `dir_y`: -1 sprays upward (floor), +1 downward (from the ceiling).
+func blood(pos: Vector2, dir_x: float, amount: int = 24, burst: float = 0.0, dir_y: float = -1.0) -> void:
 	for i in amount:
-		var angle := randf_range(-1.25, -0.1)   # up and forward
-		var dir := Vector2(cos(angle) * dir_x, sin(angle))
-		_items.append({"kind": "blood", "t": 0.0, "life": 1.5,
-			"pos": pos + Vector2(randf_range(-6, 6), randf_range(-10, 10)),
-			"vel": dir * randf_range(120.0, 420.0),
+		var angle := randf_range(0.1, 1.25)   # away from the surface, and forward
+		var dir := Vector2(cos(angle) * dir_x, sin(angle) * dir_y)
+		var vel := dir * randf_range(200.0, 460.0)
+		var p := pos + Vector2(randf_range(-6, 6), randf_range(-10, 10))
+		var head_start := randf_range(0.4, 1.0) * burst
+		p += vel * head_start + Vector2(0, 0.5 * GRAVITY * head_start * head_start)
+		vel.y += GRAVITY * head_start
+		_items.append({"kind": "blood", "t": 0.0, "life": 1.5, "pos": p, "vel": vel,
 			"size": randf_range(4.0, 10.0),
 			"color": BLOOD_COLORS[i % BLOOD_COLORS.size()]})
 

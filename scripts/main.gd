@@ -42,6 +42,9 @@ const SAVE_PATH := "user://save.cfg"
 # Blood gets its own effects node on the enemy layer, so it stays red during
 # the grey "your move" freeze.
 var blood_fx: Fx
+# Kill blood starts this far (seconds) into its flight, so it's already
+# spread out behind the enemy when the "your move" freeze holds it.
+const BLOOD_BURST := 0.3
 @onready var hud: Hud = $HUD
 @onready var freeze_effect: FreezeEffect = $FreezeEffect
 
@@ -560,7 +563,8 @@ func _kill(e: Enemy) -> void:
 	var pos := Vector2(e.tile_x * Rules.TILE, Rules.body_center_y(e.row))
 	cam.shake(0.06, 4.0 + 1.5 * c)   # only during the flash, so the freeze reads as still
 	fx.kill_burst(pos, chain)
-	blood_fx.blood(pos, 1.0, 22 + 3 * c)   # flung the way she was going
+	blood_fx.blood(pos, 1.0, 22 + 3 * c, BLOOD_BURST,
+		1.0 if e.row == Rules.Row.CEILING else -1.0)   # flung the way she was going
 	if Hud.SHOW_SCORE_UI:
 		fx.text(pos - Vector2(0, 60), "+%d" % points, 22 + 2 * c, Color(1, 0.95, 0.8))
 
@@ -609,7 +613,8 @@ func _die(kind: String) -> void:
 	player.running = false
 	player.die(kind)
 	if kind == "hit":   # cut down from the front: blood sprays back
-		blood_fx.blood(Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row)), -1.0, 36)
+		blood_fx.blood(Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row)), -1.0, 36, 0.0,
+			1.0 if player.row == Rules.Row.CEILING else -1.0)
 	cam.shake(0.3, 12.0)
 	hud.flash(Color(1, 0.2, 0.2, 0.35), 0.3)
 	if debug:
