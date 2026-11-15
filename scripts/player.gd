@@ -39,12 +39,13 @@ const ARC_T_MAPS := [
 const ARC_IN_FRONT := [false, false, true]   # as drawn: behind her, or in front
 const ARC_SHADER := preload("res://shaders/swing_arc.gdshader")
 const ARC_SWEEP := 0.08   # seconds to sweep along the swing
+const ARC_HOLD := 0.12    # seconds the full slash stays before fading
 const ARC_FADE := 0.12    # seconds to fade out after that
 const ATTACK_FRAME := Vector2i(170, 170)
 const ATTACK_FEET := RUN_FEET + Vector2(37, 37)
 const ATTACK_COUNT := 3
-# How long a strike pose shows at least (real time, not counting freezes).
-const ATTACK_HOLD := 0.2
+# The strike pose shows until she moves again (the end of the kill freeze);
+# then she's straight back to running.
 # Drawn size: 1.5 = each art pixel is 1.5 game units (she's ~100 units tall).
 # Purely visual; the hitbox below is set by the rules, not the art.
 const SPRITE_SCALE := 1.5
@@ -80,7 +81,9 @@ var target_diagonal := false
 var frozen := false      # kill pause: hold the current animation frame
 
 var _lit_time := 0.0
-var _attack_left := 0.0   # > 0 while a strike pose is showing
+var _striking := false    # showing a strike pose
+var _strike_time := 0.0
+const STRIKE_MIN := 0.035  # the pose shows at least this long (~2 frames)
 var _last_attack := -1
 var _arc: Sprite2D
 var _arc_material: ShaderMaterial
@@ -109,6 +112,8 @@ func _ready() -> void:
 	_arc.scale = Vector2(SPRITE_SCALE, SPRITE_SCALE)
 	_arc.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_arc.visible = false
+	# Not moved by her: the slash stays where it happened and she runs out of it.
+	_arc.top_level = true
 	add_child(_arc)
 
 	# Drawn after (on top of) the sprite.
@@ -148,12 +153,16 @@ func strike() -> void:
 	if pick == _last_attack:
 		pick = (pick + 1 + randi() % (ATTACK_COUNT - 1)) % ATTACK_COUNT
 	_last_attack = pick
-	_attack_left = ATTACK_HOLD
+	_striking = true
+	_strike_time = 0.0
 	_play("attack")
 	_sprite.frame = pick
 	_arc.texture = ARC_TEXTURES[pick]
 	_arc_material.set_shader_parameter("t_map", ARC_T_MAPS[pick])
 	_arc.z_index = 1 if ARC_IN_FRONT[pick] else -1
+	# Placed where she is now (and flipped like her on the ceiling).
+	_arc.global_position = Vector2(x * Rules.TILE, Rules.surface_y(row))
+	_arc.scale = Vector2(SPRITE_SCALE, SPRITE_SCALE * (-1.0 if row == Rules.Row.CEILING else 1.0))
 	_arc_time = 0.0
 	_update_arc()
 
@@ -165,14 +174,14 @@ func _update_arc() -> void:
 		return
 	_arc.visible = true
 	_arc_material.set_shader_parameter("progress", clampf(_arc_time / ARC_SWEEP, 0.0, 1.0))
-	_arc_material.set_shader_parameter("fade", 1.0 - clampf((_arc_time - ARC_SWEEP) / ARC_FADE, 0.0, 1.0))
-	if _arc_time >= ARC_SWEEP + ARC_FADE:
+	_arc_material.set_shader_parameter("fade", 1.0 - clampf((_arc_time - ARC_SWEEP - ARC_HOLD) / ARC_FADE, 0.0, 1.0))
+	if _arc_time >= ARC_SWEEP + ARC_HOLD + ARC_FADE:
 		_arc_time = -1.0
 		_arc.visible = false
 
 
 func die(_kind: String) -> void:
-	_attack_left = 0.0
+	_striking = false
 	alive = false
 	_death_velocity = Vector2(-220, -420)
 	_play("fall")
@@ -194,10 +203,10 @@ func _process(delta: float) -> void:
 		_arc_time += delta
 		_update_arc()
 	if alive:
-		if _attack_left > 0.0:
-			if not frozen:
-				_attack_left -= delta
-		else:
+		_strike_time += delta
+		if _striking and not frozen and _strike_time >= STRIKE_MIN:
+			_striking = false   # moving again: back to running
+		if not _striking:
 			var want := "run" if running else "idle"
 			if _sprite.animation != want:
 				_play(want)
