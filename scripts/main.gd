@@ -445,10 +445,12 @@ func _step() -> void:
 	distance = player.x - START_X
 
 	# 3. running into an enemy in your row
-	if not level.enemies_at(player.x, Rules.HIT_RADIUS, player.row).is_empty():
+	var touching := level.enemies_at(player.x, Rules.HIT_RADIUS, player.row)
+	if not touching.is_empty():
 		# A press waiting for a possible diagonal: she's already committed to
 		# teleporting, so contact doesn't count until it fires.
 		if not (_press_x_set and player.cooldown == 0):
+			touching[0].attack()   # he cuts her down
 			_die("hit")
 			return
 

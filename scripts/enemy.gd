@@ -9,6 +9,7 @@ extends Node2D
 
 const IDLE := preload("res://assets/sprites/martial_hero/idle.png")
 const DEATH := preload("res://assets/sprites/martial_hero/death.png")
+const ATTACK := preload("res://assets/sprites/martial_hero/attack.png")   # "Attack2" in the pack
 const FRAME := Vector2i(126, 126)
 # The point between his feet inside a frame: this sits on the floor.
 const FEET := Vector2(66, 82)
@@ -17,6 +18,10 @@ const FEET := Vector2(66, 82)
 const SPRITE_SCALE := 2.0
 const IDLE_FPS := 10.0
 const DEATH_FPS := 16.0
+const ATTACK_FPS := 14.0
+# Start the attack on the slash frame, so it lands right as she touches him (the first
+# frames are a wind-up).
+const ATTACK_START_FRAME := 3
 const FADE_SECONDS := 0.3   # after the death animation, before he's removed
 
 var tile_x := 0.0
@@ -47,7 +52,7 @@ func _ready() -> void:
 func _build_frames() -> SpriteFrames:
 	var frames := SpriteFrames.new()
 	frames.remove_animation("default")
-	for spec in [["idle", IDLE, IDLE_FPS, true], ["death", DEATH, DEATH_FPS, false]]:
+	for spec in [["idle", IDLE, IDLE_FPS, true], ["death", DEATH, DEATH_FPS, false], ["attack", ATTACK, ATTACK_FPS, false]]:
 		var sheet: Texture2D = spec[1]
 		frames.add_animation(spec[0])
 		frames.set_animation_speed(spec[0], spec[2])
@@ -70,7 +75,17 @@ func die() -> void:
 		queue_free()
 
 
+## She ran into him: he cuts her down.
+func attack() -> void:
+	if alive and _sprite:
+		_sprite.play("attack")
+		_sprite.frame = ATTACK_START_FRAME
+
+
 func _on_animation_finished() -> void:
+	if _sprite.animation == "attack":
+		_sprite.play("idle")
+		return
 	if _sprite.animation == "death":
 		var tween := create_tween()
 		tween.tween_property(self, "modulate:a", 0.0, FADE_SECONDS)
