@@ -34,9 +34,9 @@ const MOUSE_AFTER_TOUCH_IGNORE_MS := 1000
 const DEATH_ANIM_TIME := 0.7
 # The death moment (she only dies once, so it's big): a hard freeze on the
 # slash, zoomed in, world grey, then a slow-motion release.
-const DEATH_FREEZE := 0.55      # seconds everything holds still
-const DEATH_SLOWMO := 0.8       # seconds of slow motion after the freeze
-const DEATH_SLOW_SPEED := 0.25  # slow motion starts at this speed, eases back to 1
+const DEATH_FREEZE := 0.9       # seconds everything holds still
+const DEATH_SLOWMO := 1.4       # seconds of slow motion after the freeze
+const DEATH_SLOW_SPEED := 0.1   # slow motion starts at this speed, eases back to 1
 const DEATH_ZOOM := 0.45        # 45 % closer during the freeze
 const DEATH_FOCUS_X := 0.45     # ...with the clash moved to 45 % across the screen
 const DEATH_FLASH := Color(1, 1, 1, 0.4)
