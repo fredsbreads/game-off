@@ -56,7 +56,7 @@ run upside down.
   solid ones pulse.
 - Run speed is a constant 6 tiles/s.
 - Score, distance and the kill counter are tracked but **not shown** for now
-  (kills, level reached and longest combo are on the game-over screen).
+  (kills, level reached and perfect combos are on the game-over screen).
   Toggle with `SHOW_KILLS_UI` / `SHOW_SCORE_UI` / `SHOW_DISTANCE_UI` at the top of `scripts/hud.gd`.
 
 ## Progression

@@ -69,6 +69,7 @@ var kills := 0
 var kill_score := 0
 var chain := 0                  # kills in the current chain
 var best_chain := 0             # longest chain this run
+var perfect_chains := 0         # PERFECT chains this run (on the game-over screen)
 var progression := Progression.new()
 var best_score := 0
 var debug: DebugTools = null
@@ -611,6 +612,8 @@ func _end_chain(grade: String, word: String = "") -> void:
 		var old_size := progression.bar_size()
 		var old_level := progression.level
 		var levelled := progression.add_chain(chain, grade)
+		if grade == "PERFECT":
+			perfect_chains += 1
 		hud.show_chain_result(grade, chain, old_bar, old_size, old_level)
 		if grade != "SINGLE":
 			var above := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row) - Rules.TILE * 1.4)
@@ -690,7 +693,7 @@ func _game_over() -> void:
 		best_score = final_score
 		_save_best(best_score)
 	hud.show_game_over({
-		"distance": distance, "kills": kills, "best_chain": best_chain, "level": progression.level,
+		"distance": distance, "kills": kills, "best_chain": best_chain, "perfect_chains": perfect_chains, "level": progression.level,
 		"score": final_score, "best": best_score, "new_best": new_best,
 	})
 

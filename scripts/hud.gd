@@ -355,7 +355,7 @@ func show_game_over(stats: Dictionary) -> void:
 	if not SHOW_SCORE_UI:
 		lines += "Kills  %d\n" % stats["kills"]
 		lines += "Level reached  %d\n" % stats["level"]
-		lines += "Longest combo  %d\n" % stats["best_chain"]
+		lines += "Perfect combos  %d\n" % stats["perfect_chains"]
 	if SHOW_SCORE_UI:
 		lines += "Kills  %d      Best chain  x%d\n\n" % [stats["kills"], stats["best_chain"]]
 		lines += "Score  %d\n" % stats["score"]
