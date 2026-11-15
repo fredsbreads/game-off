@@ -61,6 +61,10 @@ const THROW_VERTICAL_SWORD_CENTRE := Vector2(54.5, 16.5)
 # she goes floor -> ceiling.
 const DIAGONAL_SWORD := preload("res://assets/sprites/kunoichi_sword_diagonal.png")
 const DIAGONAL_SWORD_CENTRE := Vector2(12, 11)
+# The angle the diagonal sword is drawn at (hilt to tip, radians: ~42 degrees
+# down-right). In flight it's turned to lie along the teleport line, with its
+# cutting edge facing back toward where she came from.
+const DIAGONAL_SWORD_ANGLE := 0.75
 # Kills: she flashes red when she appears in her strike pose, and red copies
 # of that pose linger just behind her (toward where she came from).
 const STRIKE_FLASH := Color(1.0, 0.3, 0.3)
@@ -231,13 +235,21 @@ func teleport_afterimages(move: int, from_feet: Vector2, from_row: int) -> void:
 	if diagonal:
 		sword = DIAGONAL_SWORD
 		centre = DIAGONAL_SWORD_CENTRE
-	# (The diagonal sword points down and forward as drawn: flip it when
-	# going up from the floor.)
-	var sword_row := (Rules.Row.CEILING if from_row == Rules.Row.FLOOR else Rules.Row.FLOOR) if diagonal else from_row
-	var flying := _sprite_at(sword, centre, sword_point(move, from_feet, from_row), sword_row)
+	var start := sword_point(move, from_feet, from_row)
+	var end := sword_point(move, to_feet, row)
+	# Diagonal: turned to lie along the line. From the floor it's rotated
+	# (edge ends up facing down, back toward the floor); from the ceiling it's
+	# mirrored first (edge facing up, back toward the ceiling).
+	var sword_row := Rules.Row.FLOOR if diagonal else from_row
+	if diagonal and from_row == Rules.Row.CEILING:
+		sword_row = Rules.Row.CEILING   # _sprite_at mirrors it top-to-bottom
+	var flying := _sprite_at(sword, centre, start, sword_row)
+	if diagonal:
+		var drawn := DIAGONAL_SWORD_ANGLE if sword_row == Rules.Row.FLOOR else -DIAGONAL_SWORD_ANGLE
+		flying.rotation = (end - start).angle() - drawn
 	flying.z_index = 2
 	var ft := flying.create_tween()
-	ft.tween_property(flying, "global_position", sword_point(move, to_feet, row), SWORD_FLIGHT)
+	ft.tween_property(flying, "global_position", end, SWORD_FLIGHT)
 	ft.tween_callback(flying.queue_free)
 	if row != from_row and not diagonal:
 		var flip := flying.create_tween()
