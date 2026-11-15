@@ -137,9 +137,7 @@ func _draw() -> void:
 
 	var fwd := Rules.FORWARD * t
 	# The line under each bolt spans that teleport's landing zone: an enemy
-	# touching it dies if you make that move now. The across marker
-	# (vertical) reaches further ahead because that teleport is more
-	# forgiving forward.
+	# touching it dies if you make that move now.
 	var zf := Rules.marker_zone(Rules.Move.FORWARD) * t
 	var zv := Rules.marker_zone(Rules.Move.VERTICAL) * t
 	var zd := Rules.marker_zone(Rules.Move.DIAGONAL) * t

@@ -56,8 +56,10 @@ var _pending_forward := false
 var _pending_vertical := false
 var _pending_frames := 0
 # Where she was when a pending press could first fire. A single press waits
-# DIAGONAL_WINDOW_FRAMES in case it's a diagonal; when it fires, it fires
-# from here, so a marker that was lit when you pressed still hits.
+# DIAGONAL_WINDOW_FRAMES in case it's a diagonal. While it waits she's
+# committed: running into an enemy doesn't count. When it fires, it hits if
+# it would have hit from anywhere between here and where she is now (so a
+# marker lit at any point during the wait means a hit).
 var _press_x := 0.0
 var _press_x_set := false
 var _last_touch_msec := -100000
@@ -365,11 +367,13 @@ func _update_pause_visuals() -> void:
 	player.frozen = paused
 
 
-## True if teleporting with `move` right now would land on an enemy.
-func _would_slash(move: int) -> bool:
+## True if teleporting with `move` from x (default: where she is now) would
+## land on an enemy.
+func _would_slash(move: int, from_x: float = NAN) -> bool:
 	if state != State.PLAYING or not player.alive:
 		return false
-	var tx: float = player.x + Rules.move_dx(move)
+	var x := player.x if is_nan(from_x) else from_x
+	var tx: float = x + Rules.move_dx(move)
 	var trow: int = (1 - player.row) if Rules.move_flips_row(move) else player.row
 	return not level.enemies_hit_by(move, tx, trow).is_empty()
 
@@ -385,10 +389,15 @@ func _step() -> void:
 		if (_pending_forward or _pending_vertical) and not _press_x_set and player.cooldown == 0:
 			_press_x = player.x
 			_press_x_set = true
-		var from_x := _press_x if _press_x_set else player.x
+		var waited := _press_x_set
+		var press_x := _press_x
 		move = _take_pending_move(player.cooldown == 0)
-		if move != Rules.Move.NONE and player.cooldown == 0:
-			player.x = from_x
+		if move != Rules.Move.NONE and player.cooldown == 0 and waited:
+			# From the press point if that hits, else from here (a hit from
+			# here, or a plain miss). Checking both ends covers the whole
+			# stretch between them: it's shorter than a landing zone.
+			if _would_slash(move, press_x):
+				player.x = press_x
 
 	# 1. teleport (ignored while on cooldown)
 	if move != Rules.Move.NONE and player.cooldown == 0:
@@ -402,19 +411,11 @@ func _step() -> void:
 
 	# 3. running into an enemy in your row
 	if not level.enemies_at(player.x, Rules.HIT_RADIUS, player.row).is_empty():
-		# A press still waiting for a possible diagonal goes first: she
-		# pressed before the contact, so she teleports from where she pressed.
-		if _press_x_set and player.cooldown == 0:
-			var pressed := Rules.Move.FORWARD if _pending_forward else Rules.Move.VERTICAL
-			player.x = _press_x
-			_clear_pending()
-			_teleport(pressed)
-			if _hitstop > 0.0:
-				return
-			if level.enemies_at(player.x, Rules.HIT_RADIUS, player.row).is_empty():
-				return
-		_die("hit")
-		return
+		# A press waiting for a possible diagonal: she's already committed to
+		# teleporting, so contact doesn't count until it fires.
+		if not (_press_x_set and player.cooldown == 0):
+			_die("hit")
+			return
 
 	# 4. timers
 	if player.cooldown > 0:

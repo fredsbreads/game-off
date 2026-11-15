@@ -32,9 +32,14 @@ run upside down.
 - Teleporting passes through everything; only the landing spot matters.
 - Landing on an enemy kills it and snaps you exactly onto it. It counts if
   any part of the enemy touches the landing zone (the line under the marker).
+- Every landing zone reaches 0.8 tiles behind the landing spot and 1.25
+  ahead (`KILL_BEHIND` / `KILL_AHEAD` in `scripts/rules.gd`). Far enough
+  ahead that a miss never dooms you: an enemy just past the zone leaves time
+  to teleport again after the cooldown.
 - A single press waits up to 4 frames in case the other button follows (a
-  diagonal), then teleports from where you were when you pressed. If you'd
-  run into an enemy during that wait, the teleport goes first.
+  diagonal). While it waits you're committed: running into an enemy doesn't
+  count. It hits if it would have hit from anywhere between where you pressed
+  and where you are when it fires.
 - A tiny cooldown of 0.16 s (10 frames) between teleports, shared by all of them; a kill resets it. A press during the cooldown fires as soon as it ends (`COOLDOWN_SECONDS` in `scripts/rules.gd`).
 - Every kill gets a short hit freeze. If another enemy is under one of your
   markers, it becomes a 0.7 s "your move" pause (tap to skip).
