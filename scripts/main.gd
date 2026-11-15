@@ -35,8 +35,9 @@ const DEATH_ANIM_TIME := 0.7
 # The death moment (she only dies once, so it's big): a hard freeze on the
 # slash, zoomed in, world grey, then a slow-motion release.
 const DEATH_FREEZE := 0.9       # seconds everything holds still
-const DEATH_SLOWMO := 1.4       # seconds of slow motion after the freeze
-const DEATH_SLOW_SPEED := 0.1   # slow motion starts at this speed, eases back to 1
+const DEATH_SLOWMO := 1.8       # seconds of slow motion after the freeze
+const DEATH_SLOW_SPEED := 0.03  # slow motion starts at this speed, eases back to 1
+const DEATH_ZOOM_HOLD := 0.7    # seconds into the slow motion before the zoom starts easing out
 const DEATH_ZOOM := 0.45        # 45 % closer during the freeze
 const DEATH_FOCUS_X := 0.45     # ...with the clash moved to 45 % across the screen
 const DEATH_FLASH := Color(1, 1, 1, 0.4)
@@ -508,6 +509,9 @@ func _teleport(move: int) -> void:
 			to_x = target.tile_x
 	player.x = to_x
 	player.row = to_row
+	# A combo never runs a frame, so build the level ahead here too (otherwise
+	# a long chain outruns it and the next enemies pop in when it ends).
+	level.ensure_generated(player.x)
 	distance = to_x - START_X
 	var to := Vector2(to_x * Rules.TILE, Rules.body_center_y(to_row))
 	fx.teleport_trail(from, to)
@@ -616,6 +620,7 @@ func _end_chain(grade: String, word: String = "") -> void:
 		if levelled:
 			level.level = progression.level
 			level.rebuild_ahead(cam.left() / Rules.TILE + CameraRig.VIEW_TILES + 1.0)
+			level.ensure_generated(player.x)
 			hud.show_level_up(progression.level)
 			if debug:
 				debug.on_level_up(progression.level)
@@ -652,15 +657,15 @@ func _death_speed() -> float:
 	if _state_time < DEATH_FREEZE:
 		return 0.0
 	var k := clampf((_state_time - DEATH_FREEZE) / DEATH_SLOWMO, 0.0, 1.0)
-	return lerpf(DEATH_SLOW_SPEED, 1.0, k * k)
+	return lerpf(DEATH_SLOW_SPEED, 1.0, k * k * k)   # stays very slow, then speeds up
 
 
 func _update_death_visuals() -> void:
 	var speed := _death_speed()
 	var frozen := speed == 0.0
-	if not frozen and not _death_released:
+	if _state_time >= DEATH_FREEZE + DEATH_ZOOM_HOLD and not _death_released:
 		_death_released = true
-		cam.hold_zoom(_death_focus, 0.0, 2.5)   # ease back out during the slow motion
+		cam.hold_zoom(_death_focus, 0.0, 2.5)   # ease back out, well into the slow motion
 	player.frozen = frozen
 	fx.frozen = frozen
 	blood_fx.frozen = frozen
