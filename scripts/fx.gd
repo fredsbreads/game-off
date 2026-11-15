@@ -6,6 +6,8 @@ extends Node2D
 
 const GRAVITY := 900.0
 const KILL_COLORS := [Color(1, 1, 1), Color(1, 0.45, 0.4), Color(1, 0.85, 0.5)]
+const BLOOD_COLORS := [Color(0.9, 0.08, 0.1), Color(1.0, 0.18, 0.15), Color(0.7, 0.03, 0.06)]
+const STAIN_SECONDS := 4.0   # how long a drop of blood stays on the floor
 
 var _items: Array[Dictionary] = []
 ## While true, every effect holds still (used during the kill pause).
@@ -33,6 +35,19 @@ func kill_burst(pos: Vector2, combo: int) -> void:
 			"color": KILL_COLORS[i % KILL_COLORS.size()]})
 
 
+## A spray of blood from `pos`, flung mostly toward `dir_x` (+1 right, -1
+## left) and upward. Drops that reach the floor leave a stain for a while.
+func blood(pos: Vector2, dir_x: float, amount: int = 24) -> void:
+	for i in amount:
+		var angle := randf_range(-1.25, -0.1)   # up and forward
+		var dir := Vector2(cos(angle) * dir_x, sin(angle))
+		_items.append({"kind": "blood", "t": 0.0, "life": 1.5,
+			"pos": pos + Vector2(randf_range(-6, 6), randf_range(-10, 10)),
+			"vel": dir * randf_range(120.0, 420.0),
+			"size": randf_range(4.0, 10.0),
+			"color": BLOOD_COLORS[i % BLOOD_COLORS.size()]})
+
+
 ## Floating text at `pos`. `speed` (pixels/s) moves it forward: at the run
 ## speed it keeps pace with the player, so it stays put on screen instead of
 ## scrolling away with the world. `rise` 1 drifts it up as it fades, -1 down.
@@ -50,9 +65,15 @@ func _process(delta: float) -> void:
 	for i in range(_items.size() - 1, -1, -1):
 		var it := _items[i]
 		it["t"] += delta
-		if it["kind"] == "particle":
+		if it["kind"] == "particle" or it["kind"] == "blood":
 			it["vel"].y += GRAVITY * delta
 			it["pos"] += it["vel"] * delta
+		if it["kind"] == "blood" and it["pos"].y >= Rules.GROUND_Y:
+			# Hit the floor: becomes a flat stain.
+			it["kind"] = "stain"
+			it["pos"].y = Rules.GROUND_Y
+			it["t"] = 0.0
+			it["life"] = STAIN_SECONDS
 		if it["t"] >= it["life"]:
 			_items.remove_at(i)
 	queue_redraw()
@@ -84,6 +105,14 @@ func _draw() -> void:
 				var pos: Vector2 = it["pos"]
 				var grow := minf(1.0, k * 4.0)
 				draw_line(pos - dir * half, pos - dir * half + dir * half * 2.0 * grow, Color(1, 1, 1, fade), 2.0 + 6.0 * fade)
+			"blood":
+				var s: float = it["size"]
+				draw_rect(Rect2(it["pos"] - Vector2(s, s) * 0.5, Vector2(s, s)), it["color"])
+			"stain":
+				var col: Color = it["color"]
+				col.a = minf(1.0, fade * 3.0)   # fades out over its last third
+				var s: float = it["size"]
+				draw_rect(Rect2(it["pos"] - Vector2(s, 2.0), Vector2(s * 2.0, 3.0)), col)
 			"particle":
 				var col: Color = it["color"]
 				col.a = fade

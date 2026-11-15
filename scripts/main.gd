@@ -39,6 +39,9 @@ const SAVE_PATH := "user://save.cfg"
 @onready var player: Player = $PlayerLayer/Player
 @onready var cam: CameraRig = $Camera
 @onready var fx: Fx = $FX
+# Blood gets its own effects node on the enemy layer, so it stays red during
+# the grey "your move" freeze.
+var blood_fx: Fx
 @onready var hud: Hud = $HUD
 @onready var freeze_effect: FreezeEffect = $FreezeEffect
 
@@ -94,6 +97,8 @@ func _ready() -> void:
 	player.x = START_X
 	level.start_x = START_X
 	level.enemy_parent = $EnemyLayer
+	blood_fx = Fx.new()
+	$EnemyLayer.add_child(blood_fx)
 	level.ensure_generated(player.x)
 	cam.snap(player.x)
 	best_score = _load_best()
@@ -393,6 +398,7 @@ func _update_pause_visuals() -> void:
 	var chain_pause := paused and _pause_is_chain
 	freeze_effect.set_state(1.0 if flashing else 0.0, 1.0 if chain_pause and not flashing else 0.0)
 	fx.frozen = paused and _pause_elapsed >= FX_FREEZE_AFTER
+	blood_fx.frozen = fx.frozen
 	player.markers_lit = chain_pause
 	player.target_forward = _would_slash(Rules.Move.FORWARD)
 	player.target_vertical = _would_slash(Rules.Move.VERTICAL)
@@ -554,6 +560,7 @@ func _kill(e: Enemy) -> void:
 	var pos := Vector2(e.tile_x * Rules.TILE, Rules.body_center_y(e.row))
 	cam.shake(0.06, 4.0 + 1.5 * c)   # only during the flash, so the freeze reads as still
 	fx.kill_burst(pos, chain)
+	blood_fx.blood(pos, 1.0, 22 + 3 * c)   # flung the way she was going
 	if Hud.SHOW_SCORE_UI:
 		fx.text(pos - Vector2(0, 60), "+%d" % points, 22 + 2 * c, Color(1, 0.95, 0.8))
 
@@ -601,6 +608,8 @@ func _die(kind: String) -> void:
 	_state_time = 0.0
 	player.running = false
 	player.die(kind)
+	if kind == "hit":   # cut down from the front: blood sprays back
+		blood_fx.blood(Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row)), -1.0, 36)
 	cam.shake(0.3, 12.0)
 	hud.flash(Color(1, 0.2, 0.2, 0.35), 0.3)
 	if debug:
