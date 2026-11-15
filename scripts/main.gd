@@ -39,7 +39,10 @@ const DEATH_SLOWMO := 0.8       # seconds of slow motion after the freeze
 const DEATH_SLOW_SPEED := 0.25  # slow motion starts at this speed, eases back to 1
 const DEATH_ZOOM := 0.45        # 45 % closer during the freeze
 const DEATH_FOCUS_X := 0.45     # ...with the clash moved to 45 % across the screen
-const DEATH_FLASH := Color(1, 1, 1, 0.85)
+const DEATH_FLASH := Color(1, 1, 1, 0.4)
+const DEATH_FLASH_TIME := 0.15
+const DEATH_ZOOM_RATE := 7.0      # how fast the camera pushes in (lower = slower, smoother)
+const DEATH_GREY_IN := 0.15       # seconds for the world to fade to grey
 var _killer: Enemy = null
 var _death_focus := Vector2.ZERO
 var _death_released := false
@@ -636,9 +639,9 @@ func _die(kind: String, killer: Enemy = null) -> void:
 		_death_focus = (body + Vector2(killer.tile_x * Rules.TILE, Rules.body_center_y(killer.row))) * 0.5
 	if kind == "hit":   # cut down from the front: blood sprays back, already bursting out
 		blood_fx.blood(body, -1.0, 50, 0.25, 1.0 if player.row == Rules.Row.CEILING else -1.0)
-	cam.hold_zoom(_death_focus, DEATH_ZOOM, 30.0, DEATH_FOCUS_X)
+	cam.hold_zoom(_death_focus, DEATH_ZOOM, DEATH_ZOOM_RATE, DEATH_FOCUS_X)
 	cam.shake(0.2, 18.0)
-	hud.flash(DEATH_FLASH, 0.35)
+	hud.flash(DEATH_FLASH, DEATH_FLASH_TIME)
 	if debug:
 		debug.on_death(kind)
 
@@ -666,7 +669,7 @@ func _update_death_visuals() -> void:
 	if is_instance_valid(_killer):
 		_killer.set_anim_speed(speed)
 	# Grey world, she, he and the blood in colour; fades out with the slow motion.
-	var grey := 1.0 if frozen else clampf(1.0 - (_state_time - DEATH_FREEZE) / DEATH_SLOWMO, 0.0, 1.0)
+	var grey := clampf(_state_time / DEATH_GREY_IN, 0.0, 1.0) if frozen else clampf(1.0 - (_state_time - DEATH_FREEZE) / DEATH_SLOWMO, 0.0, 1.0)
 	freeze_effect.set_state(0.0, grey)
 
 
