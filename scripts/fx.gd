@@ -12,6 +12,8 @@ const STAIN_SECONDS := 4.0   # how long a drop of blood stays on the floor
 var _items: Array[Dictionary] = []
 ## While true, every effect holds still (used during the kill pause).
 var frozen := false
+## Slow motion (the death moment): effects run at this speed.
+var time_scale := 1.0
 
 
 ## from / to are body centres in pixels.
@@ -66,9 +68,11 @@ func _ring(pos: Vector2, r0: float, r1: float, life: float, width: float, color:
 	_items.append({"kind": "ring", "t": 0.0, "life": life, "pos": pos, "r0": r0, "r1": r1, "width": width, "color": color})
 
 
-func _process(delta: float) -> void:
+func _process(real_delta: float) -> void:
 	if frozen:
+		queue_redraw()   # effects added while frozen still need drawing once
 		return
+	var delta := real_delta * time_scale
 	for i in range(_items.size() - 1, -1, -1):
 		var it := _items[i]
 		it["t"] += delta

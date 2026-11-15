@@ -32,6 +32,17 @@ const DIAGONAL_WINDOW_FRAMES := 4
 # clicks this soon after any touch so a tap never counts twice.
 const MOUSE_AFTER_TOUCH_IGNORE_MS := 1000
 const DEATH_ANIM_TIME := 0.7
+# The death moment (she only dies once, so it's big): a hard freeze on the
+# slash, zoomed in, world grey, then a slow-motion release.
+const DEATH_FREEZE := 0.55      # seconds everything holds still
+const DEATH_SLOWMO := 0.8       # seconds of slow motion after the freeze
+const DEATH_SLOW_SPEED := 0.25  # slow motion starts at this speed, eases back to 1
+const DEATH_ZOOM := 0.45        # 45 % closer during the freeze
+const DEATH_FOCUS_X := 0.45     # ...with the clash moved to 45 % across the screen
+const DEATH_FLASH := Color(1, 1, 1, 0.85)
+var _killer: Enemy = null
+var _death_focus := Vector2.ZERO
+var _death_released := false
 const RETRY_DELAY := 0.5
 const SAVE_PATH := "user://save.cfg"
 
@@ -381,14 +392,16 @@ func _physics_process(delta: float) -> void:
 				_step()
 				moving = state == State.PLAYING
 		State.DYING:
-			player.animate_death(delta)
-			if _state_time >= DEATH_ANIM_TIME:
+			var speed := _death_speed()
+			player.animate_death(delta * speed)
+			if _state_time >= DEATH_FREEZE + DEATH_SLOWMO + DEATH_ANIM_TIME * 0.4:
 				_game_over()
 
 	_update_pause_visuals()
 	var run_px := Rules.RUN_SPEED * Rules.TILE if moving else 0.0
 	cam.follow(player.x, run_px, delta)
-	level.set_view(cam.left(), cam.visible_world_size())
+	# The real top-left of the view (a zoom can pan it left of cam.left()).
+	level.set_view(minf(cam.left(), cam.position.x), cam.visible_world_size())
 	hud.set_stats(score(), distance, kills, chain, 0.0)
 	var to_screen := get_viewport_rect().size.x / (CameraRig.VIEW_TILES * Rules.TILE)
 	hud.set_progress(progression.level, progression.bar, progression.bar_size(), chain,
@@ -396,6 +409,9 @@ func _physics_process(delta: float) -> void:
 
 
 func _update_pause_visuals() -> void:
+	if state == State.DYING:
+		_update_death_visuals()
+		return
 	var paused := state == State.PLAYING and _hitstop > 0.0
 	var flashing := paused and INVERT_FLASH and _pause_elapsed < INVERT_TIME
 	var chain_pause := paused and _pause_is_chain
@@ -460,7 +476,7 @@ func _step() -> void:
 		# teleporting, so contact doesn't count until it fires.
 		if not (_press_x_set and player.cooldown == 0):
 			touching[0].attack()   # he cuts her down
-			_die("hit")
+			_die("hit", touching[0])
 			return
 
 	# 4. timers
@@ -606,19 +622,52 @@ func _end_chain(grade: String, word: String = "") -> void:
 	_chain_killed.clear()
 
 
-func _die(kind: String) -> void:
+func _die(kind: String, killer: Enemy = null) -> void:
 	state = State.DYING
 	hud.set_pause_button_visible(false)
 	_state_time = 0.0
+	_killer = killer
+	_death_released = false
 	player.running = false
 	player.die(kind)
-	if kind == "hit":   # cut down from the front: blood sprays back
-		blood_fx.blood(Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row)), -1.0, 36, 0.0,
-			1.0 if player.row == Rules.Row.CEILING else -1.0)
-	cam.shake(0.3, 12.0)
-	hud.flash(Color(1, 0.2, 0.2, 0.35), 0.3)
+	var body := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row))
+	_death_focus = body
+	if killer:
+		_death_focus = (body + Vector2(killer.tile_x * Rules.TILE, Rules.body_center_y(killer.row))) * 0.5
+	if kind == "hit":   # cut down from the front: blood sprays back, already bursting out
+		blood_fx.blood(body, -1.0, 50, 0.25, 1.0 if player.row == Rules.Row.CEILING else -1.0)
+	cam.hold_zoom(_death_focus, DEATH_ZOOM, 30.0, DEATH_FOCUS_X)
+	cam.shake(0.2, 18.0)
+	hud.flash(DEATH_FLASH, 0.35)
 	if debug:
 		debug.on_death(kind)
+
+
+## How fast the world runs during the death moment: 0 (frozen), then slow
+## motion easing back to 1.
+func _death_speed() -> float:
+	if _state_time < DEATH_FREEZE:
+		return 0.0
+	var k := clampf((_state_time - DEATH_FREEZE) / DEATH_SLOWMO, 0.0, 1.0)
+	return lerpf(DEATH_SLOW_SPEED, 1.0, k * k)
+
+
+func _update_death_visuals() -> void:
+	var speed := _death_speed()
+	var frozen := speed == 0.0
+	if not frozen and not _death_released:
+		_death_released = true
+		cam.hold_zoom(_death_focus, 0.0, 2.5)   # ease back out during the slow motion
+	player.frozen = frozen
+	fx.frozen = frozen
+	blood_fx.frozen = frozen
+	fx.time_scale = speed
+	blood_fx.time_scale = speed
+	if is_instance_valid(_killer):
+		_killer.set_anim_speed(speed)
+	# Grey world, she, he and the blood in colour; fades out with the slow motion.
+	var grey := 1.0 if frozen else clampf(1.0 - (_state_time - DEATH_FREEZE) / DEATH_SLOWMO, 0.0, 1.0)
+	freeze_effect.set_state(0.0, grey)
 
 
 func _game_over() -> void:

@@ -75,6 +75,12 @@ func die() -> void:
 		queue_free()
 
 
+## Slow down or stop his animation (1 = normal, 0 = frozen).
+func set_anim_speed(value: float) -> void:
+	if _sprite:
+		_sprite.speed_scale = value
+
+
 ## She ran into him: he cuts her down.
 func attack() -> void:
 	if alive and _sprite:

@@ -22,6 +22,13 @@ var _shake_time := 0.0
 var _shake_strength := 0.0
 var _punch_time := -1.0         # < 0 = no punch running
 var _punch_focus := Vector2.ZERO
+# A held zoom (the death moment): eases toward _hold_target around _hold_focus.
+var _hold := 0.0
+var _hold_target := 0.0
+var _hold_focus := Vector2.ZERO
+var _hold_rate := 12.0
+var _hold_peak := 0.0       # the amount asked for most recently (>0)
+var _hold_frac := -1.0      # screen x (0-1) to pan the focus to; < 0 = don't pan
 
 
 func left() -> float:
@@ -53,6 +60,7 @@ func follow(player_x: float, run_px_per_s: float, delta: float) -> void:
 	_left += (_target(player_x) - _left) * (1.0 - exp(-CATCH_UP_RATE * delta))
 	if _shake_time > 0.0:
 		_shake_time -= delta
+	_hold += (_hold_target - _hold) * (1.0 - exp(-_hold_rate * delta))
 	if _punch_time >= 0.0:
 		_punch_time += delta
 		if _punch_time > PUNCH_IN + PUNCH_OUT:
@@ -63,6 +71,19 @@ func follow(player_x: float, run_px_per_s: float, delta: float) -> void:
 func punch(focus_world: Vector2) -> void:
 	_punch_focus = focus_world
 	_punch_time = 0.0
+
+
+## Zoom in by `amount` (0.45 = 45 % closer) around a world point and hold it
+## until called again with 0. `rate`: how fast it eases there.
+## `screen_frac`: also pan so the focus sits this far across the screen
+## (0.5 = middle) at full zoom.
+func hold_zoom(focus_world: Vector2, amount: float, rate: float = 12.0, screen_frac: float = -1.0) -> void:
+	_hold_focus = focus_world
+	_hold_target = amount
+	_hold_rate = rate
+	if amount > 0.0:
+		_hold_peak = amount
+		_hold_frac = screen_frac
 
 
 func shake(duration: float, strength: float) -> void:
@@ -90,6 +111,14 @@ func _apply() -> void:
 		# Zoom in around the kill point: it stays put on screen.
 		top_left = _punch_focus - (_punch_focus - top_left) / (1.0 + p)
 		z *= 1.0 + p
+	if _hold > 0.001:
+		var zoomed := _hold_focus - (_hold_focus - top_left) / (1.0 + _hold)
+		if _hold_frac >= 0.0 and _hold_peak > 0.0:
+			var view_w := VIEW_TILES * Rules.TILE / (1.0 + _hold)
+			var panned_x := _hold_focus.x - _hold_frac * view_w
+			zoomed.x = lerpf(zoomed.x, panned_x, clampf(_hold / _hold_peak, 0.0, 1.0))
+		top_left = zoomed
+		z *= 1.0 + _hold
 	zoom = Vector2(z, z)
 	position = top_left
 	if _shake_time > 0.0:
