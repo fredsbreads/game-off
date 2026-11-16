@@ -38,9 +38,12 @@ var bolt_alpha := 1.0   # lightning fades with her as she dissolves
 ## from / to are body centres in pixels.
 ## Plays one lightning animation once, on real time (it keeps going through
 ## the kill pause and slow motion). `pos` is the frame's centre.
-func bolt(kind: int, pos: Vector2, angle := 0.0, size := Vector2.ONE, fps := 20.0) -> void:
+## `first`: start at this frame (to play only the end of an animation).
+func bolt(kind: int, pos: Vector2, angle := 0.0, size := Vector2.ONE, fps := 20.0, first := 0) -> void:
 	var s := _bolt_sprite(kind, pos, angle, size)
-	_items.append({"kind": "anim", "t": 0.0, "node": s, "fps": fps, "frames": BOLT_FRAMES[kind]})
+	s.frame = first
+	_items.append({"kind": "anim", "t": 0.0, "node": s, "fps": fps, "first": first,
+		"frames": BOLT_FRAMES[kind] - first})
 
 
 ## A horizontal bolt (THIN or THICK) stretched to run from `a` to `b`.
@@ -113,9 +116,10 @@ func zap(pos: Vector2, arcs: int = 2, vel: Vector2 = Vector2.ZERO, size: Vector2
 		_items.append({"kind": "bolt", "t": 0.0, "life": randf_range(0.06, 0.12), "node": s, "vel": vel})
 	for i in sparks:
 		var dir := Vector2.from_angle(randf() * TAU)
-		_items.append({"kind": "particle", "t": 0.0, "life": randf_range(0.25, 0.45),
-			"pos": pos, "vel": dir * randf_range(120.0, 320.0),
-			"color": [Color(1.0, 0.95, 0.9), Color(1.0, 0.3, 0.3)][i % 2]})
+		var s := _bolt_sprite(Bolt.SPARKS, pos, randf() * TAU, Vector2.ONE * randf_range(0.3, 0.45))
+		s.frame = SPARK_FRAMES.pick_random()
+		_items.append({"kind": "spark", "t": 0.0, "life": randf_range(0.25, 0.45), "node": s,
+			"vel": vel + dir * randf_range(120.0, 320.0)})
 
 
 ## A jagged arc along a line (lightning running down her sword), moving with `vel`.
@@ -155,7 +159,7 @@ func _process(real_delta: float) -> void:
 			if f >= it["frames"]:
 				_remove(i)
 			else:
-				it["node"].frame = f
+				it["node"].frame = it["first"] + f
 		elif it["kind"] == "bolt" and it.has("node"):
 			it["node"].modulate.a = bolt_alpha
 	if frozen:
@@ -170,6 +174,10 @@ func _process(real_delta: float) -> void:
 		it["t"] += real_delta if it["kind"] == "bolt" else delta
 		if it["kind"] == "bolt":
 			it["node"].position += it["vel"] * delta
+		elif it["kind"] == "spark":
+			it["node"].position += it["vel"] * delta
+			it["node"].rotation += 12.0 * delta
+			it["node"].modulate.a = 1.0 - it["t"] / it["life"]
 		if it["kind"] == "particle" or it["kind"] == "blood":
 			it["vel"].y += GRAVITY * delta
 			it["pos"] += it["vel"] * delta
