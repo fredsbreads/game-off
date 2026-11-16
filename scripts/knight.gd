@@ -24,6 +24,11 @@ const K_DEATH_FPS := 14.0
 const K_ATTACK_FPS := 16.0
 const K_ATTACK_START := 2
 const KILL_SLASH_FRAME := 3         # "Attack2"'s big arc: held in the death freeze
+# On the frames with the biggest arcs the art paints the arc over his head
+# and body, so with the arc moved behind him his body is taken from the next
+# frame, where it's whole: frame -> frame to draw his body from.
+const KILL_BODY_FROM := {3: 4}
+const CLASH_BODY_FROM := {3: 5, 4: 5}
 const KILL_DISTANCE := 2.6          # tiles ahead of her he swings his killing blow from
 const CLASH_FRAMES := [2, 3, 4, 5, 6]   # "Attack1" from the swing on
 const CLASH_GAP := 1.3             # tiles his clash swing is drawn further away than he stood
@@ -137,9 +142,10 @@ func blink(beat := 0.0) -> Vector2:
 func _leave_ghost(beat := 0.0) -> void:
 	if get_parent() == null or _sprite == null:
 		return
-	var tex := AtlasTexture.new()
-	tex.atlas = K_ATTACK
-	tex.region = Rect2(Vector2(CLASH_FRAMES[0] * K_FRAME.x, 0), Vector2(K_FRAME))
+	var arc_tex := AtlasTexture.new()
+	arc_tex.atlas = K_ATTACK
+	var body_tex := AtlasTexture.new()
+	body_tex.atlas = K_ATTACK
 	# His arc goes behind everything; his body in front of her and her slash
 	# (front_parent), so the clash reads.
 	var parts: Array[Node2D] = []
@@ -150,7 +156,7 @@ func _leave_ghost(beat := 0.0) -> void:
 		holder.position = position + Vector2(CLASH_GAP * Rules.TILE, 0)
 		holder.scale = Vector2(K_SCALE, K_SCALE * scale.y)
 		var s := Sprite2D.new()
-		s.texture = tex
+		s.texture = arc_tex if part == 2 else body_tex
 		s.centered = false
 		s.offset = _sprite.offset
 		s.flip_h = true
@@ -168,8 +174,11 @@ func _leave_ghost(beat := 0.0) -> void:
 	# The swing up to its biggest arc, held through the beat, then the rest.
 	var held := CLASH_FRAMES.find(CLASH_HOLD_FRAME)
 	var show := func(f: float) -> void:
-		var i := clampi(int(f), 0, CLASH_FRAMES.size() - 1)
-		tex.region = Rect2(Vector2(CLASH_FRAMES[i] * K_FRAME.x, 0), Vector2(K_FRAME))
+		var frame: int = CLASH_FRAMES[clampi(int(f), 0, CLASH_FRAMES.size() - 1)]
+		arc_tex.region = Rect2(Vector2(frame * K_FRAME.x, 0), Vector2(K_FRAME))
+		var body: int = CLASH_BODY_FROM.get(frame, frame)
+		body_tex.region = Rect2(Vector2(body * K_FRAME.x, 0), Vector2(K_FRAME))
+	show.call(0.0)
 	tween.tween_method(show, 0.0, float(held), CLASH_TIME * 0.4)
 	tween.tween_interval(maxf(beat - CLASH_TIME * 0.4, 0.0))
 	tween.tween_method(show, float(held), float(CLASH_FRAMES.size()), CLASH_TIME * 0.6)
@@ -217,7 +226,8 @@ func slash(her_x: float) -> void:
 	_place()
 	if _sprite:
 		_sprite.play("kill")
-		_sprite.frame = KILL_SLASH_FRAME
+		_sprite.frame = KILL_BODY_FROM.get(KILL_SLASH_FRAME, KILL_SLASH_FRAME)
+		_sprite.pause()
 		_material.set_shader_parameter("outline_color", SLASH_OUTLINE)
 		_material.set_shader_parameter("glint", 1.0)
 		# His body over her (and her effects) for the killing blow; the arc
@@ -236,7 +246,7 @@ func _process(delta: float) -> void:
 	if _arc and _sprite:
 		if _arc.animation != _sprite.animation:
 			_arc.play(_sprite.animation)
-		_arc.frame = _sprite.frame
+		_arc.frame = KILL_SLASH_FRAME if _slashing else _sprite.frame
 		_arc.pause()
 	if _slashing:
 		return   # keep the green outline (Enemy would fade it to the target glint)
