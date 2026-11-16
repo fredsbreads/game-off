@@ -63,6 +63,7 @@ var _kill_sound: AudioStreamPlayer
 var _death_sound: AudioStreamPlayer
 var _level_up_sound: AudioStreamPlayer
 var _perfect_sound: AudioStreamPlayer
+var _cut_pending := false
 # Kill blood starts this far (seconds) into its flight, so it's already
 # spread out behind the enemy when the "your move" freeze holds it.
 const BLOOD_BURST := 0.35
@@ -643,9 +644,13 @@ func _kill(e: Enemy) -> void:
 
 	var c := mini(chain, 6)
 	var pos := Vector2(e.tile_x * Rules.TILE, Rules.body_center_y(e.row))
-	# Saber cut, a little higher with each kill in the chain.
+	# Saber cut, a little higher with each kill in the chain. Played at the
+	# end of the frame: if this kill ends the chain as a PERFECT or a level-up,
+	# that sound plays instead.
 	_kill_sound.pitch_scale = (1.0 + 0.05 * (c - 1)) * randf_range(0.96, 1.04)
-	_kill_sound.play()
+	if not _cut_pending:
+		_cut_pending = true
+		_play_pending_cut.call_deferred()
 	cam.shake(0.06, 4.0 + 1.5 * c)   # only during the flash, so the freeze reads as still
 	fx.kill_burst(pos, chain)
 	blood_fx.blood(pos, 1.0, 22 + 3 * c, BLOOD_BURST,
@@ -655,14 +660,17 @@ func _kill(e: Enemy) -> void:
 
 
 
-const JINGLE_DELAY := 0.25   # seconds after the chain's last kill
-
-
 func _play_jingle(sound: AudioStreamPlayer) -> void:
-	await get_tree().create_timer(JINGLE_DELAY, false).timeout
+	_cut_pending = false
 	_perfect_sound.stop()
 	_level_up_sound.stop()
 	sound.play()
+
+
+func _play_pending_cut() -> void:
+	if _cut_pending:
+		_cut_pending = false
+		_kill_sound.play()
 
 const GRADE_COLORS := {
 	"PERFECT": Color(1.0, 0.85, 0.3), "CLEAN": Color(1, 1, 1),
@@ -685,8 +693,8 @@ func _end_chain(grade: String, word: String = "") -> void:
 		if grade == "PERFECT":
 			perfect_chains += 1
 		hud.show_chain_result(grade, chain, old_bar, old_size, old_level)
-		# One jingle at a time: a level-up outranks the PERFECT that earned it.
-		# It comes a beat after the last saber cut, so the two don't blur.
+		# One sound: a level-up outranks the PERFECT that earned it, and
+		# either replaces the last kill's saber cut.
 		if levelled:
 			_play_jingle(_level_up_sound)
 		elif grade == "PERFECT":
