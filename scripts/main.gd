@@ -660,7 +660,7 @@ const STRIKES := [preload("res://assets/sounds/strike_13.ogg"),
 const STRIKES_SHORT := [preload("res://assets/sounds/strike_13_short.ogg"),
 	preload("res://assets/sounds/strike_16_short.ogg"), preload("res://assets/sounds/strike_26_short.ogg")]
 const STRIKE_DB := 0.0
-const STRIKE_UNDER_CUT_DB := 0.0
+const STRIKE_UNDER_CUT_DB := -5.0
 
 
 func _play_strike(kills: bool) -> void:
