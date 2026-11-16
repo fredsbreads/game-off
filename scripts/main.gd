@@ -755,6 +755,7 @@ func _teleport(move: int) -> void:
 			_end_chain("DROPPED", "MISSED")   # teleported into empty space while an enemy was in reach
 		# A teleport that hits nothing (a miss too): the full lightning strike.
 		_play_strike(false)
+		_note_escapes()
 	else:
 		player.cooldown = 0
 		_drop_pounce = false   # a press that waited out the freeze hit after all
@@ -764,6 +765,7 @@ func _teleport(move: int) -> void:
 		_knight_felled = false
 		for e in hit:
 			_kill(e)
+		_note_escapes()   # one she just went past (skipped) breaks the streak now, mid-chain
 		var targets := _chain_targets(to_x, to_row)
 		_pause_is_chain = not targets.is_empty()
 		_pause_length = maxf(KILL_PAUSE - KILL_PAUSE_STEP * (chain - 1), KILL_PAUSE_FLOOR)
