@@ -55,13 +55,13 @@ func bolt_between(kind: int, a: Vector2, b: Vector2, thickness := 1.2, fps := 20
 
 
 ## A strike from `a` that bursts at `b` (the teleport look).
-func strike(a: Vector2, b: Vector2, green := false) -> void:
+func strike(a: Vector2, b: Vector2, green := false, fps := 18.0) -> void:
 	var d := b - a
 	var sy := maxf(d.length(), 40.0) / 200.0
 	# The strike runs down its frame with the burst near the bottom: turn the
 	# frame's "down" to point along the line and put the burst on b.
 	var centre := b - d.normalized() * (STRIKE_BURST_Y - 128.0) * sy
-	bolt(Bolt.STRIKE, centre, d.angle() - PI / 2.0, Vector2(1.0, sy), 18.0, 0, green)
+	bolt(Bolt.STRIKE, centre, d.angle() - PI / 2.0, Vector2(1.0, sy), fps, 0, green)
 
 
 const STRIKE_BURST_Y := 215.0   # pixels down the STRIKE frame where its burst is

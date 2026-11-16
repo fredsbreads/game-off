@@ -14,17 +14,19 @@ extends Enemy
 
 const K_IDLE := preload("res://assets/sprites/hero_knight/idle.png")
 const K_DEATH := preload("res://assets/sprites/hero_knight/death.png")
-const K_ATTACK := preload("res://assets/sprites/hero_knight/attack.png")   # "Attack1" in the pack
-const K_TAKE_HIT := preload("res://assets/sprites/hero_knight/take_hit.png")
+const K_ATTACK := preload("res://assets/sprites/hero_knight/attack.png")   # "Attack1": his clash swings
+const K_ATTACK2 := preload("res://assets/sprites/hero_knight/attack2.png") # "Attack2": the killing blow
 const K_FRAME := Vector2i(180, 180)
 const K_FEET := Vector2(94, 114)
-const K_SCALE := 1.6
+const K_SCALE := 1.9
 const K_IDLE_FPS := 10.0
 const K_DEATH_FPS := 14.0
 const K_ATTACK_FPS := 16.0
 const K_ATTACK_START := 2
-const HIT_FLASH_FRAME := 1          # the white silhouette in "Take Hit"
-const GHOST_FADE := 0.3             # seconds the flash he leaves behind lasts
+const KILL_SLASH_FRAME := 3         # "Attack2"'s big arc: held in the death freeze
+const CLASH_FRAMES := [2, 3, 4, 5, 6]   # "Attack1" from the swing on
+const CLASH_TIME := 0.32            # seconds his clash swing (left where he was) plays
+const SLASH_OUTLINE := Color(0.35, 1.0, 0.45, 1.0)   # green outline while he swings
 
 ## Every spot he'll be in, in order: Vector2(tile x, row). path[0] is where
 ## he starts; each hit moves him to the next one.
@@ -34,6 +36,7 @@ var step_index := 0
 var engaged := false
 ## True while she's straight across from him: he's winding up to strike.
 var threat := false
+var _slashing := false   # the killing blow: green outline held
 const WINDUP_FRAME := 1             # sword raised, from his attack animation
 
 
@@ -71,7 +74,7 @@ func _build_knight_frames() -> SpriteFrames:
 	var frames := SpriteFrames.new()
 	frames.remove_animation("default")
 	for spec in [["idle", K_IDLE, K_IDLE_FPS, true], ["death", K_DEATH, K_DEATH_FPS, false],
-			["attack", K_ATTACK, K_ATTACK_FPS, false]]:
+			["attack", K_ATTACK, K_ATTACK_FPS, false], ["kill", K_ATTACK2, K_ATTACK_FPS, false]]:
 		var sheet: Texture2D = spec[1]
 		frames.add_animation(spec[0])
 		frames.set_animation_speed(spec[0], spec[2])
@@ -100,13 +103,15 @@ func blink() -> Vector2:
 	return from
 
 
+## His clash swing, left where he was as he blinks away: "Attack1" from the
+## swing on, with a green outline, then fading.
 func _leave_ghost() -> void:
 	if get_parent() == null or _sprite == null:
 		return
 	var ghost := Sprite2D.new()
 	var tex := AtlasTexture.new()
-	tex.atlas = K_TAKE_HIT
-	tex.region = Rect2(Vector2(HIT_FLASH_FRAME * K_FRAME.x, 0), Vector2(K_FRAME))
+	tex.atlas = K_ATTACK
+	tex.region = Rect2(Vector2(CLASH_FRAMES[0] * K_FRAME.x, 0), Vector2(K_FRAME))
 	ghost.texture = tex
 	ghost.centered = false
 	ghost.offset = _sprite.offset
@@ -114,9 +119,17 @@ func _leave_ghost() -> void:
 	ghost.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	ghost.position = position
 	ghost.scale = Vector2(K_SCALE, K_SCALE * scale.y)
+	var mat := ShaderMaterial.new()
+	mat.shader = OUTLINE_SHADER
+	mat.set_shader_parameter("outline_color", SLASH_OUTLINE)
+	mat.set_shader_parameter("glint", 1.0)
+	ghost.material = mat
 	get_parent().add_child(ghost)
 	var tween := ghost.create_tween()
-	tween.tween_property(ghost, "modulate:a", 0.0, GHOST_FADE)
+	tween.tween_method(func(f: float) -> void:
+		var i := clampi(int(f), 0, CLASH_FRAMES.size() - 1)
+		tex.region = Rect2(Vector2(CLASH_FRAMES[i] * K_FRAME.x, 0), Vector2(K_FRAME)), 0.0, float(CLASH_FRAMES.size()), CLASH_TIME)
+	tween.tween_property(ghost, "modulate:a", 0.0, 0.15)
 	tween.tween_callback(ghost.queue_free)
 
 
@@ -144,8 +157,26 @@ func pounce(her_x: float, her_row: int) -> Vector2:
 	tile_x = her_x + Rules.HIT_RADIUS * 0.9
 	row = her_row
 	_place()
-	attack()
+	# The killing blow: "Attack2" on its big arc (that's what the death freeze
+	# holds), outlined green.
+	if _sprite:
+		_sprite.play("kill")
+		_sprite.frame = KILL_SLASH_FRAME
+		_material.set_shader_parameter("outline_color", SLASH_OUTLINE)
+		_material.set_shader_parameter("glint", 1.0)
+	_slashing = true
 	return from
+
+
+func _process(delta: float) -> void:
+	if _slashing:
+		return   # keep the green outline (Enemy would fade it to the target glint)
+	super(delta)
+
+
+func clear_glint() -> void:
+	if not _slashing:
+		super()
 
 
 func attack() -> void:

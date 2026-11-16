@@ -74,6 +74,7 @@ var _dropped_sound: AudioStreamPlayer
 var _teleport_sound: AudioStreamPlayer
 var _clash_sound: AudioStreamPlayer
 var _warn_sound: AudioStreamPlayer   # a knight winding up to strike
+const KILL_STRIKE_FPS := 5.0         # his teleport onto her lingers (normal: 18)
 const WARN_PEAK := 0.33              # seconds into it where the swish peaks
 var _drop_pounce := false            # a chain just dropped: check for a knight across
 var _cut_pending := false
@@ -560,7 +561,7 @@ func _step() -> void:
 
 	# A chain just dropped (TOO SLOW, or this teleport MISSED) with her
 	# straight across from a knight: he strikes at once.
-	if _drop_pounce:
+	if _drop_pounce and not (_press_x_set and player.cooldown == 0):
 		_drop_pounce = false
 		var across := _knight_across()
 		if across:
@@ -584,7 +585,9 @@ func _step() -> void:
 
 	# 4. a knight she ran on past across the rows, or one she's fighting
 	# that's within a teleport of her, teleports to her (same as ChunkSolver).
-	var pouncer := _pouncing_knight(run_from)
+	# (Not while a press waits to fire: she's committed to teleporting, same
+	# as running into an enemy.)
+	var pouncer: Knight = null if (_press_x_set and player.cooldown == 0) else _pouncing_knight(run_from)
 	if pouncer:
 		_knight_strikes(pouncer)
 		return
@@ -642,6 +645,7 @@ func _teleport(move: int) -> void:
 		_play_strike(false)
 	else:
 		player.cooldown = 0
+		_drop_pounce = false   # a press that waited out the freeze hit after all
 		player.strike()
 		_play_strike(true)
 		for e in hit:
@@ -712,7 +716,8 @@ func _update_knight_threats() -> void:
 
 func _knight_strikes(k: Knight) -> void:
 	var from := k.pounce(player.x, player.row)
-	fx.strike(from, Vector2(k.tile_x * Rules.TILE, Rules.body_center_y(k.row)), true)
+	# Slower than a teleport, so it's still there through the death freeze.
+	fx.strike(from, Vector2(k.tile_x * Rules.TILE, Rules.body_center_y(k.row)), true, KILL_STRIKE_FPS)
 	# His swish lands with the slash: skip to its peak if it isn't there yet.
 	if not _warn_sound.playing or _warn_sound.get_playback_position() < WARN_PEAK:
 		_warn_sound.play(WARN_PEAK)
