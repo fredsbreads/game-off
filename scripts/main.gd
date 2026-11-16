@@ -134,8 +134,7 @@ func _ready() -> void:
 	_perfect_sound.volume_db = -3.0
 	add_child(_perfect_sound)
 	_dropped_sound = AudioStreamPlayer.new()
-	_dropped_sound.stream = preload("res://assets/sounds/dropped.ogg")
-	_dropped_sound.volume_db = 3.0   # a quiet recording
+	_dropped_sound.stream = preload("res://assets/sounds/too_slow.ogg")
 	add_child(_dropped_sound)
 	_teleport_sound = AudioStreamPlayer.new()
 	_teleport_sound.stream = preload("res://assets/sounds/teleport.ogg")
@@ -591,10 +590,9 @@ func _teleport(move: int) -> void:
 		fx.landing_ring(to)
 		if _chain_awaiting:
 			_end_chain("DROPPED", "MISSED")   # teleported into empty space while an enemy was in reach
-		else:
-			# A teleport that hits nothing: a light whoosh (a drop has its own sound).
-			_teleport_sound.pitch_scale = randf_range(0.95, 1.05)
-			_teleport_sound.play()
+		# A teleport that hits nothing (a miss too): a light whoosh.
+		_teleport_sound.pitch_scale = randf_range(0.95, 1.05)
+		_teleport_sound.play()
 	else:
 		player.cooldown = 0
 		player.strike()
@@ -718,8 +716,8 @@ func _end_chain(grade: String, word: String = "") -> void:
 			# The saber cut with a shimmer: pitched like the cut it replaces.
 			_perfect_sound.pitch_scale = _kill_sound.pitch_scale
 			_play_jingle(_perfect_sound)
-		elif grade == "DROPPED":
-			_dropped_sound.play()
+		elif grade == "DROPPED" and word == "TOO SLOW":
+			_dropped_sound.play()   # a muted thud: the chance passed
 		if grade != "SINGLE":
 			var above := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row) - Rules.TILE * 1.4)
 			if player.row == Rules.Row.CEILING:
