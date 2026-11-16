@@ -84,7 +84,7 @@ const CLASH_PAUSE_FACTOR := 1.5    # the freeze after a clash is this much longe
 # can't skip it), with a zoom and a shake, before he blinks away.
 const CLASH_BEAT := 0.12
 const CLASH_REAPPEAR := 0.04   # he shows at his new spot this soon (the clash plays on behind)
-const CLASH_ZOOM := 0.2   # how much closer the clash zooms at its peak (0.2 = 20 %)
+const CLASH_ZOOM := 0.1   # how much closer the clash zooms at its peak (0.1 = 10 %)
 const CLASH_FLASH := Color(1, 1, 1, 0.22)
 const CLASH_STRIKE_FPS := 36.0   # his blink lightning: quick, so he's seen at once
 var _pause_min := KILL_PAUSE_MIN
