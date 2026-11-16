@@ -59,6 +59,7 @@ const SAVE_PATH := "user://save.cfg"
 # Blood gets its own effects node on the enemy layer, so it stays red during
 # the grey "your move" freeze.
 var blood_fx: Fx
+var _kill_sound: AudioStreamPlayer
 # Kill blood starts this far (seconds) into its flight, so it's already
 # spread out behind the enemy when the "your move" freeze holds it.
 const BLOOD_BURST := 0.35
@@ -111,6 +112,10 @@ func _ready() -> void:
 	for node in [level, fx, cam, freeze_effect, $EnemyLayer, $PlayerLayer]:
 		node.process_mode = Node.PROCESS_MODE_PAUSABLE
 	hud.process_mode = Node.PROCESS_MODE_ALWAYS
+	_kill_sound = AudioStreamPlayer.new()
+	_kill_sound.stream = preload("res://assets/sounds/saber_cut.ogg")
+	_kill_sound.max_polyphony = 6   # chained kills overlap
+	add_child(_kill_sound)
 	if not OS.get_cmdline_user_args().is_empty():
 		debug = DebugTools.new()
 		debug.main = self
@@ -626,6 +631,9 @@ func _kill(e: Enemy) -> void:
 
 	var c := mini(chain, 6)
 	var pos := Vector2(e.tile_x * Rules.TILE, Rules.body_center_y(e.row))
+	# Saber cut, a little higher with each kill in the chain.
+	_kill_sound.pitch_scale = (1.0 + 0.05 * (c - 1)) * randf_range(0.96, 1.04)
+	_kill_sound.play()
 	cam.shake(0.06, 4.0 + 1.5 * c)   # only during the flash, so the freeze reads as still
 	fx.kill_burst(pos, chain)
 	blood_fx.blood(pos, 1.0, 22 + 3 * c, BLOOD_BURST,
