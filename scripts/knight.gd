@@ -256,19 +256,22 @@ func calm() -> void:
 
 ## He teleports to her (just ahead of her, in her row) and cuts her down.
 ## Returns the spot he left (pixels, body centre).
-func pounce(her_x: float, her_row: int) -> Vector2:
+## `side`: 1 = he lands in front of her (facing back at her), -1 = behind
+## her (facing forward), when two strike at once.
+func pounce(her_x: float, her_row: int, side := 1.0) -> Vector2:
 	var from := Vector2(tile_x * Rules.TILE, Rules.body_center_y(row))
 	row = her_row
-	slash(her_x)
+	slash(her_x, side)
 	return from
 
 
 ## The killing blow (she ran into him, or he teleported to her): "Attack2" on
 ## its big arc (that's what the death freeze holds), outlined green.
-func slash(her_x: float) -> void:
+func slash(her_x: float, side := 1.0) -> void:
 	threat = false
 	# Far enough off that his arc lands on her rather than him standing in her.
-	tile_x = her_x + KILL_DISTANCE
+	tile_x = her_x + KILL_DISTANCE * side
+	scale.x = side   # behind her: turned round to face her
 	_place()
 	if _sprite:
 		_sprite.play("kill")

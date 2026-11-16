@@ -54,6 +54,7 @@ const DEATH_FLASH_TIME := 0.15
 const DEATH_ZOOM_RATE := 7.0      # how fast the camera pushes in (lower = slower, smoother)
 const DEATH_GREY_IN := 0.15       # seconds for the world to fade to grey
 var _killer: Enemy = null
+var _second_killer: Enemy = null   # two knights at once: the one behind her
 var _death_focus := Vector2.ZERO
 var _death_released := false
 const RETRY_DELAY := 0.5
@@ -539,10 +540,10 @@ func _physics_process(delta: float) -> void:
 					_end_chain("DROPPED", "TOO SLOW")   # waited too long in the "your move" freeze
 					# A knight she's fighting (or straight across from her) strikes
 					# right now: a press after TOO SLOW is too late.
-					var k := _knight_after_drop()
-					if k:
+					var ks := _knights_after_drop()
+					if not ks.is_empty():
 						_clear_pending()
-						_knight_strikes(k)
+						_knights_strike(ks)
 			else:
 				_step()
 				moving = state == State.PLAYING
@@ -944,12 +945,35 @@ func _pouncing_knight(run_from: float) -> Knight:
 
 ## A knight that strikes the moment a chain drops: one she's fighting within
 ## a teleport of her, or one straight across from her.
-func _knight_after_drop() -> Knight:
+## Every knight that strikes when the freeze runs out: ones she's fighting
+## within a teleport of her, and ones straight across from her. At most two
+## (the nearest); they come at her from both sides (see _knights_strike).
+func _knights_after_drop() -> Array[Knight]:
+	var found: Array[Knight] = []
 	for e in level.enemies:
 		var k := e as Knight
-		if k and k.alive and k.engaged and absf(k.tile_x - player.x) <= Rules.FORWARD:
-			return k
-	return _knight_across()
+		if k == null or not k.alive:
+			continue
+		var fighting := k.engaged and absf(k.tile_x - player.x) <= Rules.FORWARD
+		if fighting or Rules.knight_across(k.tile_x, k.row, player.x, player.row):
+			found.append(k)
+	found.sort_custom(func(a: Knight, b: Knight) -> bool:
+		return absf(a.tile_x - player.x) < absf(b.tile_x - player.x))
+	return found.slice(0, 2)
+
+
+## One knight strikes from the front; two: the one further ahead from the
+## front, the other from behind her, at the same moment.
+func _knights_strike(ks: Array[Knight]) -> void:
+	if ks.size() == 1:
+		_knight_strikes(ks[0])
+		return
+	var front: Knight = ks[0] if ks[0].tile_x >= ks[1].tile_x else ks[1]
+	var back: Knight = ks[1] if front == ks[0] else ks[0]
+	var from := back.pounce(player.x, player.row, -1.0)
+	fx.strike(from, Vector2(back.tile_x * Rules.TILE, Rules.body_center_y(back.row)), true, KILL_STRIKE_FPS)
+	_second_killer = back
+	_knight_strikes(front)
 
 
 ## A knight straight across from her right now, or null.
@@ -1226,11 +1250,12 @@ func _die(kind: String, killer: Enemy = null) -> void:
 		e.clear_glint()   # no red glints lingering on the death moment
 	var body := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row))
 	_death_focus = body
-	if killer:
+	if killer and not is_instance_valid(_second_killer):
 		_death_focus = (body + Vector2(killer.tile_x * Rules.TILE, Rules.body_center_y(killer.row))) * 0.5
 	if kind == "hit" or kind == "knight":   # cut down from the front: blood sprays back, already bursting out
 		blood_fx.blood(body, -1.0, 50, 0.25, 1.0 if player.row == Rules.Row.CEILING else -1.0)
-	cam.hold_zoom(_death_focus, DEATH_ZOOM, DEATH_ZOOM_RATE, DEATH_FOCUS_X)
+	# Two knights, one either side: centred on her.
+	cam.hold_zoom(_death_focus, DEATH_ZOOM, DEATH_ZOOM_RATE, 0.5 if is_instance_valid(_second_killer) else DEATH_FOCUS_X)
 	cam.shake(0.2, 18.0)
 	hud.flash(DEATH_FLASH, DEATH_FLASH_TIME)
 	if debug:
@@ -1264,6 +1289,8 @@ func _update_death_visuals() -> void:
 	player.zap_fx.time_scale = speed
 	if is_instance_valid(_killer):
 		_killer.set_anim_speed(speed)
+	if is_instance_valid(_second_killer):
+		_second_killer.set_anim_speed(speed)
 	# Grey world, she, he and the blood in colour; fades out with the slow motion.
 	var grey := clampf(_state_time / DEATH_GREY_IN, 0.0, 1.0) if frozen else clampf(1.0 - (_state_time - DEATH_FREEZE) / DEATH_SLOWMO, 0.0, 1.0)
 	freeze_effect.set_state(0.0, grey)
