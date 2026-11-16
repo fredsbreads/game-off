@@ -36,6 +36,12 @@ const PORTRAIT_MESSAGE := "Play in Portrait Mode.\nLock your Rotation.\n(Mobile 
 # The default font has no ツ; this 2 KB font supplies just that character.
 const SHRUG_FONT := preload("res://assets/fonts/NotoSansJP-shrug.ttf")
 var _flash: ColorRect
+# The level-10 colour change: a glowing band sweeping across the screen.
+var _sweep: Control
+var _sweep_x := -1.0          # screen x (0..1) of the band, < 0 = none
+var _sweep_colour := Color.WHITE
+const SWEEP_GLOW := 70.0      # pixels either side of the band's core
+const SWEEP_WASH := 0.12      # the new colour, faintly, over the part already swept
 var _flash_tween: Tween
 var _pause_button: Control
 var _pause_dim: ColorRect
@@ -84,6 +90,11 @@ const PAUSE_BUTTON_MARGIN := 14.0
 func _ready() -> void:
 	_flash = _rect(Color(1, 1, 1, 0))
 	_flash.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_sweep = Control.new()
+	_sweep.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_sweep.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_sweep.draw.connect(_draw_sweep)
+	add_child(_sweep)
 
 	_score = _label(30, Vector2(20, 10))
 	_distance = _label(20, Vector2(22, 50))
@@ -492,6 +503,32 @@ func _draw_pause_button() -> void:
 func hide_message() -> void:
 	_message.visible = false
 	_level_button.visible = false
+
+
+## The colour-change wave at screen x `x` (0..1, right to left), in
+## `colour`; x < 0 hides it.
+func show_sweep(x: float, colour: Color) -> void:
+	_sweep_x = x
+	_sweep_colour = colour
+	_sweep.queue_redraw()
+
+
+func _draw_sweep() -> void:
+	if _sweep_x < -0.5:   # hidden
+		return
+	var view := _sweep.size
+	var cx := _sweep_x * view.x
+	# Behind the wave (already changed): a faint wash of the new colour.
+	if cx < view.x:
+		_sweep.draw_rect(Rect2(Vector2(maxf(cx, 0.0), 0), Vector2(view.x - maxf(cx, 0.0), view.y)), Color(_sweep_colour, SWEEP_WASH))
+	# The wave: a glow in her colour, brightest at its white core.
+	var step := 4.0
+	var d := -SWEEP_GLOW
+	while d <= SWEEP_GLOW:
+		var k := 1.0 - absf(d) / SWEEP_GLOW
+		_sweep.draw_rect(Rect2(Vector2(cx + d, 0), Vector2(step, view.y)), Color(_sweep_colour.lightened(0.3), 0.55 * k * k))
+		d += step
+	_sweep.draw_rect(Rect2(Vector2(cx - 3.0, 0), Vector2(6.0, view.y)), Color(1, 1, 1, 0.9))
 
 
 func flash(color: Color, duration: float) -> void:

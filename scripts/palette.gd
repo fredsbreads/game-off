@@ -100,11 +100,6 @@ static func for_level(level: int) -> float:
 	return 1.0 if level >= PINK_FROM_LEVEL else 0.0
 
 
-## A blood colour: hers if BLOOD_FOLLOWS_COLOUR, else red as it is.
-static func blood(c: Color) -> Color:
-	return tint(c) if BLOOD_FOLLOWS_COLOUR else c
-
-
 ## The same as accent() in the shader, for colours set in code.
 static func tint(c: Color) -> Color:
 	if pink <= 0.0:

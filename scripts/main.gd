@@ -97,7 +97,7 @@ const FINISHER_BOLT_SIZE := Vector2(1.2, 1.4)
 const BIG_STRIKE_BURST_Y := 225.0   # pixels down its frame where the ground burst is
 const BIG_STRIKE_FULL_FRAME := 2     # its frame with the whole bolt and the sparks
 const FINISHER_SWEEP_AFTER := 0.3  # on the last pose, this long before the colour sweeps
-const FINISHER_SWEEP_TIME := 0.9   # pink sweeps across her, right to left, over this long
+const FINISHER_SWEEP_TIME := 1.1   # her new colour sweeps across the screen, right to left, over this long
 const FINISHER_HOLD := 0.8         # after the level-up, the freeze frame holds this long
 const FINISHER_PINK_TIME := 0.45   # (a level-up into 10 without the finisher: a quick fade)
 const FINISHER_ZOOM := 0.35
@@ -223,6 +223,11 @@ func _ready() -> void:
 	level.enemy_parent = $EnemyLayer
 	blood_fx = Fx.new()
 	$EnemyLayer.add_child(blood_fx)
+	# Her colour on everything these draw (sparks, slashes; the blood too if it
+	# follows her colour), so the change-over sweep turns them as it passes.
+	fx.material = Palette.sprite_material()
+	if Palette.BLOOD_FOLLOWS_COLOUR:
+		blood_fx.material = Palette.sprite_material()
 	# Floating words (PERFECT, TOO SLOW, MISSED...) on their own layer, above
 	# her, the enemies and every slash and bolt.
 	var front_layer := CanvasLayer.new()   # a knight's body mid-clash, over her
@@ -815,9 +820,11 @@ func _finisher(k: Knight, grade: String) -> void:
 	t.tween_callback(_finisher_strike.bind(k, left_x, 1.0, poses[1], grade))
 	# The freeze frame: pink sweeps across her, then the level-up.
 	t.tween_interval(FINISHER_SWEEP_AFTER)
+	# A wave across the whole screen, right to left.
 	var sweep := func(at: float) -> void:
-		var r := _her_screen_span()
-		Palette.sweep_to(lerpf(r.y, r.x, at))
+		var x := lerpf(1.03, -0.03, at)
+		Palette.sweep_to(x)
+		hud.show_sweep(x, Palette.flash_colour())
 	t.tween_callback(_pink_shift_sound.play)
 	t.tween_method(sweep, 0.0, 1.0, FINISHER_SWEEP_TIME)
 	t.tween_callback(_finisher_level_up.bind(grade))
@@ -871,21 +878,11 @@ func _finisher_bolt(hold := 0.0) -> void:
 		0, false, BIG_STRIKE_FULL_FRAME if hold > 0.0 else -1, hold)
 
 
-## Where she is on screen, as screen x fractions (left, right): the pink
-## sweeps across this, a bit wider than her and her slash.
-func _her_screen_span() -> Vector2:
-	var to_screen := get_viewport().get_canvas_transform()
-	var width := get_viewport().get_visible_rect().size.x
-	var body := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row))
-	var a := (to_screen * (body - Vector2(110, 0))).x / width
-	var b := (to_screen * (body + Vector2(150, 0))).x / width
-	return Vector2(a, b)
-
-
 ## The sweep is done: she's pink, with a flash, and the chain ends (the
 ## level-up into 10).
 func _finisher_level_up(grade: String) -> void:
 	Palette.set_pink(1.0)
+	hud.show_sweep(-1.0, Color.WHITE)
 	hud.flash(Palette.flash_colour(), 0.6)   # in her new colour
 	cam.shake(0.25, 14.0)
 	var body := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row))

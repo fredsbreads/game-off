@@ -42,8 +42,8 @@ vec3 accent(vec3 c, float sx) {
 	float swept = smoothstep(accent_wipe - 0.002, accent_wipe + 0.002, sx);
 	vec3 out_c = mix(c, pink, w * accent_pink * swept);
 	if (accent_wipe > -0.5) {
-		float edge = 1.0 - smoothstep(0.0, 0.01, abs(sx - accent_wipe));
-		out_c = mix(out_c, vec3(1.0, 0.92, 0.8), w * edge * 0.9);
+		float edge = 1.0 - smoothstep(0.0, 0.03, abs(sx - accent_wipe));
+		out_c = mix(out_c, vec3(1.0, 0.95, 0.9), w * edge);
 	}
 	return out_c;
 }
