@@ -217,6 +217,7 @@ It prints `SOAK OK` if it reaches the distance, or `SOAK FAIL` with the chunk it
 died in. Other options are listed at the top of `scripts/debug_tools.gd`
 (`--autostart`, `--shots=DIR` for screenshots, `--level=N` to start at a level).
 
-To start every run at a later level while playtesting (web build too), set
-`START_LEVEL` at the top of `scripts/main.gd` (e.g. 9 to meet the knight
-straight away), and put it back to 1 afterwards.
+The start screen has a **Start at level 1 / 9** button (tap it, or press L,
+1 or 9): 9 goes straight to the knight. The pause screen has a **Colour**
+button that steps through her level-10 colours. Both choices are saved
+between visits (`user://save.cfg`).

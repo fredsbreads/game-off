@@ -13,30 +13,20 @@ const COLOUR := "ember"
 const CYCLE_KEY := true
 
 ## [hue 0..1, saturation x, brightness x] (the last two multiply her red's).
-## The names match the mock-up sheets.
+## Ember plus the ten from the colour-wheel sheet, in that order (the pause
+## screen's Colour button and the C key step through them).
 const COLOURS := {
-	"ember": [0.045, 1.0, 1.0],          # red-orange (red sheet D)
-	"crimson": [0.965, 1.0, 0.85],       # red sheet A
-	"blood": [0.995, 1.0, 0.62],         # red sheet B
-	"scarlet": [0.015, 1.0, 1.0],        # red sheet C
-	"burgundy": [0.95, 0.85, 0.55],      # red sheet E
-	"white_hot": [0.0, 0.55, 1.15],      # red sheet F
-	"black_red": [0.99, 1.0, 0.38],      # red sheet G
-	"pink": [0.925, 0.7, 1.09],          # pink sheet A (the first pink)
-	"hot_pink": [0.917, 0.9, 1.0],       # pink sheet B
-	"rose": [0.944, 0.85, 0.85],         # pink sheet C
-	"magenta": [0.883, 0.9, 0.95],       # pink sheet D
-	"raspberry": [0.93, 1.0, 0.8],       # pink sheet E
-	"gold": [0.11, 1.0, 1.0],            # colour sheet 1
-	"yellow": [0.15, 0.9, 1.1],          # colour sheet 2
-	"silver": [0.0, 0.08, 1.15],         # colour sheet 3
-	"ice": [0.52, 0.85, 1.05],           # colour sheet 4
-	"electric_blue": [0.6, 0.95, 1.05],  # colour sheet 5
-	"deep_blue": [0.64, 1.0, 0.8],       # colour sheet 6
-	"violet": [0.75, 0.85, 1.0],         # colour sheet 7
-	"royal_purple": [0.79, 1.0, 0.75],   # colour sheet 8
-	"teal": [0.48, 1.0, 0.75],           # colour sheet 9
-	"void": [0.0, 0.0, 0.45],            # colour sheet 10
+	"ember": [0.045, 1.0, 1.0],
+	"orange": [0.07, 1.0, 1.0],
+	"yellow": [0.14, 0.95, 1.05],
+	"lime": [0.22, 0.95, 0.95],
+	"green": [0.33, 0.95, 0.85],
+	"teal": [0.47, 1.0, 0.8],
+	"cyan": [0.53, 0.9, 1.0],
+	"blue": [0.61, 0.95, 1.0],
+	"violet": [0.74, 0.85, 1.0],
+	"magenta": [0.85, 0.9, 0.95],
+	"pink": [0.93, 0.7, 1.09],
 }
 
 const PINK_FROM_LEVEL := 10
@@ -75,6 +65,12 @@ static func next_colour() -> String:
 	var names := COLOURS.keys()
 	use_colour(names[(names.find(colour_name) + 1) % names.size()])
 	return colour_name
+
+
+## Her lit-marker red in the colour in use (for the pause screen's swatch).
+static func swatch() -> Color:
+	var red := Color(0.95, 0.15, 0.2)
+	return Color.from_hsv(float(_hsv[0]), minf(1.0, red.s * float(_hsv[1])), minf(1.0, red.v * float(_hsv[2])))
 
 
 ## The screen flash when she changes over, in her new colour.

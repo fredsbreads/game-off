@@ -10,9 +10,9 @@ extends Node2D
 enum State { READY, PLAYING, DYING, OVER }
 
 const START_X := 3.0
-# Testing: start every run at this level (1 = normal). E.g. 9 to meet the
-# knight straight away. Put it back to 1 before shipping.
-const START_LEVEL := 9
+# The level a run starts at: picked on the start screen (1 or 9: straight to
+# the knight), and kept between visits.
+const START_LEVELS := [1, 9]
 # Every kill gets a short hit freeze (invert flash).
 const KILL_HIT := 0.06
 # If another enemy is under any marker where you land, the
@@ -213,10 +213,10 @@ func _ready() -> void:
 		debug = DebugTools.new()
 		debug.main = self
 		add_child(debug)
-	if START_LEVEL > 1:
-		progression.level = START_LEVEL
-		level.level = START_LEVEL
-	Palette.use_colour(Palette.colour_name)   # COLOUR, or the last one picked with C
+	if progression.level == 1:   # (not set by the debug --level option)
+		progression.level = _load_setting("start_level", 1)
+		level.level = progression.level
+	Palette.use_colour(_load_colour())   # the one picked last (pause screen / C), else COLOUR
 	Palette.set_pink(Palette.for_level(progression.level))
 	player.x = START_X
 	level.start_x = START_X
@@ -246,6 +246,7 @@ func _ready() -> void:
 	cam.snap(player.x)
 	best_score = _load_best()
 	hud.show_start(best_score)
+	hud.show_level_choice(progression.level)
 	hud.set_enemies_off(Level.enemies_off)   # practice mode stays on across retries
 
 
@@ -273,6 +274,12 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 			JavaScriptBridge.eval("window.redFlashSetFlip(!window.redFlashFlip)", true)
 			return
+		if tap and hud.colour_button_contains(_screen_pos(event)):
+			get_viewport().set_input_as_handled()
+			Palette.next_colour()
+			_save_colour()
+			hud.refresh_colour_button()
+			return
 		if (tap and hud.enemies_button_contains(_screen_pos(event))) or _is_enemies_key(event):
 			get_viewport().set_input_as_handled()
 			_toggle_enemies()
@@ -294,6 +301,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	if state == State.PLAYING and (event.is_action_pressed("pause") or _is_pause_button_press(event)):
 		get_viewport().set_input_as_handled()
 		_set_paused(true)
+		return
+	if state == State.READY and _start_level_input(event):
+		get_viewport().set_input_as_handled()
 		return
 	var button := _button_from_event(event)
 	if button == Rules.Move.NONE:
@@ -887,6 +897,8 @@ func _finisher_level_up(grade: String) -> void:
 ## in Palette.COLOURS (shown at once, at any level, with its name).
 func _cycle_colour() -> void:
 	var name := Palette.next_colour()
+	_save_colour()
+	hud.refresh_colour_button()
 	Palette.set_pink(1.0)
 	var above := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row) - Rules.TILE * 1.8)
 	if player.row == Rules.Row.CEILING:
@@ -1285,5 +1297,52 @@ func _save_best(value: int) -> void:
 	if debug:
 		return  # don't let bot runs overwrite the real best score
 	var cfg := ConfigFile.new()
+	cfg.load(SAVE_PATH)   # keep the other settings
 	cfg.set_value("scores", "best", value)
 	cfg.save(SAVE_PATH)
+
+
+## Her level-10 colour (picked on the pause screen) is kept between visits.
+func _save_colour() -> void:
+	var cfg := ConfigFile.new()
+	cfg.load(SAVE_PATH)
+	cfg.set_value("settings", "colour", Palette.colour_name)
+	cfg.save(SAVE_PATH)
+
+
+func _load_colour() -> String:
+	return String(_load_setting("colour", Palette.colour_name))
+
+
+func _load_setting(key: String, default: Variant) -> Variant:
+	var cfg := ConfigFile.new()
+	if cfg.load(SAVE_PATH) != OK:
+		return default
+	return cfg.get_value("settings", key, default)
+
+
+## The start screen's level choice: tap its button (or L) to switch between
+## the start levels, or press 1 / 9. The run is rebuilt at that level.
+## Returns true if the event was that.
+func _start_level_input(event: InputEvent) -> bool:
+	var tap: bool = (event is InputEventScreenTouch or event is InputEventMouseButton) and event.pressed
+	var want := -1
+	if tap and hud.level_button_contains(_screen_pos(event)):
+		want = 0
+	elif event is InputEventKey and event.pressed:
+		match event.physical_keycode:
+			KEY_L: want = 0
+			KEY_1: want = 1
+			KEY_9: want = 9
+	if want < 0:
+		return false
+	if want == 0:   # the next one
+		want = START_LEVELS[(START_LEVELS.find(progression.level) + 1) % START_LEVELS.size()]
+	var cfg := ConfigFile.new()
+	cfg.load(SAVE_PATH)
+	cfg.set_value("settings", "start_level", want)
+	cfg.save(SAVE_PATH)
+	if want != progression.level:
+		# A fresh run at that level (after this input is done with).
+		get_tree().reload_current_scene.call_deferred()
+	return true

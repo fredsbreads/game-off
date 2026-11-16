@@ -44,6 +44,11 @@ const FLIP_BUTTON_SIZE := Vector2(300, 64)
 # Practice mode toggle on the pause screen (N on a keyboard), plus a small
 # note in the corner while enemies are off.
 var _enemies_button: Control
+# Her level-10 colour (Palette), stepped through on the pause screen.
+var _colour_button: Control
+# The start screen's "Start at level" choice (1 or 9).
+var _level_button: Control
+var _start_level := 1
 var _enemies_off_label: Label
 var _enemies_off := false
 var _message_before_pause := ""
@@ -133,6 +138,18 @@ func _ready() -> void:
 	_enemies_button.visible = false
 	_enemies_button.draw.connect(_draw_enemies_button)
 	add_child(_enemies_button)
+	_colour_button = Control.new()
+	_colour_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_colour_button.size = FLIP_BUTTON_SIZE
+	_colour_button.visible = false
+	_colour_button.draw.connect(_draw_colour_button)
+	add_child(_colour_button)
+	_level_button = Control.new()
+	_level_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_level_button.size = FLIP_BUTTON_SIZE
+	_level_button.visible = false
+	_level_button.draw.connect(_draw_level_button)
+	add_child(_level_button)
 	_enemies_off_label = _label(20, Vector2(20, 14))
 	_enemies_off_label.text = "NO ENEMIES (N)"
 	_enemies_off_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.6))
@@ -178,10 +195,19 @@ func _process(delta: float) -> void:
 	_chain_bar_bg.position = Vector2(right - 200, 54)
 	_chain_bar.position = _chain_bar_bg.position
 	_pause_button.position = Vector2(right - PAUSE_BUTTON_SIZE - PAUSE_BUTTON_MARGIN, PAUSE_BUTTON_MARGIN)
-	_flip_button.position = Vector2((view.x - FLIP_BUTTON_SIZE.x) / 2.0, view.y * 0.5 + 90.0)
-	# Below the flip button when that shows, else in its place.
-	var enemies_y := view.y * 0.5 + (170.0 if _flip_button.visible else 90.0)
-	_enemies_button.position = Vector2((view.x - FLIP_BUTTON_SIZE.x) / 2.0, enemies_y)
+	# The pause screen's buttons, side by side under the message (so they fit
+	# on an upright phone too).
+	var shown: Array[Control] = []
+	for b in [_flip_button, _enemies_button, _colour_button]:
+		if b.visible:
+			shown.append(b)
+	var gap := 16.0
+	var row := shown.size() * FLIP_BUTTON_SIZE.x + maxf(shown.size() - 1, 0) * gap
+	var x := (view.x - row) / 2.0
+	for b in shown:
+		b.position = Vector2(x, view.y * 0.5 + 55.0)
+		x += FLIP_BUTTON_SIZE.x + gap
+	_level_button.position = Vector2((view.x - FLIP_BUTTON_SIZE.x) / 2.0, view.y * 0.5 + 55.0)
 
 
 ## True on a phone/tablet held sideways in the browser: play is upright there.
@@ -319,6 +345,28 @@ func _draw_result() -> void:
 			_progress.draw_rect(Rect2(base, 0, kills, s.y), PROGRESS_PENDING.lerp(PROGRESS_FILL, p))
 
 
+## The start screen's level choice: shown with the start message.
+func show_level_choice(level: int) -> void:
+	_start_level = level
+	_level_button.visible = true
+	_level_button.queue_redraw()
+
+
+func level_button_contains(pos: Vector2) -> bool:
+	return _level_button.visible and _level_button.get_rect().grow(10.0).has_point(pos)
+
+
+func _draw_level_button() -> void:
+	var s := FLIP_BUTTON_SIZE
+	_level_button.draw_rect(Rect2(Vector2.ZERO, s), Color(1, 1, 1, 0.12))
+	_level_button.draw_rect(Rect2(Vector2.ZERO, s), Color(1, 1, 1, 0.7), false, 2.0)
+	var font := ThemeDB.fallback_font
+	var text := "Start at level %d" % _start_level
+	var size := 26
+	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+	_level_button.draw_string(font, Vector2((s.x - w) / 2.0, s.y / 2.0 + size * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color.WHITE)
+
+
 func show_start(best: int) -> void:
 	var lines := "left tap - shift\n"
 	lines += "right tap - forward\n"
@@ -362,6 +410,8 @@ func show_paused(paused: bool, can_flip: bool = false) -> void:
 	_pause_button.visible = not paused
 	_flip_button.visible = paused and can_flip
 	_enemies_button.visible = paused
+	_colour_button.visible = paused
+	_colour_button.queue_redraw()
 	if paused:
 		_message_before_pause = _message.text
 		_message_visible_before_pause = _message.visible
@@ -393,6 +443,28 @@ func _draw_enemies_button() -> void:
 	_enemies_button.draw_string(font, Vector2((s.x - w) / 2.0, s.y / 2.0 + size * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color.WHITE)
 
 
+func colour_button_contains(pos: Vector2) -> bool:
+	return _colour_button.visible and _colour_button.get_rect().grow(10.0).has_point(pos)
+
+
+func refresh_colour_button() -> void:
+	_colour_button.queue_redraw()
+
+
+func _draw_colour_button() -> void:
+	var s := FLIP_BUTTON_SIZE
+	_colour_button.draw_rect(Rect2(Vector2.ZERO, s), Color(1, 1, 1, 0.12))
+	_colour_button.draw_rect(Rect2(Vector2.ZERO, s), Color(1, 1, 1, 0.7), false, 2.0)
+	var sw := Rect2(Vector2(16, 14), Vector2(36, s.y - 28))
+	_colour_button.draw_rect(sw, Palette.swatch())
+	var font := ThemeDB.fallback_font
+	var text := "Colour: " + Palette.colour_name.capitalize()
+	var size := 24
+	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+	var left := sw.end.x + 10.0
+	_colour_button.draw_string(font, Vector2(left + (s.x - left - w) / 2.0, s.y / 2.0 + size * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color.WHITE)
+
+
 func flip_button_contains(pos: Vector2) -> bool:
 	return _flip_button.visible and _flip_button.get_rect().grow(10.0).has_point(pos)
 
@@ -419,6 +491,7 @@ func _draw_pause_button() -> void:
 
 func hide_message() -> void:
 	_message.visible = false
+	_level_button.visible = false
 
 
 func flash(color: Color, duration: float) -> void:
