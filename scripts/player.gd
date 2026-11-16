@@ -216,6 +216,10 @@ func _play(anim: String) -> void:
 
 ## A kill: show one of the strike poses (never the same one twice in a row).
 ## It stays through the kill freeze, then for ATTACK_HOLD of real play.
+## Testing only: always strike with this pose (0-2; -1 = random).
+static var force_pose := -1
+
+
 ## A clash: her full slash stays up this much longer.
 func hold_slash(seconds: float) -> void:
 	_arc_hold_extra = seconds
@@ -226,6 +230,8 @@ func strike() -> void:
 	var pick := randi() % ATTACK_COUNT
 	if pick == _last_attack:
 		pick = (pick + 1 + randi() % (ATTACK_COUNT - 1)) % ATTACK_COUNT
+	if force_pose >= 0:
+		pick = force_pose
 	_last_attack = pick
 	_striking = true
 	_strike_time = 0.0

@@ -28,11 +28,17 @@ const KILL_SLASH_FRAME := 3         # "Attack2"'s big arc: held in the death fre
 # and body, so with the arc moved behind him his body is taken from the next
 # frame, where it's whole: frame -> frame to draw his body from.
 const KILL_BODY_FROM := {3: 4}
-const CLASH_BODY_FROM := {3: 5, 4: 5}
+# His clash swing: either attack, at random. Per attack: the sheet, the
+# frames from the swing on, the frame held through the clash beat, and
+# frame -> frame his body is drawn from (see KILL_BODY_FROM).
+const CLASH_SWINGS := [
+	{"sheet": K_ATTACK, "frames": [2, 3, 4, 5, 6], "hold": 3, "body_from": {3: 5, 4: 5}, "gap": 1.3},
+	# Attack2 lunges: drawn further back so he doesn't land on top of her.
+	{"sheet": K_ATTACK2, "frames": [2, 3, 4, 5, 6], "hold": 3, "body_from": {3: 4}, "gap": 2.6},
+]
+## Testing only: always clash with this swing (0 or 1; -1 = random).
+static var force_swing := -1
 const KILL_DISTANCE := 2.6          # tiles ahead of her he swings his killing blow from
-const CLASH_FRAMES := [2, 3, 4, 5, 6]   # "Attack1" from the swing on
-const CLASH_GAP := 1.3             # tiles his clash swing is drawn further away than he stood
-const CLASH_HOLD_FRAME := 3        # his arc at its biggest: held through the clash beat
 const CLASH_TIME := 0.32            # seconds his clash swing (left where he was) plays
 const SLASH_OUTLINE := Color(0.35, 1.0, 0.45, 1.0)   # green outline while he swings
 
@@ -142,18 +148,21 @@ func blink(beat := 0.0) -> Vector2:
 func _leave_ghost(beat := 0.0) -> void:
 	if get_parent() == null or _sprite == null:
 		return
+	var swing: Dictionary = CLASH_SWINGS[force_swing if force_swing >= 0 else randi() % CLASH_SWINGS.size()]
+	var frames: Array = swing["frames"]
+	var body_from: Dictionary = swing["body_from"]
 	var arc_tex := AtlasTexture.new()
-	arc_tex.atlas = K_ATTACK
+	arc_tex.atlas = swing["sheet"]
 	var body_tex := AtlasTexture.new()
-	body_tex.atlas = K_ATTACK
+	body_tex.atlas = swing["sheet"]
 	# His arc goes behind everything; his body in front of her and her slash
 	# (front_parent), so the clash reads.
 	var parts: Array[Node2D] = []
 	for part in [2, 1]:
 		var holder := Node2D.new()
-		# A step further from her than his real spot, so the clash reads as
-		# two swords meeting rather than one figure.
-		holder.position = position + Vector2(CLASH_GAP * Rules.TILE, 0)
+		# Further from her than his real spot (by the swing's "gap", tiles),
+		# so the clash reads as two swords meeting rather than one figure.
+		holder.position = position + Vector2(float(swing["gap"]) * Rules.TILE, 0)
 		holder.scale = Vector2(K_SCALE, K_SCALE * scale.y)
 		var s := Sprite2D.new()
 		s.texture = arc_tex if part == 2 else body_tex
@@ -172,16 +181,16 @@ func _leave_ghost(beat := 0.0) -> void:
 		parts.append(holder)
 	var tween := parts[0].create_tween()
 	# The swing up to its biggest arc, held through the beat, then the rest.
-	var held := CLASH_FRAMES.find(CLASH_HOLD_FRAME)
+	var held := frames.find(swing["hold"])
 	var show := func(f: float) -> void:
-		var frame: int = CLASH_FRAMES[clampi(int(f), 0, CLASH_FRAMES.size() - 1)]
+		var frame: int = frames[clampi(int(f), 0, frames.size() - 1)]
 		arc_tex.region = Rect2(Vector2(frame * K_FRAME.x, 0), Vector2(K_FRAME))
-		var body: int = CLASH_BODY_FROM.get(frame, frame)
+		var body: int = body_from.get(frame, frame)
 		body_tex.region = Rect2(Vector2(body * K_FRAME.x, 0), Vector2(K_FRAME))
 	show.call(0.0)
 	tween.tween_method(show, 0.0, float(held), CLASH_TIME * 0.4)
 	tween.tween_interval(maxf(beat - CLASH_TIME * 0.4, 0.0))
-	tween.tween_method(show, float(held), float(CLASH_FRAMES.size()), CLASH_TIME * 0.6)
+	tween.tween_method(show, float(held), float(frames.size()), CLASH_TIME * 0.6)
 	tween.tween_method(func(a: float) -> void:
 		for p in parts:
 			if is_instance_valid(p):
