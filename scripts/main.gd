@@ -582,7 +582,7 @@ func _step() -> void:
 		if not (_press_x_set and player.cooldown == 0):
 			var k := touching[0] as Knight
 			if k:
-				k.slash()   # the same killing blow as when he teleports to her
+				k.slash(player.x)   # the same killing blow as when he teleports to her
 				_warn_sound.play(WARN_PEAK)
 				_die("knight", k)
 			else:

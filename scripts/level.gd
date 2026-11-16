@@ -41,6 +41,7 @@ static var enemies_off := false
 ## are laid until it's decided: so the chain that levels you up is the last
 ## one at the old level, and the new level starts on a clear screen.
 var bar_room := INF
+const HOLD_FROM_LEVEL := Patterns.KNIGHT_DEBUT_LEVEL - 1
 var _held := false
 var _knight_intro_done := false   # level 9 opens with a knight alone, once
 var _cursor := RUNWAY_TILES        # where the next chain's first enemy goes
@@ -100,6 +101,10 @@ func _pick_pattern() -> Dictionary:
 ## True if the chains laid and not yet finished could, at best (every kill,
 ## a PERFECT), fill the rest of the bar.
 func _could_level_up() -> bool:
+	# Early levels flow straight into each other; from the level-up into the
+	# knight's debut on, each level starts on a clear screen.
+	if level < HOLD_FROM_LEVEL:
+		return false
 	var best := 0.0
 	for section in sections:
 		for e in section["enemies"]:

@@ -103,7 +103,8 @@ A bar above the ceiling row fills as you chain kills; filling it levels you up.
 - Levels 1-3 use the hand-made patterns; each level adds new ones, which show
   up twice as often as the previous level's (older ones drop out). From level
   4, chains are generated: x-2 to x+2 enemies long at level x (at least 3),
-  each step F, V or D with equal odds. Once the chains already laid could
+  each step F, V or D with equal odds. From level 8 on (so level 9 opens with
+  its knight), once the chains already laid could
   (at best) fill the bar, no more are laid until it's decided, so the chain
   that levels you up is the last one at the old level; the new level's first
   chain starts just off screen (a short breather). If those chains are

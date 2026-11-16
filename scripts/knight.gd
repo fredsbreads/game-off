@@ -23,7 +23,8 @@ const K_IDLE_FPS := 10.0
 const K_DEATH_FPS := 14.0
 const K_ATTACK_FPS := 16.0
 const K_ATTACK_START := 2
-const KILL_SLASH_FRAME := 3         # "Attack2"'s big arc: held in the death freeze
+const KILL_SLASH_FRAME := 3
+const KILL_DISTANCE := 1.7          # tiles ahead of her he swings his killing blow from         # "Attack2"'s big arc: held in the death freeze
 const CLASH_FRAMES := [2, 3, 4, 5, 6]   # "Attack1" from the swing on
 const CLASH_TIME := 0.32            # seconds his clash swing (left where he was) plays
 const SLASH_OUTLINE := Color(0.35, 1.0, 0.45, 1.0)   # green outline while he swings
@@ -153,17 +154,18 @@ func calm() -> void:
 ## Returns the spot he left (pixels, body centre).
 func pounce(her_x: float, her_row: int) -> Vector2:
 	var from := Vector2(tile_x * Rules.TILE, Rules.body_center_y(row))
-	tile_x = her_x + Rules.HIT_RADIUS * 0.9
 	row = her_row
-	_place()
-	slash()
+	slash(her_x)
 	return from
 
 
 ## The killing blow (she ran into him, or he teleported to her): "Attack2" on
 ## its big arc (that's what the death freeze holds), outlined green.
-func slash() -> void:
+func slash(her_x: float) -> void:
 	threat = false
+	# Far enough off that his arc lands on her rather than him standing in her.
+	tile_x = her_x + KILL_DISTANCE
+	_place()
 	if _sprite:
 		_sprite.play("kill")
 		_sprite.frame = KILL_SLASH_FRAME
