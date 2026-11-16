@@ -44,6 +44,7 @@ const CLASH_BY_POSE := [
 	{"swing": 0, "gap": 1.3 + 1.0 / 3.0},
 ]
 const KILL_DISTANCE := 2.6          # tiles ahead of her he swings his killing blow from
+const AFTERIMAGE_FADE := 0.35       # seconds his clash swing lingers after he blinks away
 const CLASH_TIME := 0.32            # seconds his clash swing (left where he was) plays
 const SLASH_OUTLINE := Color(0.35, 1.0, 0.45, 1.0)   # green outline while he swings
 
@@ -179,9 +180,8 @@ func _leave_ghost(beat := 0.0, her_pose := 0) -> void:
 		s.flip_h = true
 		s.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		var mat := _part_material(part)
-		if part == 1:
-			mat.set_shader_parameter("outline_color", SLASH_OUTLINE)
-			mat.set_shader_parameter("glint", 1.0)
+		mat.set_shader_parameter("outline_color", SLASH_OUTLINE)
+		mat.set_shader_parameter("glint", 1.0)
 		s.material = mat
 		holder.add_child(s)
 		var parent: Node = front_parent if part == 1 and front_parent else get_parent()
@@ -198,11 +198,11 @@ func _leave_ghost(beat := 0.0, her_pose := 0) -> void:
 	show.call(0.0)
 	tween.tween_method(show, 0.0, float(held), CLASH_TIME * 0.4)
 	tween.tween_interval(maxf(beat - CLASH_TIME * 0.4, 0.0))
-	tween.tween_method(show, float(held), float(frames.size()), CLASH_TIME * 0.6)
+	# He's gone: what's left is an afterimage of the clash, fading.
 	tween.tween_method(func(a: float) -> void:
 		for p in parts:
 			if is_instance_valid(p):
-				p.modulate.a = a, 1.0, 0.0, 0.15)
+				p.modulate.a = a, 0.8, 0.0, AFTERIMAGE_FADE)
 	tween.tween_callback(func() -> void:
 		for p in parts:
 			if is_instance_valid(p):
@@ -245,8 +245,9 @@ func slash(her_x: float) -> void:
 		_sprite.play("kill")
 		_sprite.frame = KILL_BODY_FROM.get(KILL_SLASH_FRAME, KILL_SLASH_FRAME)
 		_sprite.pause()
-		_material.set_shader_parameter("outline_color", SLASH_OUTLINE)
-		_material.set_shader_parameter("glint", 1.0)
+		for m in [_material, _arc.material]:
+			m.set_shader_parameter("outline_color", SLASH_OUTLINE)
+			m.set_shader_parameter("glint", 1.0)
 		# His body over her (and her effects) for the killing blow; the arc
 		# stays behind.
 		if front_parent and _sprite.get_parent() == self:

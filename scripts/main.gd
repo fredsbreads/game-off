@@ -81,8 +81,10 @@ var _clashed := false                # this teleport hit a knight who blinked aw
 const CLASH_PAUSE_FACTOR := 2.0      # the freeze after a clash is this much longer
 # A clash gets its moment: both hold still mid-swing for this long (a press
 # can't skip it), with a zoom and a shake, before he blinks away.
-const CLASH_BEAT := 0.35
-const CLASH_ZOOM := 0.18
+const CLASH_BEAT := 0.5
+const CLASH_ZOOM := 0.38
+const CLASH_FLASH := Color(1, 1, 1, 0.22)
+const CLASH_STRIKE_FPS := 36.0   # his blink lightning: quick, so he's seen at once
 var _pause_min := KILL_PAUSE_MIN
 var _drop_pounce := false            # a chain just dropped: check for a knight across
 var _cut_pending := false
@@ -532,7 +534,7 @@ func _update_pause_visuals() -> void:
 			var tx: float = player.x + Rules.move_dx(move)
 			var trow: int = (1 - player.row) if Rules.move_flips_row(move) else player.row
 			for e in level.enemies_hit_by(move, tx, trow):
-				e.targeted = true
+				e.targeted = e.visible
 	player.frozen = paused
 
 
@@ -556,6 +558,8 @@ func _slash_target_x(move: int) -> float:
 	var trow: int = (1 - player.row) if Rules.move_flips_row(move) else player.row
 	var best := NAN
 	for e in level.enemies_hit_by(move, tx, trow):
+		if not e.visible:
+			continue   # a knight mid-clash: don't give away where he's going
 		if is_nan(best) or absf(e.tile_x - tx) < absf(best - tx):
 			best = e.tile_x
 	return best
@@ -699,7 +703,8 @@ func _teleport(move: int) -> void:
 		_hitstop = _pause_length if _pause_is_chain else KILL_HIT
 		_pause_elapsed = 0.0
 		if _pause_is_chain:
-			cam.punch(to)
+			if not _clashed:   # a clash has its own, bigger zoom (see _clash)
+				cam.punch(to)
 			_chain_awaiting = true
 			_pressed_during_pause = false
 		else:
@@ -901,13 +906,16 @@ func _clash(knight: Knight) -> void:
 	fx.zap(from, 0, Vector2.ZERO, Vector2(10, 20), 6)
 	_clash_sound.pitch_scale = _jitter()
 	_clash_sound.play()
-	cam.shake(0.22, 12.0)
-	cam.punch((from + Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row))) * 0.5, CLASH_ZOOM, CLASH_BEAT + 0.2)
-	# Then he blinks away (green lightning to where he reappears).
+	cam.shake(0.3, 16.0)
+	cam.punch((from + Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row))) * 0.5, CLASH_ZOOM, CLASH_BEAT + 0.15)
+	hud.flash(CLASH_FLASH, 0.12)
+	# Then he blinks away: he's there at once, with a quick green strike (his
+	# swing stays behind as a fading afterimage, see Knight.blink).
 	var to := Vector2(knight.tile_x * Rules.TILE, Rules.body_center_y(knight.row))
 	get_tree().create_timer(CLASH_BEAT).timeout.connect(func() -> void:
 		if is_instance_valid(knight) and state == State.PLAYING:
-			fx.strike(from, to, true))
+			fx.strike(from, to, true, CLASH_STRIKE_FPS)
+			fx.zap(to, 0, Vector2.ZERO, Vector2(10, 20), 5))
 
 
 func _play_jingle(sound: AudioStreamPlayer) -> void:
