@@ -4,6 +4,8 @@ shader_type canvas_item;
 // the newest part is brightest while it sweeps. `fade` dims the whole arc
 // as it goes.
 
+#include "res://shaders/accent.gdshaderinc"
+
 uniform sampler2D t_map : filter_nearest;
 uniform float progress = 0.0;
 uniform float fade = 1.0;
@@ -19,5 +21,5 @@ void fragment() {
 	// done the whole slash is solid (as white as a knight's).
 	float trail = progress >= 1.0 ? 1.0 : 0.55 + 0.45 * (1.0 - (progress - t));
 	float a = max_alpha * fade * trail;
-	COLOR = vec4(c.rgb, c.a * clamp(a, 0.0, 1.0));
+	COLOR = vec4(accent(c.rgb), c.a * clamp(a, 0.0, 1.0));
 }

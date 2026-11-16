@@ -130,6 +130,10 @@ var _markers: Array[Sprite2D] = []   # forward, vertical, diagonal
 var target_x: Array = [NAN, NAN, NAN]
 var _marker_lit_mix: Array = [0.0, 0.0, 0.0]
 var frozen := false      # kill pause: hold the current animation frame
+## 1 = facing right (always, in play), -1 = left (the level-10 finisher).
+var facing := 1.0
+## The level-10 finisher is playing: no markers.
+var cinematic := false
 
 var _striking := false    # showing a strike pose
 var _strike_time := 0.0
@@ -154,6 +158,7 @@ func _ready() -> void:
 	_sprite.centered = false
 	_sprite.scale = Vector2(SPRITE_SCALE, SPRITE_SCALE)
 	_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_sprite.material = Palette.sprite_material()   # her hair: red, pink from level 10
 	_play("idle")
 	add_child(_sprite)
 
@@ -220,6 +225,11 @@ func _play(anim: String) -> void:
 static var force_pose := -1
 
 
+## The next strike's afterimages trail back toward this spot (world, her feet).
+func strike_from(feet: Vector2) -> void:
+	_last_from_feet = feet
+
+
 ## The strike pose she used last (0-2).
 func last_pose() -> int:
 	return _last_attack
@@ -230,13 +240,16 @@ func hold_slash(seconds: float) -> void:
 	_arc_hold_extra = seconds
 
 
-func strike() -> void:
+## `pose`: which strike pose (0-2); -1 = a random one, never the last again.
+func strike(pose := -1) -> void:
 	_arc_hold_extra = 0.0
 	var pick := randi() % ATTACK_COUNT
 	if pick == _last_attack:
 		pick = (pick + 1 + randi() % (ATTACK_COUNT - 1)) % ATTACK_COUNT
 	if force_pose >= 0:
 		pick = force_pose
+	if pose >= 0:
+		pick = pose
 	_last_attack = pick
 	_striking = true
 	_strike_time = 0.0
@@ -248,7 +261,7 @@ func strike() -> void:
 	_arc.z_index = 1 if ARC_IN_FRONT[pick] else -1
 	# Placed where she is now (and flipped like her on the ceiling).
 	_arc.global_position = Vector2(x * Rules.TILE, Rules.surface_y(row))
-	_arc.scale = Vector2(SPRITE_SCALE, SPRITE_SCALE * (-1.0 if row == Rules.Row.CEILING else 1.0))
+	_arc.scale = Vector2(SPRITE_SCALE * facing, SPRITE_SCALE * (-1.0 if row == Rules.Row.CEILING else 1.0))
 	_arc_time = -_hidden_left   # starts when she appears (after the thrown sword lands)
 	_update_arc()
 
@@ -350,9 +363,10 @@ func _sprite_at(tex: Texture2D, feet: Vector2, pos: Vector2, on_row: int) -> Spr
 	g.centered = false
 	g.offset = -feet
 	g.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	g.material = Palette.sprite_material()
 	g.top_level = true   # stays where it was left
 	g.global_position = pos
-	g.scale = Vector2(SPRITE_SCALE, SPRITE_SCALE * (-1.0 if on_row == Rules.Row.CEILING else 1.0))
+	g.scale = Vector2(SPRITE_SCALE * facing, SPRITE_SCALE * (-1.0 if on_row == Rules.Row.CEILING else 1.0))
 	add_child(g)
 	return g
 
@@ -458,6 +472,7 @@ func _make_ring() -> void:
 	_ring.texture = Fx.BOLT_SHEETS[Fx.Bolt.RING]
 	_ring.hframes = Fx.BOLT_FRAMES[Fx.Bolt.RING]
 	_ring.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_ring.material = Palette.sprite_material()
 	_ring.position = BODY_CENTRE
 	_ring.scale = Vector2.ONE * DEATH_RING_SCALE
 	_ring.z_index = 1
@@ -493,6 +508,7 @@ func _process(delta: float) -> void:
 	position = Vector2(x * Rules.TILE, Rules.surface_y(row)) + _death_offset
 	# On the ceiling the whole player (sprite and markers) is upside down.
 	scale.y = -1.0 if row == Rules.Row.CEILING else 1.0
+	scale.x = facing
 
 	if _arc_time > ARC_NONE:
 		_arc_time += delta
@@ -550,8 +566,8 @@ func _process(delta: float) -> void:
 
 func _draw() -> void:
 	for m in _markers:
-		m.visible = alive
-	if not alive:
+		m.visible = alive and not cinematic
+	if not alive or cinematic:
 		return
 	var t := Rules.TILE
 	# In local coordinates the other row is always ROW_GAP "up" (-y): when
@@ -583,7 +599,7 @@ func _draw_zone_line(x0: float, x1: float, line_y: float, enemy_x: float) -> voi
 	var a := maxf(x0, feet - Rules.ENEMY_HALF_WIDTH * t)
 	var b := minf(x1, feet + Rules.ENEMY_HALF_WIDTH * t)
 	if b > a:
-		draw_line(Vector2(a, line_y), Vector2(b, line_y), MARKER_LIT, 4.0)
+		draw_line(Vector2(a, line_y), Vector2(b, line_y), Palette.tint(MARKER_LIT), 4.0)
 
 
 ## Places the three katana markers: over the landing spot, or over the head

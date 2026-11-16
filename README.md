@@ -62,9 +62,12 @@ run upside down.
   (swords clash) he blinks, with green lightning, to one of your three
   landing spots, picked when his chain was generated, so it's always
   catchable, and you chase him down. Each hit counts double on the bar, and
-  the freeze after a clash is twice as long (you can't see where he'll go).
-  Each clash first holds for a beat (both mid-swing, a zoom and a shake;
-  pressing can't skip it) before he blinks away.
+  the freeze after a clash is 1.5x as long, plus a short beat. On the clash
+  frame he's already standing at his next spot (with her teleport strike in
+  green from where he was), while the clash plays out where he was: both
+  mid-swing, his swing left as a fading afterimage, a zoom, a flash and a
+  shake. You can go again as soon as you could after any kill. He never blinks onto
+  another enemy's spot, or back onto one he's been on.
   You can teleport past him, but not run past him across the rows: while
   you're straight across from him (your across teleport would hit him) he
   raises his sword and a swish starts; run on out of reach, or let a freeze
@@ -77,6 +80,13 @@ run upside down.
   chain is a knight with a 5% chance, +3% per level. A chain's length counts
   every hit (a knight's 3-4 hits use up 3-4 of it), so knights don't make
   chains longer.
+- **The level-10 finisher**: the hit that kills a knight and levels you up
+  from 9 to 10 plays her blinking to his other side and back, in each of her
+  three strike poses, the last held as a freeze frame. Then her colour turns
+  from red to pink with a flash: her hair, her lightning, slashes,
+  afterimages, markers and the target glint (`scripts/palette.gd`,
+  `shaders/accent.gdshaderinc`; the `accent_pink` shader global, 0 = red,
+  1 = pink). Blood stays red. `FINISHER_*` in `scripts/main.gd`.
 - Score, distance and the kill counter are tracked but **not shown** for now
   (kills, level reached and the Flawless Streak (No Survivors): the most
   kills in a row, knight hits included, without letting an enemy get away,
@@ -152,6 +162,7 @@ scripts/
   player.gd             player + landing markers (drawing only; main.gd moves it)
   enemy.gd              enemy sprite (idle, death animation)
   knight.gd             the knight: several hits, blinks between landing spots
+  palette.gd            her colour: red, pink from level 10
   camera_rig.gd         follow with fast catch-up after teleports, screen shake
   fx.gd                 trails, rings, slashes, particles, floating text
   hud.gd                progression bar, messages, rotate-device overlay, flash

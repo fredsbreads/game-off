@@ -3,6 +3,8 @@ shader_type canvas_item;
 // optional 1-pixel `outline` around it (drawn just outside the shape).
 // The node's modulate alpha fades the whole thing.
 
+#include "res://shaders/accent.gdshaderinc"
+
 uniform vec4 fill : source_color = vec4(1.0, 0.3, 0.3, 0.5);
 uniform vec4 outline : source_color = vec4(0.0);
 
@@ -18,9 +20,9 @@ void fragment() {
 	float n = texture(TEXTURE, UV + vec2(px.x, 0.0)).a + texture(TEXTURE, UV - vec2(px.x, 0.0)).a
 		+ texture(TEXTURE, UV + vec2(0.0, px.y)).a + texture(TEXTURE, UV - vec2(0.0, px.y)).a;
 	if (a > 0.0) {
-		COLOR = vec4(fill.rgb, fill.a * fade);
+		COLOR = vec4(accent(fill.rgb), fill.a * fade);
 	} else if (n > 0.0 && outline.a > 0.0) {
-		COLOR = vec4(outline.rgb, outline.a * fade);
+		COLOR = vec4(accent(outline.rgb), outline.a * fade);
 	} else {
 		discard;
 	}

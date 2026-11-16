@@ -3,6 +3,8 @@ shader_type canvas_item;
 // slash him. `glint` 0..1 fades it in and out; the node's modulate (his
 // death fade) still applies.
 
+#include "res://shaders/accent.gdshaderinc"
+
 uniform vec4 outline_color : source_color = vec4(1.0, 0.15, 0.2, 1.0);
 uniform float glint = 0.0;
 // Knights draw their slash arc (the pure white pixels) behind their body:
@@ -45,6 +47,6 @@ void fragment() {
 			+ part_alpha(texture(TEXTURE, UV + vec2(0.0, px.y))) + part_alpha(texture(TEXTURE, UV - vec2(0.0, px.y)));
 		float shimmer = 0.8 + 0.2 * sin(TIME * 9.0);
 		float a = n > 0.0 ? outline_color.a * glint * shimmer * tint.a : 0.0;
-		COLOR = vec4(outline_color.rgb, a);
+		COLOR = vec4(accent(outline_color.rgb), a);   // her colour (the knight's green stays)
 	}
 }

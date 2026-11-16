@@ -74,6 +74,8 @@ const STRIKE_BURST_Y := 215.0   # pixels down the STRIKE frame where its burst i
 func _bolt_sprite(kind: int, pos: Vector2, angle: float, size: Vector2, green := false) -> Sprite2D:
 	var s := Sprite2D.new()
 	s.texture = BOLT_SHEETS_GREEN[kind] if green and BOLT_SHEETS_GREEN.has(kind) else BOLT_SHEETS[kind]
+	if not green:
+		s.material = Palette.sprite_material()   # her colour (pink from level 10)
 	s.hframes = BOLT_FRAMES[kind]
 	s.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	s.position = pos
@@ -235,7 +237,7 @@ func _draw() -> void:
 				var half: float = it["len"] / 2.0
 				var pos: Vector2 = it["pos"]
 				var grow := minf(1.0, k * 4.0)
-				draw_line(pos - dir * half, pos - dir * half + dir * half * 2.0 * grow, Color(SLASH_COLOR, fade), 2.0 + 6.0 * fade)
+				draw_line(pos - dir * half, pos - dir * half + dir * half * 2.0 * grow, Color(Palette.tint(SLASH_COLOR), fade), 2.0 + 6.0 * fade)
 			"blood":
 				var s: float = it["size"]
 				draw_rect(Rect2(it["pos"] - Vector2(s, s) * 0.5, Vector2(s, s)), it["color"])
@@ -244,7 +246,7 @@ func _draw() -> void:
 				var s: float = it["size"]
 				draw_rect(Rect2(it["pos"] - Vector2(s, 2.0), Vector2(s * 2.0, 3.0)), col)
 			"particle":
-				var col: Color = it["color"]
+				var col: Color = Palette.tint(it["color"])
 				col.a = fade
 				draw_rect(Rect2(it["pos"] - Vector2(3, 3), Vector2(6, 6)), col)
 			"text":

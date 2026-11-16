@@ -80,6 +80,17 @@ const KILL_STRIKE_FPS := 5.0         # his teleport onto her lingers (normal: 18
 const WARN_PEAK := 0.33              # seconds into it where the swish peaks
 var _clashed := false                # this teleport hit a knight who blinked away
 var _knight_felled := false          # this teleport finished a knight off
+var _felled_knight: Knight = null
+# The level 9 -> 10 finisher: the hit that kills the knight and levels her up
+# plays her blinking back and forth across him in each of her three strike
+# poses, the last held as a freeze frame, and she turns pink (see _finisher).
+const FINISHER_HOP := 0.2          # seconds between her strikes
+const FINISHER_HOLD := 0.8         # the last pose holds this long
+const FINISHER_PINK_TIME := 0.45   # her colour turns over this long
+const FINISHER_ZOOM := 0.22
+const FINISHER_SIDE := 2.2          # tiles either side of him she strikes from
+const FINISHER_FLASH := Color(1.0, 0.45, 0.75, 0.55)
+var _finishing := false
 const CLASH_PAUSE_FACTOR := 1.5    # the freeze after a clash is this much longer
 # A clash gets its moment: both hold still mid-swing for this long (a press
 # can't skip it), with a zoom and a shake, before he blinks away.
@@ -190,6 +201,7 @@ func _ready() -> void:
 	if START_LEVEL > 1:
 		progression.level = START_LEVEL
 		level.level = START_LEVEL
+	Palette.set_pink(Palette.for_level(progression.level))
 	player.x = START_X
 	level.start_x = START_X
 	level.enemy_parent = $EnemyLayer
@@ -535,7 +547,7 @@ func _update_pause_visuals() -> void:
 	# Every enemy a teleport would slash right now gets a red glint.
 	for e in level.enemies:
 		e.targeted = false
-	if state == State.PLAYING and player.alive:
+	if state == State.PLAYING and player.alive and not _finishing:
 		for move in [Rules.Move.FORWARD, Rules.Move.VERTICAL, Rules.Move.DIAGONAL]:
 			var tx: float = player.x + Rules.move_dx(move)
 			var trow: int = (1 - player.row) if Rules.move_flips_row(move) else player.row
@@ -723,7 +735,103 @@ func _teleport(move: int) -> void:
 			for id in level.section_ids_of(_chain_killed.back()):
 				if not _chain_killed.has(id):
 					whole = false
-			_end_chain("SINGLE" if chain == 1 else ("PERFECT" if whole else "CLEAN"))
+			var grade := "SINGLE" if chain == 1 else ("PERFECT" if whole else "CLEAN")
+			if _knight_felled and _finisher_due(grade):
+				_finisher(_felled_knight, grade)
+			else:
+				_end_chain(grade)
+
+
+## True if this chain, ending now on a knight's last hit, takes her from his
+## debut level to the next: that hit gets the finisher.
+func _finisher_due(grade: String) -> bool:
+	if progression.level != Patterns.KNIGHT_DEBUT_LEVEL or not (grade == "PERFECT" or grade == "CLEAN"):
+		return false
+	var gain := chain_points * float(Progression.MULTIPLIER[grade])
+	return progression.bar + gain >= progression.bar_size() - 0.001
+
+
+## The level 9 -> 10 finisher. Her hit has landed (pose one, left of him):
+## she blinks to his other side in her next pose, then back in the last,
+## which holds as a freeze frame while the chain ends (the level-up) and she
+## turns pink. He stays standing until it's over, then falls.
+func _finisher(k: Knight, grade: String) -> void:
+	_finishing = true
+	player.cinematic = true
+	_hitstop = 999.0   # held until _finisher_done; a press can't cut it short
+	_pause_min = 999.0
+	_pause_is_chain = false
+	_pause_elapsed = 0.0
+	k.set_anim_speed(0.0)
+	# Far enough either side of him that he's seen between her strikes.
+	var left_x := k.tile_x - FINISHER_SIDE
+	var right_x := k.tile_x + FINISHER_SIDE
+	var poses: Array = []
+	for p in Player.ATTACK_COUNT:
+		if p != player.last_pose():
+			poses.append(p)
+	var focus := Vector2(k.tile_x * Rules.TILE, Rules.body_center_y(k.row))
+	cam.hold_zoom(focus, FINISHER_ZOOM, 10.0, 0.5)   # centred on him
+	var t := create_tween()
+	t.tween_interval(FINISHER_HOP)
+	t.tween_callback(_finisher_strike.bind(k, right_x, -1.0, poses[0], ""))
+	t.tween_interval(FINISHER_HOP)
+	t.tween_callback(_finisher_strike.bind(k, left_x, 1.0, poses[1], grade))
+	t.tween_interval(FINISHER_HOLD)
+	t.tween_callback(_finisher_done.bind(k, focus))
+
+
+## One of the finisher's blinks: to to_x, facing `face`, in `pose`. The last
+## one (`grade` given) ends the chain and turns her pink.
+func _finisher_strike(k: Knight, to_x: float, face: float, pose: int, grade: String) -> void:
+	if state != State.PLAYING:
+		return
+	var from := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row))
+	var from_feet := Vector2(player.x * Rules.TILE, Rules.surface_y(player.row))
+	var dir := signf(to_x - player.x)
+	player.x = to_x
+	player.facing = face
+	fx.strike(from, Vector2(to_x * Rules.TILE, Rules.body_center_y(player.row)))
+	player.strike_from(from_feet)
+	player.strike(pose)
+	_play_strike(true)
+	var pos := Vector2(k.tile_x * Rules.TILE, Rules.body_center_y(k.row))
+	blood_fx.blood(pos, dir, 30, BLOOD_BURST, 1.0 if k.row == Rules.Row.CEILING else -1.0)
+	fx.kill_burst(pos, 6)
+	cam.shake(0.1, 10.0)
+	if is_instance_valid(k):
+		k.modulate = Color(2.5, 2.5, 2.5)
+		k.create_tween().tween_property(k, "modulate", Color.WHITE, 0.12)
+	if grade == "":
+		_kill_sound.pitch_scale = _jitter()
+		_kill_sound.play()
+		return
+	_knight_kill_sound.pitch_scale = _jitter()
+	_knight_kill_sound.play()
+	_end_chain(grade)   # the level-up (its jingle, the bar)
+	_turn_pink()
+
+
+## Her colour turns from red to pink (level 10), with a flash.
+func _turn_pink() -> void:
+	hud.flash(FINISHER_FLASH, 0.6)
+	cam.shake(0.25, 14.0)
+	var body := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row))
+	var from := Palette.pink
+	create_tween().tween_method(Palette.set_pink, from, 1.0, FINISHER_PINK_TIME)
+	fx.bolt(Fx.Bolt.RING, body, randf() * TAU, Vector2.ONE * 2.2, 16.0)
+
+
+func _finisher_done(k: Knight, focus: Vector2) -> void:
+	_finishing = false
+	player.cinematic = false
+	player.facing = 1.0
+	if is_instance_valid(k):
+		k.set_anim_speed(1.0)   # now he falls
+	cam.hold_zoom(focus, 0.0, 4.0)
+	_hitstop = 0.0
+	_pause_min = KILL_PAUSE_MIN
+	_clear_pending()
 
 
 ## A knight that comes for her after she ran from run_from to where she is:
@@ -901,6 +1009,7 @@ func _kill(e: Enemy) -> void:
 		_knight_kill_sound.play()
 		# The last hit gets the clash's zoom, on the two of them.
 		_knight_felled = true
+		_felled_knight = knight
 		var her := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row))
 		cam.punch((pos + her) * 0.5, CLASH_ZOOM, CLASH_BEAT + 0.15)
 	cam.shake(0.06, 4.0 + 1.5 * c)   # only during the flash, so the freeze reads as still
@@ -996,6 +1105,8 @@ func _end_chain(grade: String, word: String = "") -> void:
 					-1.0 if player.row == Rules.Row.CEILING else 1.0)   # drift away from her row
 		if levelled:
 			level.level = progression.level
+			if Palette.pink < Palette.for_level(progression.level) and not _finishing:
+				_turn_pink()
 			# Only groups well past the right edge get rebuilt (a sprite reaches
 			# beyond its spot, so one just off screen could already show).
 			level.rebuild_ahead(cam.left() / Rules.TILE + CameraRig.VIEW_TILES + 3.0)

@@ -2,6 +2,8 @@ shader_type canvas_item;
 // Her death: she fizzles out in little blocks. `amount` 0 = whole, 1 = gone.
 // The blocks about to vanish glow (white-hot to red), like she was zapped.
 
+#include "res://shaders/accent.gdshaderinc"
+
 uniform float amount = 0.0;
 uniform vec4 edge_hot : source_color = vec4(1.0, 0.95, 0.9, 1.0);
 uniform vec4 edge_red : source_color = vec4(1.0, 0.15, 0.2, 1.0);
@@ -35,6 +37,7 @@ void fragment() {
 		} else {
 			COLOR = c;
 		}
+		COLOR.rgb = accent(COLOR.rgb);
 	} else {
 		vec2 cell = floor(UV / TEXTURE_PIXEL_SIZE / block);
 		float n = hash(cell);
@@ -47,5 +50,6 @@ void fragment() {
 		} else {
 			COLOR = c;
 		}
+		COLOR.rgb = accent(COLOR.rgb);
 	}
 }

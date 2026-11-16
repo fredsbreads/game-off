@@ -3,6 +3,8 @@ shader_type canvas_item;
 // within `fill` of the tip (0 = none, 1 = all) is `lit`. During the "your
 // move" freeze the fill drains toward the tip as time runs out.
 
+#include "res://shaders/accent.gdshaderinc"
+
 uniform vec4 plain : source_color = vec4(1.0, 1.0, 1.0, 0.32);
 uniform vec4 lit : source_color = vec4(0.95, 0.15, 0.2, 1.0);
 uniform float fill = 0.0;
@@ -16,4 +18,5 @@ void fragment() {
 	// The image (the diagonal sword) has the hilt at the top and the tip at
 	// the bottom.
 	COLOR = UV.y >= 1.0 - fill ? mix(plain, lit, lit_mix) : plain;
+	COLOR.rgb = accent(COLOR.rgb);
 }
