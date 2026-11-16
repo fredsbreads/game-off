@@ -80,6 +80,11 @@ run upside down.
   chain is a knight with a 5% chance, +3% per level. A chain's length counts
   every hit (a knight's 3-4 hits use up 3-4 of it), so knights don't make
   chains longer.
+  You may leave a duel early (chain onto another enemy instead of him), so a
+  chain never ends within reach of a knight unless it ends on him: after each
+  knight, it goes on more than a forward teleport past his furthest spot
+  (`_strands_by_knight` in `scripts/patterns.gd`). Finishing a chain always
+  leaves you clear of him.
 - **The level-10 finisher**: the hit that kills a knight and levels you up
   from 9 to 10 plays her blinking to his other side and back, in each of her
   three strike poses, the last held as a freeze frame. Then her colour turns

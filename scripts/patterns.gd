@@ -233,7 +233,7 @@ static func _build(hits: Array[int], rng: RandomNumberGenerator) -> Dictionary:
 			tokens.append(blink.to_lower())
 		tokens.append(")")
 		group += 1
-	if _overlaps(enemies, knights):
+	if _overlaps(enemies, knights) or _strands_by_knight(enemies, knights):
 		return {}
 	return {"enemies": enemies, "knights": knights, "steps": " ".join(tokens)}
 
@@ -255,6 +255,27 @@ static func _apply(prev: Vector2, token: String) -> Vector2:
 	var shape := step_shape(token)
 	var row := (1 - int(prev.y)) if shape[1] else int(prev.y)
 	return Vector2(prev.x + float(shape[0]), row)
+
+
+## True if the chain could end within a knight's reach while he's still
+## alive. You may leave a duel early (chain onto another enemy instead of
+## him), so after every knight that isn't the chain's last enemy, the chain
+## goes on until it's out of his reach: its last enemy is more than a forward
+## teleport (plus the strike offset) past his furthest spot. Then finishing
+## the chain always leaves you clear of him; he can only get you if the
+## chain is dropped (TOO SLOW, MISSED) or you run into him.
+static func _strands_by_knight(enemies: Array[Vector2], knights: Array[int]) -> bool:
+	var last := enemies.size() - 1
+	var furthest := {}
+	for i in enemies.size():
+		if knights[i] >= 0:
+			furthest[knights[i]] = maxf(furthest.get(knights[i], -INF), enemies[i].x)
+	for group in furthest:
+		if knights[last] == group:
+			continue   # he's the chain's last enemy: it ends on him
+		if enemies[last].x - float(furthest[group]) <= Rules.FORWARD + Rules.STRIKE_OFFSET:
+			return true
+	return false
 
 
 ## True if any two spots in the chain are the same. Every spot is used once:
