@@ -701,6 +701,7 @@ func _end_chain(grade: String, word: String = "") -> void:
 		# One sound: a level-up outranks the PERFECT that earned it, and
 		# either replaces the last kill's saber cut.
 		if levelled:
+			_level_up_sound.pitch_scale = _kill_sound.pitch_scale   # also built from the cut
 			_play_jingle(_level_up_sound)
 		elif grade == "PERFECT":
 			# The saber cut with a shimmer: pitched like the cut it replaces.
