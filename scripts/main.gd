@@ -61,6 +61,8 @@ const SAVE_PATH := "user://save.cfg"
 var blood_fx: Fx
 var _kill_sound: AudioStreamPlayer
 var _death_sound: AudioStreamPlayer
+var _level_up_sound: AudioStreamPlayer
+var _perfect_sound: AudioStreamPlayer
 # Kill blood starts this far (seconds) into its flight, so it's already
 # spread out behind the enemy when the "your move" freeze holds it.
 const BLOOD_BURST := 0.35
@@ -120,6 +122,13 @@ func _ready() -> void:
 	_death_sound = AudioStreamPlayer.new()
 	_death_sound.stream = preload("res://assets/sounds/death_slash.ogg")
 	add_child(_death_sound)
+	_level_up_sound = AudioStreamPlayer.new()
+	_level_up_sound.stream = preload("res://assets/sounds/level_up.ogg")
+	add_child(_level_up_sound)
+	_perfect_sound = AudioStreamPlayer.new()
+	_perfect_sound.stream = preload("res://assets/sounds/perfect.ogg")
+	_perfect_sound.volume_db = 4.0   # a quieter recording than the others
+	add_child(_perfect_sound)
 	if not OS.get_cmdline_user_args().is_empty():
 		debug = DebugTools.new()
 		debug.main = self
@@ -667,6 +676,11 @@ func _end_chain(grade: String, word: String = "") -> void:
 		if grade == "PERFECT":
 			perfect_chains += 1
 		hud.show_chain_result(grade, chain, old_bar, old_size, old_level)
+		# One jingle at a time: a level-up outranks the PERFECT that earned it.
+		if levelled:
+			_level_up_sound.play()
+		elif grade == "PERFECT":
+			_perfect_sound.play()
 		if grade != "SINGLE":
 			var above := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row) - Rules.TILE * 1.4)
 			if player.row == Rules.Row.CEILING:
