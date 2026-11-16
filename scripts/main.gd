@@ -63,6 +63,7 @@ var _kill_sound: AudioStreamPlayer
 var _death_sound: AudioStreamPlayer
 var _level_up_sound: AudioStreamPlayer
 var _perfect_sound: AudioStreamPlayer
+var _dropped_sound: AudioStreamPlayer
 var _cut_pending := false
 # Kill blood starts this far (seconds) into its flight, so it's already
 # spread out behind the enemy when the "your move" freeze holds it.
@@ -129,6 +130,10 @@ func _ready() -> void:
 	_perfect_sound = AudioStreamPlayer.new()
 	_perfect_sound.stream = preload("res://assets/sounds/perfect.ogg")
 	add_child(_perfect_sound)
+	_dropped_sound = AudioStreamPlayer.new()
+	_dropped_sound.stream = preload("res://assets/sounds/dropped.ogg")
+	_dropped_sound.volume_db = 3.0   # a quiet recording
+	add_child(_dropped_sound)
 	if not OS.get_cmdline_user_args().is_empty():
 		debug = DebugTools.new()
 		debug.main = self
@@ -701,6 +706,8 @@ func _end_chain(grade: String, word: String = "") -> void:
 			# The saber cut with a shimmer: pitched like the cut it replaces.
 			_perfect_sound.pitch_scale = _kill_sound.pitch_scale
 			_play_jingle(_perfect_sound)
+		elif grade == "DROPPED":
+			_dropped_sound.play()
 		if grade != "SINGLE":
 			var above := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row) - Rules.TILE * 1.4)
 			if player.row == Rules.Row.CEILING:
