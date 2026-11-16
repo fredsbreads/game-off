@@ -12,7 +12,7 @@ enum State { READY, PLAYING, DYING, OVER }
 const START_X := 3.0
 # Testing: start every run at this level (1 = normal). E.g. 9 to meet the
 # knight straight away. Put it back to 1 before shipping.
-const START_LEVEL := 1
+const START_LEVEL := 9
 # Every kill gets a short hit freeze (invert flash).
 const KILL_HIT := 0.06
 # If another enemy is under any marker where you land, the
