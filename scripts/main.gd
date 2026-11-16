@@ -77,6 +77,8 @@ var _clash_sound: AudioStreamPlayer
 var _warn_sound: AudioStreamPlayer   # a knight winding up to strike
 const KILL_STRIKE_FPS := 5.0         # his teleport onto her lingers (normal: 18)
 const WARN_PEAK := 0.33              # seconds into it where the swish peaks
+var _clashed := false                # this teleport hit a knight who blinked away
+const CLASH_PAUSE_FACTOR := 2.0      # the freeze after a clash is this much longer
 var _drop_pounce := false            # a chain just dropped: check for a knight across
 var _cut_pending := false
 var _pause_length := KILL_PAUSE   # this freeze's full length (for the marker fill)
@@ -666,11 +668,14 @@ func _teleport(move: int) -> void:
 		_drop_pounce = false   # a press that waited out the freeze hit after all
 		player.strike()
 		_play_strike(true)
+		_clashed = false
 		for e in hit:
 			_kill(e)
 		var targets := _chain_targets(to_x, to_row)
 		_pause_is_chain = not targets.is_empty()
 		_pause_length = maxf(KILL_PAUSE - KILL_PAUSE_STEP * (chain - 1), KILL_PAUSE_FLOOR)
+		if _clashed:
+			_pause_length *= CLASH_PAUSE_FACTOR   # you can't see where he'll blink to
 		_hitstop = _pause_length if _pause_is_chain else KILL_HIT
 		_pause_elapsed = 0.0
 		if _pause_is_chain:
@@ -856,6 +861,7 @@ func _kill(e: Enemy) -> void:
 ## A hit on a knight that doesn't finish him: swords clash, he flashes and
 ## blinks (green lightning) to his next spot, under one of her markers.
 func _clash(knight: Knight) -> void:
+	_clashed = true
 	var from := knight.blink()
 	fx.strike(from, Vector2(knight.tile_x * Rules.TILE, Rules.body_center_y(knight.row)), true)
 	fx.zap(from, 0, Vector2.ZERO, Vector2(10, 20), 6)
