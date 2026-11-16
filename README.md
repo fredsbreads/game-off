@@ -180,7 +180,7 @@ scripts/
   player.gd             player + landing markers (drawing only; main.gd moves it)
   enemy.gd              enemy sprite (idle, death animation)
   knight.gd             the knight: several hits, blinks between landing spots
-  palette.gd            her colour: red, pink from level 10
+  palette.gd            her colour: red, her reward colour with a flawless streak
   camera_rig.gd         follow with fast catch-up after teleports, screen shake
   fx.gd                 trails, rings, slashes, particles, floating text
   hud.gd                progression bar, messages, rotate-device overlay, flash
@@ -227,5 +227,5 @@ died in. Other options are listed at the top of `scripts/debug_tools.gd`
 
 The start screen has a **Start at level 1 / 9** button (tap it, or press L,
 1 or 9): 9 goes straight to the knight. The pause screen has a **Colour**
-button that steps through her level-10 colours. Both choices are saved
+button that steps through her reward colours. Both choices are saved
 between visits (`user://save.cfg`).
