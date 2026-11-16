@@ -594,7 +594,6 @@ func _teleport(move: int) -> void:
 
 	if hit.is_empty():
 		player.cooldown = Rules.cooldown_frames()
-		fx.landing_ring(to)
 		if _chain_awaiting:
 			_end_chain("DROPPED", "MISSED")   # teleported into empty space while an enemy was in reach
 		# A teleport that hits nothing (a miss too): the full lightning strike.

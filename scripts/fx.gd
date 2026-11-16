@@ -1,15 +1,13 @@
 class_name Fx
 extends Node2D
-## Short-lived visual effects: teleport trails, landing rings, slashes,
+## Short-lived visual effects: lightning, slashes,
 ## particles and floating text. Runs on real time; main.gd sets `frozen`
 ## to hold them mid-air during the kill pause.
 
 const GRAVITY := 900.0
 # Her effects are all reds, each a slightly different one so they don't merge
-# into one red blur: the landing ring darker, the
-# slash streak pale, the sparks a mix. (The teleport
+# into one red blur: the slash streak pale, the sparks a mix. (The teleport
 # itself is sprite lightning: see bolt().)
-const LANDING_RING_COLOR := Color(0.75, 0.12, 0.18, 0.85)
 const SLASH_COLOR := Color(1.0, 0.62, 0.6)
 const KILL_COLORS := [Color(1.0, 0.3, 0.28), Color(0.85, 0.08, 0.14), Color(1.0, 0.55, 0.5)]
 const BLOOD_COLORS := [Color(0.9, 0.08, 0.1), Color(1.0, 0.18, 0.15), Color(0.7, 0.03, 0.06)]
@@ -68,10 +66,6 @@ func _remove(i: int) -> void:
 	if node:
 		node.queue_free()
 	_items.remove_at(i)
-func landing_ring(pos: Vector2) -> void:
-	_ring(pos, 10.0, 46.0, 0.25, 3.0, LANDING_RING_COLOR)
-
-
 ## Bigger and brighter the longer the chain.
 func kill_burst(pos: Vector2, combo: int) -> void:
 	var c := mini(combo, 8)
@@ -143,10 +137,6 @@ func text(pos: Vector2, value: String, size: int, color: Color, speed := 0.0, li
 	_items.append({"kind": "text", "t": 0.0, "life": life, "pos": pos, "text": value, "size": size, "color": color, "speed": speed, "rise": rise})
 
 
-func _ring(pos: Vector2, r0: float, r1: float, life: float, width: float, color: Color) -> void:
-	_items.append({"kind": "ring", "t": 0.0, "life": life, "pos": pos, "r0": r0, "r1": r1, "width": width, "color": color})
-
-
 func _process(real_delta: float) -> void:
 	# Lightning animations run on real time, frozen or not.
 	for i in range(_items.size() - 1, -1, -1):
@@ -200,11 +190,6 @@ func _draw() -> void:
 		var k: float = it["t"] / it["life"]
 		var fade := 1.0 - k
 		match it["kind"]:
-			"ring":
-				var r := lerpf(it["r0"], it["r1"], 1.0 - pow(1.0 - k, 3.0))
-				var col: Color = it["color"]
-				col.a *= fade
-				draw_arc(it["pos"], r, 0.0, TAU, 40, col, it["width"])
 			"slash":
 				var dir := Vector2(1, -0.8).normalized()
 				var half: float = it["len"] / 2.0
