@@ -86,8 +86,6 @@ const CLASH_BEAT := 0.12
 const CLASH_REAPPEAR := 0.0  # he shows at his new spot this soon (the clash plays on behind)
 const CLASH_ZOOM := 0.1   # how much closer the clash zooms at its peak (0.1 = 10 %)
 const CLASH_FLASH := Color(1, 1, 1, 0.22)
-const CLASH_STRIKE_FPS := 36.0   # his blink lightning: quick, so he's seen at once
-const CLASH_STRIKE_HOLD := 0.4   # ...then it stays up this long before it fizzles out
 var _pause_min := KILL_PAUSE_MIN
 var _drop_pounce := false            # a chain just dropped: check for a knight across
 var _cut_pending := false
@@ -914,7 +912,6 @@ func _clash(knight: Knight) -> void:
 	_clashed = true
 	player.hold_slash(CLASH_BEAT)   # her big slash stays up through the beat
 	var from := knight.blink(CLASH_BEAT, player.last_pose(), CLASH_REAPPEAR)
-	fx.zap(from, 0, Vector2.ZERO, Vector2(10, 20), 6)
 	_clash_sound.pitch_scale = _jitter()
 	_clash_sound.play()
 	cam.shake(0.3, 16.0)
@@ -927,8 +924,7 @@ func _clash(knight: Knight) -> void:
 	var to := Vector2(knight.tile_x * Rules.TILE, Rules.body_center_y(knight.row))
 	var reappear := func() -> void:
 		if is_instance_valid(knight) and state == State.PLAYING:
-			fx.strike(from, to, true, CLASH_STRIKE_FPS, CLASH_STRIKE_HOLD)
-			fx.zap(to, 0, Vector2.ZERO, Vector2(10, 20), 5)
+			fx.strike(from, to, true)   # exactly her teleport's strike, in green
 	if CLASH_REAPPEAR > 0.0:
 		get_tree().create_timer(CLASH_REAPPEAR).timeout.connect(reappear)
 	else:
