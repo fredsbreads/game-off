@@ -40,12 +40,7 @@ func _init() -> void:
 		var bad := 0
 		for i in SAMPLES_PER_LEVEL:
 			var chain := Patterns.generate(level, rng)
-			var n: int = chain["enemies"].size()
-			# Spots, not enemies: a knight takes several.
-			n = 0
-			for j in chain["knights"].size():
-				if chain["knights"][j] < 0 or j == 0 or chain["knights"][j - 1] != chain["knights"][j]:
-					n += 1
+			var n: int = chain["enemies"].size()   # spots: a knight's every hit counts
 			if n < r.x or n > r.y or not Patterns.is_chainable(chain["enemies"], chain["knights"]):
 				bad += 1
 				print("  FAIL  L%d  generated %s" % [level, chain["steps"]])

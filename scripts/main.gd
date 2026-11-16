@@ -580,8 +580,14 @@ func _step() -> void:
 		# A press waiting for a possible diagonal: she's already committed to
 		# teleporting, so contact doesn't count until it fires.
 		if not (_press_x_set and player.cooldown == 0):
-			touching[0].attack()   # he cuts her down
-			_die("hit", touching[0])
+			var k := touching[0] as Knight
+			if k:
+				k.slash()   # the same killing blow as when he teleports to her
+				_warn_sound.play(WARN_PEAK)
+				_die("knight", k)
+			else:
+				touching[0].attack()   # he cuts her down
+				_die("hit", touching[0])
 			return
 
 	# 4. a knight she ran on past across the rows, or one she's fighting

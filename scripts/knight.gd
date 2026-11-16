@@ -153,19 +153,23 @@ func calm() -> void:
 ## Returns the spot he left (pixels, body centre).
 func pounce(her_x: float, her_row: int) -> Vector2:
 	var from := Vector2(tile_x * Rules.TILE, Rules.body_center_y(row))
-	threat = false
 	tile_x = her_x + Rules.HIT_RADIUS * 0.9
 	row = her_row
 	_place()
-	# The killing blow: "Attack2" on its big arc (that's what the death freeze
-	# holds), outlined green.
+	slash()
+	return from
+
+
+## The killing blow (she ran into him, or he teleported to her): "Attack2" on
+## its big arc (that's what the death freeze holds), outlined green.
+func slash() -> void:
+	threat = false
 	if _sprite:
 		_sprite.play("kill")
 		_sprite.frame = KILL_SLASH_FRAME
 		_material.set_shader_parameter("outline_color", SLASH_OUTLINE)
 		_material.set_shader_parameter("glint", 1.0)
 	_slashing = true
-	return from
 
 
 func _process(delta: float) -> void:

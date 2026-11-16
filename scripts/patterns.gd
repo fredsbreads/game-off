@@ -156,7 +156,8 @@ static func knight_chance(level: int) -> float:
 ## A random chain for a generated level: a length from chain_length_range,
 ## each step F, V or D with equal odds. Knights (see knight_chance; in level
 ## 9 the last enemy always is one) take KNIGHT_HITS_MIN-MAX spots: where he
-## starts, then one blink per hit to a random landing spot.
+## starts, then one blink per hit to a random landing spot. The length counts
+## spots (every hit), so knights don't make chains any longer.
 ## Returns {enemies, knights, steps, name}: `knights` has one entry per spot,
 ## -1 for a plain enemy or the knight's number (his spots are consecutive).
 ## Chainable by construction: every step puts the next spot exactly under a
@@ -167,10 +168,23 @@ static func generate(level: int, rng: RandomNumberGenerator) -> Dictionary:
 	var chance := knight_chance(level)
 	for _attempt in 40:
 		var n := rng.randi_range(lengths.x, lengths.y)
-		var is_knight: Array[bool] = []
-		for i in n:
-			is_knight.append(rng.randf() < chance or (level == KNIGHT_DEBUT_LEVEL and i == n - 1))
-		var built := _build(is_knight, rng)
+		# Spend n spots: a plain enemy takes one, a knight his hits.
+		var hits: Array[int] = []   # per enemy: 1, or a knight's hits
+		var last_knight := 0
+		if level == KNIGHT_DEBUT_LEVEL:
+			last_knight = rng.randi_range(Rules.KNIGHT_HITS_MIN, Rules.KNIGHT_HITS_MAX)
+		var left := n - last_knight
+		while left > 0:
+			if left >= Rules.KNIGHT_HITS_MIN and rng.randf() < chance:
+				var h := mini(rng.randi_range(Rules.KNIGHT_HITS_MIN, Rules.KNIGHT_HITS_MAX), left)
+				hits.append(h)
+				left -= h
+			else:
+				hits.append(1)
+				left -= 1
+		if last_knight > 0:
+			hits.append(last_knight)
+		var built := _build(hits, rng)
 		if not built.is_empty():
 			built["name"] = "generated L%d: %s" % [level, built["steps"]]
 			return built
@@ -185,34 +199,34 @@ static func generate(level: int, rng: RandomNumberGenerator) -> Dictionary:
 ## A lone knight (the start of level 9).
 static func knight_alone(rng: RandomNumberGenerator) -> Dictionary:
 	for _attempt in 40:
-		var built := _build([true], rng)
+		var built := _build([rng.randi_range(Rules.KNIGHT_HITS_MIN, Rules.KNIGHT_HITS_MAX)], rng)
 		if not built.is_empty():
 			built["name"] = "knight alone: %s" % built["steps"]
 			return built
 	return {}
 
 
-## Lays out one chain: `is_knight` says which enemies are knights. Returns {}
-## if the random steps put two things in one spot.
-static func _build(is_knight: Array[bool], rng: RandomNumberGenerator) -> Dictionary:
+## Lays out one chain: `hits` has one entry per enemy, 1 for a plain enemy or
+## a knight's number of hits. Returns {} if the random steps put two things in
+## one spot.
+static func _build(hits: Array[int], rng: RandomNumberGenerator) -> Dictionary:
 	var enemies: Array[Vector2] = []
 	var knights: Array[int] = []
 	var tokens: PackedStringArray = []
 	var group := 0
-	for i in is_knight.size():
+	for i in hits.size():
 		if i > 0:
 			var token: String = GENERATED_STEPS[rng.randi_range(0, GENERATED_STEPS.size() - 1)]
 			enemies.append(_apply(enemies.back(), token))
 			tokens.append(token)
 		else:
 			enemies.append(Vector2(0, 0))
-		if not is_knight[i]:
+		if hits[i] <= 1:
 			knights.append(-1)
 			continue
 		knights.append(group)
 		tokens.append("K(")
-		var hits := rng.randi_range(Rules.KNIGHT_HITS_MIN, Rules.KNIGHT_HITS_MAX)
-		for h in hits - 1:
+		for h in hits[i] - 1:
 			var blink: String = KNIGHT_STEPS[rng.randi_range(0, KNIGHT_STEPS.size() - 1)]
 			enemies.append(_apply(enemies.back(), blink))
 			knights.append(group)

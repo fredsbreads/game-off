@@ -70,7 +70,9 @@ run upside down.
   within a teleport (6 tiles) of you.
   Level 9 opens with a knight alone and every chain in it ends with one, so
   the level-up into 10 is always on a knight. From level 10 any enemy in a
-  chain is a knight with a 5% chance, +3% per level.
+  chain is a knight with a 5% chance, +3% per level. A chain's length counts
+  every hit (a knight's 3-4 hits use up 3-4 of it), so knights don't make
+  chains longer.
 - Score, distance and the kill counter are tracked but **not shown** for now
   (kills, level reached and the Flawless Streak (No Survivors): the most
   kills in a row, knight hits included, without letting an enemy get away,
