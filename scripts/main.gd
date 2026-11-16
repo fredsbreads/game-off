@@ -82,7 +82,7 @@ const CLASH_PAUSE_FACTOR := 2.0      # the freeze after a clash is this much lon
 # A clash gets its moment: both hold still mid-swing for this long (a press
 # can't skip it), with a zoom and a shake, before he blinks away.
 const CLASH_BEAT := 0.3
-const CLASH_ZOOM := 0.38
+const CLASH_ZOOM := 0.32
 const CLASH_FLASH := Color(1, 1, 1, 0.22)
 const CLASH_STRIKE_FPS := 36.0   # his blink lightning: quick, so he's seen at once
 var _pause_min := KILL_PAUSE_MIN
@@ -908,7 +908,7 @@ func _clash(knight: Knight) -> void:
 	_clash_sound.play()
 	cam.shake(0.3, 16.0)
 	# The zoom eases out only after he's reappeared and his lightning is done.
-	cam.punch((from + Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row))) * 0.5, CLASH_ZOOM, CLASH_BEAT + 0.35)
+	cam.punch((from + Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row))) * 0.5, CLASH_ZOOM, CLASH_BEAT + 0.15)
 	hud.flash(CLASH_FLASH, 0.12)
 	# Then he blinks away: he's there at once, with a quick green strike (his
 	# swing stays behind as a fading afterimage, see Knight.blink).
