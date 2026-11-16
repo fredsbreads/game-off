@@ -654,6 +654,16 @@ func _kill(e: Enemy) -> void:
 		fx.text(pos - Vector2(0, 60), "+%d" % points, 22 + 2 * c, Color(1, 0.95, 0.8))
 
 
+
+const JINGLE_DELAY := 0.25   # seconds after the chain's last kill
+
+
+func _play_jingle(sound: AudioStreamPlayer) -> void:
+	await get_tree().create_timer(JINGLE_DELAY, false).timeout
+	_perfect_sound.stop()
+	_level_up_sound.stop()
+	sound.play()
+
 const GRADE_COLORS := {
 	"PERFECT": Color(1.0, 0.85, 0.3), "CLEAN": Color(1, 1, 1),
 	"DROPPED": Color(0.65, 0.65, 0.7), "SINGLE": Color(1, 1, 1),
@@ -676,10 +686,11 @@ func _end_chain(grade: String, word: String = "") -> void:
 			perfect_chains += 1
 		hud.show_chain_result(grade, chain, old_bar, old_size, old_level)
 		# One jingle at a time: a level-up outranks the PERFECT that earned it.
+		# It comes a beat after the last saber cut, so the two don't blur.
 		if levelled:
-			_level_up_sound.play()
+			_play_jingle(_level_up_sound)
 		elif grade == "PERFECT":
-			_perfect_sound.play()
+			_play_jingle(_perfect_sound)
 		if grade != "SINGLE":
 			var above := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row) - Rules.TILE * 1.4)
 			if player.row == Rules.Row.CEILING:
