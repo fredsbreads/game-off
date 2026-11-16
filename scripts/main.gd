@@ -95,6 +95,7 @@ const FINISHER_STRIKE_FLASH := Color(1, 1, 1, 0.35)
 const FINISHER_BOLT_FPS := 4.5
 const FINISHER_BOLT_SIZE := Vector2(1.2, 1.4)
 const BIG_STRIKE_BURST_Y := 225.0   # pixels down its frame where the ground burst is
+const BIG_STRIKE_FULL_FRAME := 2     # its frame with the whole bolt and the sparks
 const FINISHER_SWEEP_AFTER := 0.3  # on the last pose, this long before the colour sweeps
 const FINISHER_SWEEP_TIME := 0.9   # pink sweeps across her, right to left, over this long
 const FINISHER_HOLD := 0.8         # after the level-up, the freeze frame holds this long
@@ -826,7 +827,8 @@ func _finisher_strike(k: Knight, to_x: float, face: float, pose: int, grade: Str
 	# Her slash stays up until the next strike (the last one: through the sweep).
 	player.hold_slash(FINISHER_HOP if grade == "" else FINISHER_SWEEP_AFTER + FINISHER_SWEEP_TIME + FINISHER_HOLD)
 	_play_strike(true)
-	_finisher_bolt()
+	# The last pose's bolt stays up until she's finished turning pink.
+	_finisher_bolt(0.0 if grade == "" else FINISHER_SWEEP_AFTER + FINISHER_SWEEP_TIME)
 	hud.flash(FINISHER_STRIKE_FLASH, 0.15)
 	var pos := Vector2(k.tile_x * Rules.TILE, Rules.body_center_y(k.row))
 	blood_fx.blood(pos, dir, 30, BLOOD_BURST, 1.0 if k.row == Rules.Row.CEILING else -1.0)
@@ -845,11 +847,14 @@ func _finisher_strike(k: Knight, to_x: float, face: float, pose: int, grade: Str
 
 ## A bolt straight down onto where she is (up from the floor when she's on the
 ## ceiling), its burst at her feet.
-func _finisher_bolt() -> void:
+## `hold`: seconds the bolt stays at full strength before it fades (the last
+## one stays up through her colour change).
+func _finisher_bolt(hold := 0.0) -> void:
 	var feet := Vector2(player.x * Rules.TILE, Rules.surface_y(player.row))
 	var up := -1.0 if player.row == Rules.Row.FLOOR else 1.0   # toward the other row
 	var centre := feet + Vector2(0, up * (BIG_STRIKE_BURST_Y - 128.0) * FINISHER_BOLT_SIZE.y)
-	fx.bolt(Fx.Bolt.BIG_STRIKE, centre, 0.0 if player.row == Rules.Row.FLOOR else PI, FINISHER_BOLT_SIZE, FINISHER_BOLT_FPS)
+	fx.bolt(Fx.Bolt.BIG_STRIKE, centre, 0.0 if player.row == Rules.Row.FLOOR else PI, FINISHER_BOLT_SIZE, FINISHER_BOLT_FPS,
+		0, false, BIG_STRIKE_FULL_FRAME if hold > 0.0 else -1, hold)
 
 
 ## Where she is on screen, as screen x fractions (left, right): the pink
