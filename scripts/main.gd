@@ -16,6 +16,10 @@ const KILL_HIT := 0.06
 # freeze extends into a "your move" pause: grey world, lit markers, zoom.
 # The camera keeps catching up during it, so the screen settles first.
 const KILL_PAUSE := 0.7
+# ...shrinking by this much per kill in the chain so far (resets with the
+# chain), down to KILL_PAUSE_FLOOR.
+const KILL_PAUSE_STEP := 0.01
+const KILL_PAUSE_FLOOR := 0.4
 # Pressing during the pause ends it (after this minimum, to keep the hit's
 # impact) and the press becomes your next teleport.
 const KILL_PAUSE_MIN := 0.05
@@ -66,6 +70,7 @@ var _perfect_sound: AudioStreamPlayer
 var _dropped_sound: AudioStreamPlayer
 var _teleport_sound: AudioStreamPlayer
 var _cut_pending := false
+var _pause_length := KILL_PAUSE   # this freeze's full length (for the marker fill)
 # Kill blood starts this far (seconds) into its flight, so it's already
 # spread out behind the enemy when the "your move" freeze holds it.
 const BLOOD_BURST := 0.35
@@ -459,7 +464,7 @@ func _update_pause_visuals() -> void:
 	fx.frozen = paused and _pause_elapsed >= FX_FREEZE_AFTER
 	blood_fx.frozen = fx.frozen
 	# Lit markers drain during the "your move" freeze as the time runs out.
-	player.marker_fill = clampf(_hitstop / KILL_PAUSE, 0.0, 1.0) if chain_pause else 1.0
+	player.marker_fill = clampf(_hitstop / _pause_length, 0.0, 1.0) if chain_pause else 1.0
 	player.target_x = [_slash_target_x(Rules.Move.FORWARD), _slash_target_x(Rules.Move.VERTICAL),
 		_slash_target_x(Rules.Move.DIAGONAL)]
 	# Every enemy a teleport would slash right now gets a red glint.
@@ -601,7 +606,8 @@ func _teleport(move: int) -> void:
 			_kill(e)
 		var targets := _chain_targets(to_x, to_row)
 		_pause_is_chain = not targets.is_empty()
-		_hitstop = KILL_PAUSE if _pause_is_chain else KILL_HIT
+		_pause_length = maxf(KILL_PAUSE - KILL_PAUSE_STEP * (chain - 1), KILL_PAUSE_FLOOR)
+		_hitstop = _pause_length if _pause_is_chain else KILL_HIT
 		_pause_elapsed = 0.0
 		if _pause_is_chain:
 			cam.punch(to)
