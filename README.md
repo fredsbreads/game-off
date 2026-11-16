@@ -81,8 +81,8 @@ A bar above the ceiling row fills as you chain kills; filling it levels you up.
   while the other half crumbles off. (Colours: `PROGRESS_*` at the top of `scripts/hud.gd`.)
 - No overflow. You level up only when a PERFECT or CLEAN chain ends with the
   bar full.
-- Bar size = 3 x the average chain length at that level (so two perfect
-  chains fill it). See `scripts/progression.gd`.
+- Bar size = 2 x the average chain length at that level (so two clean
+  chains fill it; one perfect fills three quarters). See `scripts/progression.gd`.
 - Levels 1-3 use the hand-made patterns; each level adds new ones, which show
   up twice as often as the previous level's (older ones drop out). From level
   4, chains are generated: x-2 to x+2 enemies long at level x (at least 3),
@@ -124,7 +124,7 @@ scripts/
   enemy.gd              enemy sprite (idle, death animation)
   camera_rig.gd         follow with fast catch-up after teleports, screen shake
   fx.gd                 trails, rings, slashes, particles, floating text
-  hud.gd                progression bar, level-up banner, messages, rotate-device overlay, flash
+  hud.gd                progression bar, messages, rotate-device overlay, flash
   debug_tools.gd        bot / soak test / screenshots (only with command-line args)
 tools/validate_patterns.gd
 ```

@@ -19,9 +19,10 @@ extends RefCounted
 ## can fill it, but the level-up then waits for the next good ending.
 ##
 ## Bar size at level x = CHAINS_PER_LEVEL x the average chain length at that
-## level, so two perfect chains (or three clean ones) fill it.
+## level, so two clean chains fill it, or a perfect plus a bit more (one
+## perfect is three quarters of it; two overfill it).
 
-const CHAINS_PER_LEVEL := 3.0
+const CHAINS_PER_LEVEL := 2.0
 const MULTIPLIER := {"PERFECT": 1.5, "CLEAN": 1.0, "DROPPED": 0.5, "SINGLE": 1.0}
 
 var level := 1
