@@ -11,7 +11,11 @@ const GRAVITY := 900.0
 const SLASH_COLOR := Color(1.0, 0.62, 0.6)
 const KILL_COLORS := [Color(1.0, 0.3, 0.28), Color(0.85, 0.08, 0.14), Color(1.0, 0.55, 0.5)]
 const BLOOD_COLORS := [Color(0.9, 0.08, 0.1), Color(1.0, 0.18, 0.15), Color(0.7, 0.03, 0.06)]
-const STAIN_SECONDS := 4.0   # how long a drop of blood stays on the floor
+const BLOOD_FLIGHT_SECONDS := 3.0   # a drop gets this long to reach the floor
+# Blood on the floor stays until it scrolls off screen; past this many stains
+# the oldest go first (a safety cap, normally never reached).
+const MAX_STAINS := 1500
+var _stains := 0
 # Lightning sprite strips (Frostwindz "Pixel Art Skill Animations - Lightning",
 # recoloured red), each one row of equal frames.
 enum Bolt { THIN, THICK, STRIKE, BIG_STRIKE, RING, SPARKS }
@@ -110,7 +114,7 @@ func blood(pos: Vector2, dir_x: float, amount: int = 24, burst: float = 0.0, dir
 		var head_start := randf_range(0.4, 1.0) * burst
 		p += vel * head_start + Vector2(0, 0.5 * GRAVITY * head_start * head_start)
 		vel.y += GRAVITY * head_start
-		_items.append({"kind": "blood", "t": 0.0, "life": 1.5, "pos": p, "vel": vel,
+		_items.append({"kind": "blood", "t": 0.0, "life": BLOOD_FLIGHT_SECONDS, "pos": p, "vel": vel,
 			"size": randf_range(4.0, 10.0),
 			"color": BLOOD_COLORS[i % BLOOD_COLORS.size()]})
 
@@ -172,6 +176,11 @@ func _process(real_delta: float) -> void:
 		queue_redraw()   # effects added while frozen still need drawing once
 		return
 	var delta := real_delta * time_scale
+	var screen_left := (get_canvas_transform().affine_inverse() * Vector2.ZERO).x
+	_stains = 0
+	for it in _items:
+		if it["kind"] == "stain":
+			_stains += 1
 	for i in range(_items.size() - 1, -1, -1):
 		var it := _items[i]
 		if it["kind"] == "anim":
@@ -192,9 +201,22 @@ func _process(real_delta: float) -> void:
 			it["kind"] = "stain"
 			it["pos"].y = Rules.GROUND_Y
 			it["t"] = 0.0
-			it["life"] = STAIN_SECONDS
-		if it["t"] >= it["life"]:
+			_stains += 1
+		if it["kind"] == "stain":
+			# Stains stay until they've scrolled off the left of the screen.
+			if it["pos"].x < screen_left - 64.0:
+				_remove(i)
+				_stains -= 1
+		elif it["t"] >= it["life"]:
 			_remove(i)
+	# Safety cap: the oldest stains go first (items are oldest-first).
+	var oldest := 0
+	while _stains > MAX_STAINS and oldest < _items.size():
+		if _items[oldest]["kind"] == "stain":
+			_remove(oldest)
+			_stains -= 1
+		else:
+			oldest += 1
 	queue_redraw()
 
 
@@ -218,8 +240,7 @@ func _draw() -> void:
 				var s: float = it["size"]
 				draw_rect(Rect2(it["pos"] - Vector2(s, s) * 0.5, Vector2(s, s)), it["color"])
 			"stain":
-				var col: Color = it["color"]
-				col.a = minf(1.0, fade * 3.0)   # fades out over its last third
+				var col: Color = it["color"]   # stays until it scrolls off screen
 				var s: float = it["size"]
 				draw_rect(Rect2(it["pos"] - Vector2(s, 2.0), Vector2(s * 2.0, 3.0)), col)
 			"particle":
