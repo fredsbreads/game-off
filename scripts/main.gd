@@ -698,6 +698,8 @@ func _end_chain(grade: String, word: String = "") -> void:
 		if levelled:
 			_play_jingle(_level_up_sound)
 		elif grade == "PERFECT":
+			# The saber cut with a shimmer: pitched like the cut it replaces.
+			_perfect_sound.pitch_scale = _kill_sound.pitch_scale
 			_play_jingle(_perfect_sound)
 		if grade != "SINGLE":
 			var above := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row) - Rules.TILE * 1.4)
