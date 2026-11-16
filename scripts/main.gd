@@ -126,6 +126,7 @@ func _ready() -> void:
 	_kill_sound = AudioStreamPlayer.new()
 	_kill_sound.stream = preload("res://assets/sounds/saber_cut.ogg")
 	_kill_sound.max_polyphony = 6   # chained kills overlap
+	_kill_sound.volume_db = KILL_CUT_DB
 	add_child(_kill_sound)
 	_death_sound = AudioStreamPlayer.new()
 	_death_sound.stream = preload("res://assets/sounds/death_slash.ogg")
@@ -657,7 +658,8 @@ func _bot_acts_in_pause() -> void:
 const STRIKE_MOVE := preload("res://assets/sounds/strike_16.ogg")
 const STRIKE_KILL := preload("res://assets/sounds/strike_13_short.ogg")
 const STRIKE_DB := 0.0
-const STRIKE_UNDER_CUT_DB := -5.0
+const STRIKE_UNDER_CUT_DB := -7.0
+const KILL_CUT_DB := -6.0   # the saber cut on a kill (the crack above sits just under it)
 # Every sound that repeats a lot gets a small random pitch offset, so repeats
 # don't sound identical. PERFECT and level-up sit a step above the plain cut.
 const PITCH_JITTER := 0.04
