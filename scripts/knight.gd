@@ -32,12 +32,17 @@ const KILL_BODY_FROM := {3: 4}
 # frames from the swing on, the frame held through the clash beat, and
 # frame -> frame his body is drawn from (see KILL_BODY_FROM).
 const CLASH_SWINGS := [
-	{"sheet": K_ATTACK, "frames": [2, 3, 4, 5, 6], "hold": 3, "body_from": {3: 5, 4: 5}, "gap": 1.3},
-	# Attack2 lunges: drawn further back so he doesn't land on top of her.
-	{"sheet": K_ATTACK2, "frames": [2, 3, 4, 5, 6], "hold": 3, "body_from": {3: 4}, "gap": 2.6},
+	{"sheet": K_ATTACK, "frames": [2, 3, 4, 5, 6], "hold": 3, "body_from": {3: 5, 4: 5}},
+	{"sheet": K_ATTACK2, "frames": [2, 3, 4, 5, 6], "hold": 3, "body_from": {3: 4}},
 ]
-## Testing only: always clash with this swing (0 or 1; -1 = random).
-static var force_swing := -1
+# Which of his swings answers each of her three strike poses, and how far
+# (tiles) past his real spot it's drawn so the two read as a clash: her 1 vs
+# his 1, her 2 vs his 2 (his lunge, so further back), her 3 vs his 1.
+const CLASH_BY_POSE := [
+	{"swing": 0, "gap": 1.3 + 1.0 / 3.0},
+	{"swing": 1, "gap": 2.6 + 1.0},
+	{"swing": 0, "gap": 1.3 + 1.0 / 3.0},
+]
 const KILL_DISTANCE := 2.6          # tiles ahead of her he swings his killing blow from
 const CLASH_TIME := 0.32            # seconds his clash swing (left where he was) plays
 const SLASH_OUTLINE := Color(0.35, 1.0, 0.45, 1.0)   # green outline while he swings
@@ -124,9 +129,10 @@ func _build_knight_frames() -> SpriteFrames:
 ## Hit but not finished: leaves a white flash where he was and blinks to his
 ## next spot. Returns the spot he left (pixels, body centre).
 ## `beat`: seconds his swing holds where he was before he reappears.
-func blink(beat := 0.0) -> Vector2:
+## `her_pose`: the strike pose she hit him with (picks his swing).
+func blink(beat := 0.0, her_pose := 0) -> Vector2:
 	var from := Vector2(tile_x * Rules.TILE, Rules.body_center_y(row))
-	_leave_ghost(beat)
+	_leave_ghost(beat, her_pose)
 	if beat > 0.0:
 		visible = false
 		get_tree().create_timer(beat).timeout.connect(func() -> void:
@@ -145,10 +151,11 @@ func blink(beat := 0.0) -> Vector2:
 
 ## His clash swing, left where he was as he blinks away: "Attack1" from the
 ## swing on, with a green outline, then fading.
-func _leave_ghost(beat := 0.0) -> void:
+func _leave_ghost(beat := 0.0, her_pose := 0) -> void:
 	if get_parent() == null or _sprite == null:
 		return
-	var swing: Dictionary = CLASH_SWINGS[force_swing if force_swing >= 0 else randi() % CLASH_SWINGS.size()]
+	var answer: Dictionary = CLASH_BY_POSE[clampi(her_pose, 0, CLASH_BY_POSE.size() - 1)]
+	var swing: Dictionary = CLASH_SWINGS[answer["swing"]]
 	var frames: Array = swing["frames"]
 	var body_from: Dictionary = swing["body_from"]
 	var arc_tex := AtlasTexture.new()
@@ -162,7 +169,7 @@ func _leave_ghost(beat := 0.0) -> void:
 		var holder := Node2D.new()
 		# Further from her than his real spot (by the swing's "gap", tiles),
 		# so the clash reads as two swords meeting rather than one figure.
-		holder.position = position + Vector2(float(swing["gap"]) * Rules.TILE, 0)
+		holder.position = position + Vector2(float(answer["gap"]) * Rules.TILE, 0)
 		holder.scale = Vector2(K_SCALE, K_SCALE * scale.y)
 		var s := Sprite2D.new()
 		s.texture = arc_tex if part == 2 else body_tex

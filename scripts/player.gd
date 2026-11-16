@@ -220,6 +220,11 @@ func _play(anim: String) -> void:
 static var force_pose := -1
 
 
+## The strike pose she used last (0-2).
+func last_pose() -> int:
+	return _last_attack
+
+
 ## A clash: her full slash stays up this much longer.
 func hold_slash(seconds: float) -> void:
 	_arc_hold_extra = seconds

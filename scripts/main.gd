@@ -877,7 +877,7 @@ func _kill(e: Enemy) -> void:
 func _clash(knight: Knight) -> void:
 	_clashed = true
 	player.hold_slash(CLASH_BEAT)   # her big slash stays up through the beat
-	var from := knight.blink(CLASH_BEAT)
+	var from := knight.blink(CLASH_BEAT, player.last_pose())
 	fx.zap(from, 0, Vector2.ZERO, Vector2(10, 20), 6)
 	_clash_sound.pitch_scale = _jitter()
 	_clash_sound.play()
