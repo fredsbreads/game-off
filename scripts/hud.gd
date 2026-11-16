@@ -77,6 +77,9 @@ var _result := {}              # the chain being shown (empty = none)
 var _result_t := 0.0
 var _progress: Control
 var _progress_level: Label
+# The current flawless streak (kills in a row without letting one get away),
+# right of the bar.
+var _streak: Label
 var _p_bar := 0.0
 var _p_size := 1.0
 var _p_pending := 0.0
@@ -117,6 +120,9 @@ func _ready() -> void:
 	_progress_level = _label(20, Vector2.ZERO)
 	_progress_level.reparent(_progress)
 	_progress_level.add_theme_color_override("font_color", Color(1, 1, 1, 0.75))
+	_streak = _label(20, Vector2.ZERO)
+	_streak.reparent(_progress)
+	_streak.add_theme_color_override("font_color", Color(1, 1, 1, 0.75))
 
 	# Pause button, top-right. Drawn only; main.gd hit-tests taps against it
 	# (touch doesn't emulate mouse in this project, so Buttons won't see taps).
@@ -265,6 +271,12 @@ func set_progress(level: int, bar: float, bar_size: float, pending: int, ceiling
 	_progress_level.text = "LV %d" % level
 	_progress_level.position = Vector2(-_progress_level.get_minimum_size().x - 12.0, (PROGRESS_SIZE.y - _progress_level.get_minimum_size().y) / 2.0)
 	_progress.queue_redraw()
+
+
+## The current flawless streak, shown right of the bar.
+func set_streak(n: int) -> void:
+	_streak.text = "Streak %d" % n
+	_streak.position = Vector2(PROGRESS_SIZE.x + 12.0, (PROGRESS_SIZE.y - _streak.get_minimum_size().y) / 2.0)
 
 
 func hide_progress() -> void:

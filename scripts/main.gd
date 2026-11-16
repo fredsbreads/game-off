@@ -560,6 +560,7 @@ func _physics_process(delta: float) -> void:
 	# The real top-left of the view (a zoom can pan it left of cam.left()).
 	level.set_view(minf(cam.left(), cam.position.x), cam.shown_world_size())
 	hud.set_stats(score(), distance, kills, chain, 0.0)
+	hud.set_streak(sweep)   # the flawless streak so far
 	var to_screen := get_viewport_rect().size.x / (CameraRig.VIEW_TILES * Rules.TILE)
 	hud.set_progress(progression.level, progression.bar, progression.bar_size(), chain_points,
 		(Rules.CEILING_Y - cam.top()) * to_screen)
