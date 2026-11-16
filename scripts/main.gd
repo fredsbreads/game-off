@@ -78,10 +78,10 @@ var _warn_sound: AudioStreamPlayer   # a knight winding up to strike
 const KILL_STRIKE_FPS := 5.0         # his teleport onto her lingers (normal: 18)
 const WARN_PEAK := 0.33              # seconds into it where the swish peaks
 var _clashed := false                # this teleport hit a knight who blinked away
-const CLASH_PAUSE_FACTOR := 2.0      # the freeze after a clash is this much longer
+const CLASH_PAUSE_FACTOR := 1.0      # the freeze after a clash is this much longer
 # A clash gets its moment: both hold still mid-swing for this long (a press
 # can't skip it), with a zoom and a shake, before he blinks away.
-const CLASH_BEAT := 0.3
+const CLASH_BEAT := 0.2
 const CLASH_ZOOM := 0.32
 const CLASH_FLASH := Color(1, 1, 1, 0.22)
 const CLASH_STRIKE_FPS := 36.0   # his blink lightning: quick, so he's seen at once
