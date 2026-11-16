@@ -657,7 +657,7 @@ func _bot_acts_in_pause() -> void:
 # first crack, quieter, under the saber cut on a kill (the cut carries the hit).
 const STRIKE_MOVE := preload("res://assets/sounds/strike_16.ogg")
 const STRIKE_KILL := preload("res://assets/sounds/strike_13_short.ogg")
-const STRIKE_DB := 0.0
+const STRIKE_DB := -4.0
 const STRIKE_UNDER_CUT_DB := -7.0
 const KILL_CUT_DB := -6.0   # the saber cut on a kill (the crack above sits just under it)
 # Every sound that repeats a lot gets a small random pitch offset, so repeats
