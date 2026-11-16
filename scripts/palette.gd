@@ -6,8 +6,10 @@ extends RefCounted
 ## and blood is drawn without it, so it stays red.
 
 const PINK_FROM_LEVEL := 10
-const PINK_HUE := 0.925
-const PINK_SAT := 0.7
+# Magenta (option D of the mock-ups). Keep in step with accent.gdshaderinc.
+const PINK_HUE := 0.883
+const PINK_SAT := 0.9
+const PINK_VAL := 0.95
 const SHADER := preload("res://shaders/accent_sprite.gdshader")
 
 ## 0 = red, 1 = pink (in between while it changes over).
@@ -47,5 +49,5 @@ static func tint(c: Color) -> Color:
 		return c
 	var from_red := minf(c.h, 1.0 - c.h)
 	var w := (1.0 - smoothstep(0.05, 0.11, from_red)) * smoothstep(0.12, 0.3, c.s)
-	var p := Color.from_hsv(PINK_HUE, c.s * PINK_SAT, minf(1.0, c.v * 1.05 + 0.04), c.a)
+	var p := Color.from_hsv(PINK_HUE, c.s * PINK_SAT, minf(1.0, c.v * PINK_VAL), c.a)
 	return c.lerp(p, w * pink)
