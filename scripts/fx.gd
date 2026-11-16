@@ -35,21 +35,18 @@ var frozen := false
 ## Slow motion (the death moment): effects run at this speed.
 var time_scale := 1.0
 var bolt_alpha := 1.0   # lightning fades with her as she dissolves
-## While true (the whole kill pause), animations given a `hold` frame stop on
-## it, and play out the rest once it's false again.
-var hold_anims := false
 
 
 ## from / to are body centres in pixels.
 ## Plays one lightning animation once, on real time (it keeps going through
 ## the kill pause and slow motion). `pos` is the frame's centre.
 ## `first`: start at this frame (to play only the end of an animation).
-## `hold`: a frame to stop on while hold_anims is true (-1: never stops).
-func bolt(kind: int, pos: Vector2, angle := 0.0, size := Vector2.ONE, fps := 20.0, first := 0, green := false, hold := -1) -> void:
+## `hold`: a frame to stay on for `hold_time` seconds (-1: no stop).
+func bolt(kind: int, pos: Vector2, angle := 0.0, size := Vector2.ONE, fps := 20.0, first := 0, green := false, hold := -1, hold_time := 0.0) -> void:
 	var s := _bolt_sprite(kind, pos, angle, size, green)
 	s.frame = first
 	_items.append({"kind": "anim", "t": 0.0, "node": s, "fps": fps, "first": first,
-		"frames": BOLT_FRAMES[kind] - first, "hold": hold - first if hold >= 0 else -1})
+		"frames": BOLT_FRAMES[kind] - first, "hold": hold - first if hold >= 0 else -1, "hold_time": hold_time})
 
 
 ## A horizontal bolt (THIN or THICK) stretched to run from `a` to `b`.
@@ -59,14 +56,14 @@ func bolt_between(kind: int, a: Vector2, b: Vector2, thickness := 1.2, fps := 20
 
 
 ## A strike from `a` that bursts at `b` (the teleport look).
-## `hold`: stay on the full bolt (with its burst) while hold_anims is true.
-func strike(a: Vector2, b: Vector2, green := false, fps := 18.0, hold := false) -> void:
+## `hold`: seconds to stay on the full bolt (with its burst) before it fizzles.
+func strike(a: Vector2, b: Vector2, green := false, fps := 18.0, hold := 0.0) -> void:
 	var d := b - a
 	var sy := maxf(d.length(), 40.0) / 200.0
 	# The strike runs down its frame with the burst near the bottom: turn the
 	# frame's "down" to point along the line and put the burst on b.
 	var centre := b - d.normalized() * (STRIKE_BURST_Y - 128.0) * sy
-	bolt(Bolt.STRIKE, centre, d.angle() - PI / 2.0, Vector2(1.0, sy), fps, 0, green, STRIKE_FULL_FRAME if hold else -1)
+	bolt(Bolt.STRIKE, centre, d.angle() - PI / 2.0, Vector2(1.0, sy), fps, 0, green, STRIKE_FULL_FRAME if hold > 0.0 else -1, hold)
 
 
 const STRIKE_BURST_Y := 215.0   # pixels down the STRIKE frame where its burst is
@@ -167,9 +164,13 @@ func _process(real_delta: float) -> void:
 		var it := _items[i]
 		if it["kind"] == "anim":
 			it["t"] += real_delta
-			if hold_anims and it["hold"] >= 0:
-				it["t"] = minf(it["t"], (float(it["hold"]) + 0.5) / it["fps"])
-			var f := int(it["t"] * it["fps"])
+			var t: float = it["t"]
+			if it["hold"] >= 0:
+				# Stays on the hold frame for hold_time, then plays on.
+				var hold_at: float = (float(it["hold"]) + 0.5) / it["fps"]
+				if t > hold_at:
+					t = maxf(hold_at, t - it["hold_time"])
+			var f := int(t * it["fps"])
 			if f >= it["frames"]:
 				_remove(i)
 			else:
