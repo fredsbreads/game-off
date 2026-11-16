@@ -141,6 +141,7 @@ var _arc: Sprite2D
 var _arc_material: ShaderMaterial
 const ARC_NONE := -100.0
 var _arc_time := ARC_NONE  # seconds since the arc started (negative: waiting for her to land)
+var _arc_hold_extra := 0.0 # extra seconds the full slash holds (a clash)
 var _death_offset := Vector2.ZERO
 var _death_velocity := Vector2.ZERO
 var _sprite: AnimatedSprite2D
@@ -215,7 +216,13 @@ func _play(anim: String) -> void:
 
 ## A kill: show one of the strike poses (never the same one twice in a row).
 ## It stays through the kill freeze, then for ATTACK_HOLD of real play.
+## A clash: her full slash stays up this much longer.
+func hold_slash(seconds: float) -> void:
+	_arc_hold_extra = seconds
+
+
 func strike() -> void:
+	_arc_hold_extra = 0.0
 	var pick := randi() % ATTACK_COUNT
 	if pick == _last_attack:
 		pick = (pick + 1 + randi() % (ATTACK_COUNT - 1)) % ATTACK_COUNT
@@ -365,9 +372,11 @@ func _update_arc() -> void:
 		return
 	_arc.visible = true
 	_arc_material.set_shader_parameter("progress", clampf(_arc_time / ARC_SWEEP, 0.0, 1.0))
-	_arc_material.set_shader_parameter("fade", 1.0 - clampf((_arc_time - ARC_SWEEP - ARC_HOLD) / ARC_FADE, 0.0, 1.0))
-	if _arc_time >= ARC_SWEEP + ARC_HOLD + ARC_FADE:
+	var hold := ARC_HOLD + _arc_hold_extra
+	_arc_material.set_shader_parameter("fade", 1.0 - clampf((_arc_time - ARC_SWEEP - hold) / ARC_FADE, 0.0, 1.0))
+	if _arc_time >= ARC_SWEEP + hold + ARC_FADE:
 		_arc_time = ARC_NONE
+		_arc_hold_extra = 0.0
 		_arc.visible = false
 
 

@@ -26,6 +26,7 @@ const K_ATTACK_START := 2
 const KILL_SLASH_FRAME := 3         # "Attack2"'s big arc: held in the death freeze
 const KILL_DISTANCE := 2.6          # tiles ahead of her he swings his killing blow from
 const CLASH_FRAMES := [2, 3, 4, 5, 6]   # "Attack1" from the swing on
+const CLASH_GAP := 1.3             # tiles his clash swing is drawn further away than he stood
 const CLASH_HOLD_FRAME := 3        # his arc at its biggest: held through the clash beat
 const CLASH_TIME := 0.32            # seconds his clash swing (left where he was) plays
 const SLASH_OUTLINE := Color(0.35, 1.0, 0.45, 1.0)   # green outline while he swings
@@ -144,7 +145,9 @@ func _leave_ghost(beat := 0.0) -> void:
 	var parts: Array[Node2D] = []
 	for part in [2, 1]:
 		var holder := Node2D.new()
-		holder.position = position
+		# A step further from her than his real spot, so the clash reads as
+		# two swords meeting rather than one figure.
+		holder.position = position + Vector2(CLASH_GAP * Rules.TILE, 0)
 		holder.scale = Vector2(K_SCALE, K_SCALE * scale.y)
 		var s := Sprite2D.new()
 		s.texture = tex
