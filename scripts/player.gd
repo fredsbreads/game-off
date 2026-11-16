@@ -250,8 +250,8 @@ func teleport_afterimages(move: int, from_feet: Vector2, from_row: int) -> void:
 	var st := stance.create_tween()
 	st.tween_interval(SWORD_FLIGHT)
 	st.tween_callback(stance.queue_free)
-	# 2. ...the sword flies to where she lands (flipping halfway if she
-	# changes rows)...
+	# 2. ...the sword flies to where she lands, tip first (across: it keeps
+	# the way it left her hand, pointing where it's going)...
 	var centre: Vector2 = THROW_VERTICAL_SWORD_CENTRE if vertical else THROW_SWORD_CENTRE
 	var diagonal := move == Rules.Move.DIAGONAL
 	if diagonal:
@@ -273,10 +273,6 @@ func teleport_afterimages(move: int, from_feet: Vector2, from_row: int) -> void:
 	var ft := flying.create_tween()
 	ft.tween_property(flying, "global_position", end, SWORD_FLIGHT)
 	ft.tween_callback(flying.queue_free)
-	if row != from_row and not diagonal:
-		var flip := flying.create_tween()
-		flip.tween_interval(SWORD_FLIGHT * 0.5)
-		flip.tween_callback(func() -> void: flying.scale.y = -flying.scale.y)
 	# 3. ...and she appears there when it lands. The stance stays behind as a
 	# fading red outline.
 	_hidden_left = SWORD_FLIGHT
