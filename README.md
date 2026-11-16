@@ -94,7 +94,7 @@ A bar above the ceiling row fills as you chain kills; filling it levels you up.
 - Enemy: "Martial Hero 3" asset pack (CC0, see `assets/sprites/martial_hero/License.txt`).
 - Kill sound: "Quick saber cut" from Mixkit (Mixkit free sound effects licence), trimmed to `assets/sounds/saber_cut.ogg`.
 - Death sound: "Sword slash swoosh" from Mixkit (same licence), slowed down with a long echo tail and compressed louder, in `assets/sounds/death_slash.ogg`.
-- Level-up sound: "Video game power up" and PERFECT chain sound: "Bubbly achievement tone", from Mixkit (same licence), trimmed to `assets/sounds/level_up.ogg` and `assets/sounds/perfect.ogg`.
+- Level-up sound: "Video game power up" and PERFECT chain sound: "Lightning whip", from Mixkit (same licence), trimmed to `assets/sounds/level_up.ogg` and `assets/sounds/perfect.ogg`.
 - `art/`: layered Piskel sources for the Red Flash sprites (the game uses the flattened PNGs in `assets/sprites`).
   After editing `art/red_flash_attack_frames.piskel`, regenerate the strike poses and slash arcs (needs Pillow):
   `python3 tools/build_attack_arcs.py art/red_flash_attack_frames.piskel assets/sprites/attack`.

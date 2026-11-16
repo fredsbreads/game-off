@@ -127,7 +127,6 @@ func _ready() -> void:
 	add_child(_level_up_sound)
 	_perfect_sound = AudioStreamPlayer.new()
 	_perfect_sound.stream = preload("res://assets/sounds/perfect.ogg")
-	_perfect_sound.volume_db = 4.0   # a quieter recording than the others
 	add_child(_perfect_sound)
 	if not OS.get_cmdline_user_args().is_empty():
 		debug = DebugTools.new()
