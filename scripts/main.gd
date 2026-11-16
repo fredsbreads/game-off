@@ -797,7 +797,7 @@ func _finisher(k: Knight, grade: String) -> void:
 	_pause_min = 999.0
 	_pause_is_chain = false
 	_pause_elapsed = 0.0
-	k.set_anim_speed(0.0)
+	k.take_hit()   # (her first strike) he recoils, and stays standing until it's over
 	# Far enough either side of him that he's seen between her strikes.
 	var left_x := k.tile_x - FINISHER_SIDE
 	var right_x := k.tile_x + FINISHER_SIDE
@@ -856,6 +856,7 @@ func _finisher_strike(k: Knight, to_x: float, face: float, pose: int, grade: Str
 	fx.kill_burst(pos, 6)
 	cam.shake(0.15, 14.0)
 	if is_instance_valid(k):
+		k.take_hit()
 		k.modulate = Color(2.5, 2.5, 2.5)
 		k.create_tween().tween_property(k, "modulate", Color.WHITE, 0.12)
 	if grade == "":
@@ -918,7 +919,7 @@ func _finisher_done(k: Knight, focus: Vector2) -> void:
 	player.cinematic = false
 	player.facing = 1.0
 	if is_instance_valid(k):
-		k.set_anim_speed(1.0)   # now he falls
+		k.fall()   # now he falls
 	cam.hold_zoom(focus, 0.0, 4.0)
 	_hitstop = 0.0
 	_pause_min = KILL_PAUSE_MIN

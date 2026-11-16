@@ -16,6 +16,9 @@ const K_IDLE := preload("res://assets/sprites/hero_knight/idle.png")
 const K_DEATH := preload("res://assets/sprites/hero_knight/death.png")
 const K_ATTACK := preload("res://assets/sprites/hero_knight/attack.png")   # "Attack1": his clash swings
 const K_ATTACK2 := preload("res://assets/sprites/hero_knight/attack2.png") # "Attack2": the killing blow
+const K_TAKE_HIT := preload("res://assets/sprites/hero_knight/take_hit.png") # struck in the level-10 finisher
+const K_HIT_FRAMES := 3   # recoil, white flash, recoil (not the recovery after)
+const K_HIT_FPS := 12.0
 const K_FRAME := Vector2i(180, 180)
 const K_FEET := Vector2(94, 114)
 const K_SCALE := 1.9
@@ -115,17 +118,35 @@ func _build_knight_frames() -> SpriteFrames:
 	var frames := SpriteFrames.new()
 	frames.remove_animation("default")
 	for spec in [["idle", K_IDLE, K_IDLE_FPS, true], ["death", K_DEATH, K_DEATH_FPS, false],
-			["attack", K_ATTACK, K_ATTACK_FPS, false], ["kill", K_ATTACK2, K_ATTACK_FPS, false]]:
+			["attack", K_ATTACK, K_ATTACK_FPS, false], ["kill", K_ATTACK2, K_ATTACK_FPS, false],
+			["hit", K_TAKE_HIT, K_HIT_FPS, false, K_HIT_FRAMES]]:
 		var sheet: Texture2D = spec[1]
 		frames.add_animation(spec[0])
 		frames.set_animation_speed(spec[0], spec[2])
 		frames.set_animation_loop(spec[0], spec[3])
-		for i in sheet.get_width() / K_FRAME.x:
+		var count: int = spec[4] if spec.size() > 4 else sheet.get_width() / K_FRAME.x
+		for i in count:
 			var tex := AtlasTexture.new()
 			tex.atlas = sheet
 			tex.region = Rect2(Vector2(i * K_FRAME.x, 0), Vector2(K_FRAME))
 			frames.add_frame(spec[0], tex)
 	return frames
+
+
+## Struck (the level-10 finisher): his take-hit, ending on the recoil, held
+## until the next strike.
+func take_hit() -> void:
+	if _sprite:
+		_sprite.speed_scale = 1.0
+		_sprite.play("hit")
+		_sprite.frame = 0
+
+
+## The finisher's over: now he falls.
+func fall() -> void:
+	if _sprite:
+		_sprite.speed_scale = 1.0
+		_sprite.play("death")
 
 
 ## Hit but not finished: leaves a white flash where he was and blinks to his
