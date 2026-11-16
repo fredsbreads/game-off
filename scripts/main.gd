@@ -79,6 +79,7 @@ var _warn_sound: AudioStreamPlayer   # a knight winding up to strike
 const KILL_STRIKE_FPS := 5.0         # his teleport onto her lingers (normal: 18)
 const WARN_PEAK := 0.33              # seconds into it where the swish peaks
 var _clashed := false                # this teleport hit a knight who blinked away
+var _knight_felled := false          # this teleport finished a knight off
 const CLASH_PAUSE_FACTOR := 1.5    # the freeze after a clash is this much longer
 # A clash gets its moment: both hold still mid-swing for this long (a press
 # can't skip it), with a zoom and a shake, before he blinks away.
@@ -695,6 +696,7 @@ func _teleport(move: int) -> void:
 		player.strike()
 		_play_strike(true)
 		_clashed = false
+		_knight_felled = false
 		for e in hit:
 			_kill(e)
 		var targets := _chain_targets(to_x, to_row)
@@ -708,7 +710,7 @@ func _teleport(move: int) -> void:
 		_hitstop = _pause_length if _pause_is_chain else KILL_HIT
 		_pause_elapsed = 0.0
 		if _pause_is_chain:
-			if not _clashed:   # a clash has its own, bigger zoom (see _clash)
+			if not _clashed and not _knight_felled:   # those have their own, bigger zoom
 				cam.punch(to)
 			_chain_awaiting = true
 			_pressed_during_pause = false
@@ -897,6 +899,10 @@ func _kill(e: Enemy) -> void:
 	if knight:
 		_knight_kill_sound.pitch_scale = _jitter()
 		_knight_kill_sound.play()
+		# The last hit gets the clash's zoom, on the two of them.
+		_knight_felled = true
+		var her := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row))
+		cam.punch((pos + her) * 0.5, CLASH_ZOOM, CLASH_BEAT + 0.15)
 	cam.shake(0.06, 4.0 + 1.5 * c)   # only during the flash, so the freeze reads as still
 	fx.kill_burst(pos, chain)
 	blood_fx.blood(pos, 1.0, 22 + 3 * c, BLOOD_BURST,
