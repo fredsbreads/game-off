@@ -61,15 +61,19 @@ func set_seed(value: int) -> void:
 
 func ensure_generated(player_x: float) -> void:
 	while _cursor < player_x + AHEAD_TILES:
-		if _could_level_up():
+		if _could_level_up(player_x):
 			_held = true
 			break
 		if _held:
 			# Picking up again (a level-up, or the chains that could have done
-			# it were dropped): start off screen, never popping in.
+			# it were dropped): start just past the right edge of the screen,
+			# never popping in.
 			_held = false
-			_cursor = maxf(_cursor, player_x + CameraRig.VIEW_TILES + 3.0)
-		_append_pattern(_pick_pattern())
+			_cursor = maxf(_cursor, player_x + CameraRig.VIEW_TILES - CameraRig.HOME_TILES + 1.0)
+		var pattern := _pick_pattern()
+		if pattern.get("name", "").begins_with("knight alone"):
+			_cursor_row = Rules.Row.FLOOR   # his debut: on the floor
+		_append_pattern(pattern)
 	while tiles.size() < _cursor + Patterns.BREAK:
 		tiles.append(Rules.Tile.GROUND)
 
@@ -98,29 +102,26 @@ func _pick_pattern() -> Dictionary:
 	return parsed
 
 
-## True if the chains laid and not yet finished could, at best (every kill,
-## a PERFECT), fill the rest of the bar.
-func _could_level_up() -> bool:
+## True if the enemies still ahead of her could, at best (every one killed,
+## a PERFECT), fill the rest of the bar. Ones she's already left behind
+## (a dropped chain's leftovers) don't count: they can't level her up.
+func _could_level_up(player_x: float) -> bool:
 	# Early levels flow straight into each other; from the level-up into the
 	# knight's debut on, each level starts on a clear screen.
 	if level < HOLD_FROM_LEVEL:
 		return false
 	var best := 0.0
-	for section in sections:
-		for e in section["enemies"]:
-			if is_instance_valid(e) and e.alive:
-				best += float(section["max_points"])
-				break
+	for e in enemies:
+		if not is_instance_valid(e) or not e.alive or Rules.knight_passed(e.tile_x - player_x):
+			continue
+		var k := e as Knight
+		best += float(Rules.KNIGHT_POINTS * k.hits_left()) if k else 1.0
+	best *= float(Progression.MULTIPLIER["PERFECT"])
 	return best > 0.0 and best >= bar_room - 0.001
 
 
 func _append_pattern(pattern: Dictionary) -> void:
 	var section := {"start": _cursor, "row": _cursor_row, "name": pattern["name"], "enemies": [], "ids": []}
-	var points := 0.0
-	for i in pattern["enemies"].size():
-		var is_knight: bool = pattern.has("knights") and int(pattern["knights"][i]) >= 0
-		points += Rules.KNIGHT_POINTS if is_knight else 1
-	section["max_points"] = points * float(Progression.MULTIPLIER["PERFECT"])
 	var shape: Array = pattern["enemies"]
 	var knights: Array = pattern.get("knights", [])
 	var last_row := _cursor_row
