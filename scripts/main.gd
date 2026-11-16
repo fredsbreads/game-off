@@ -773,10 +773,14 @@ func _finisher(k: Knight, grade: String) -> void:
 	_pause_is_chain = false
 	_pause_elapsed = 0.0
 	k.set_anim_speed(0.0)
-	player.hold_slash(FINISHER_HOP)
 	# Far enough either side of him that he's seen between her strikes.
 	var left_x := k.tile_x - FINISHER_SIDE
 	var right_x := k.tile_x + FINISHER_SIDE
+	# The first slash too: her hit landed at the usual strike distance (close
+	# to him); on this same frame she's put back to where the others are.
+	player.x = left_x
+	player.strike(player.last_pose())
+	player.hold_slash(FINISHER_HOP)
 	var poses: Array = []
 	for p in Player.ATTACK_COUNT:
 		if p != player.last_pose():
