@@ -383,12 +383,14 @@ const DISSOLVE_TIME := 0.55              # seconds (game time, so the slow motio
 const FLICKER_EVERY := 0.06              # seconds (real time): the frozen lightning redraws this often
 const FREEZE_SPARKLE := 0.14             # share of her pixels glowing in the death freeze
 var _flicker_timer := 0.0
-# A ring of her own lightning looping around her while she dies, then a last
-# burst as she finishes dissolving.
+# A ring of her own lightning looping around her: through the "your move"
+# freeze (main.gd sets freeze_ring) and while she dies, then a last burst as
+# she finishes dissolving.
 const DEATH_RING_FPS := 14.0
 const DEATH_RING_SCALE := 1.15
 const FINAL_BURST_AT := 0.85             # dissolve amount when she bursts
-var _death_ring: Sprite2D
+var _ring: Sprite2D
+var freeze_ring := false
 var _ring_time := 0.0
 var _burst_done := false
 const BODY_CENTRE := Vector2(0, -54)     # her body's middle, from her feet (local, before tilt)
@@ -432,14 +434,20 @@ func die(_kind: String) -> void:
 	_katana.material = _dissolve_material
 	# Already crackling in the death freeze (and flickering: see _process).
 	_crackle(Vector2.ZERO, 4, 3)
-	_death_ring = Sprite2D.new()
-	_death_ring.texture = Fx.BOLT_SHEETS[Fx.Bolt.RING]
-	_death_ring.hframes = Fx.BOLT_FRAMES[Fx.Bolt.RING]
-	_death_ring.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_death_ring.position = BODY_CENTRE
-	_death_ring.scale = Vector2.ONE * DEATH_RING_SCALE
-	_death_ring.z_index = 1
-	add_child(_death_ring)
+	if _ring == null:
+		_make_ring()
+
+
+func _make_ring() -> void:
+	_ring = Sprite2D.new()
+	_ring.texture = Fx.BOLT_SHEETS[Fx.Bolt.RING]
+	_ring.hframes = Fx.BOLT_FRAMES[Fx.Bolt.RING]
+	_ring.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_ring.position = BODY_CENTRE
+	_ring.scale = Vector2.ONE * DEATH_RING_SCALE
+	_ring.z_index = 1
+	_ring_time = 0.0
+	add_child(_ring)
 
 
 ## Called with game time (0 during the death freeze, slowed in the slow
@@ -476,23 +484,29 @@ func _process(delta: float) -> void:
 		_update_arc()
 	# Death: the lightning flickers on real time (freeze, slow motion and
 	# all) as long as there's some of her left, moving with her body.
-	if _death_ring:
+	if alive and freeze_ring != (_ring != null):
+		if freeze_ring:
+			_make_ring()
+		else:
+			_ring.queue_free()
+			_ring = null
+	if _ring:
 		# Loops on real time, a new turn each time round, fading as she goes.
 		_ring_time += delta
 		var n: int = Fx.BOLT_FRAMES[Fx.Bolt.RING]
 		var step := int(_ring_time * DEATH_RING_FPS)
-		if step % n == 0 and _death_ring.frame != 0:
-			_death_ring.rotation = randf() * TAU
-		_death_ring.frame = step % n
-		_death_ring.modulate.a = 0.8 * clampf(1.0 - _dissolve / FINAL_BURST_AT, 0.0, 1.0)
+		if step % n == 0 and _ring.frame != 0:
+			_ring.rotation = randf() * TAU
+		_ring.frame = step % n
+		_ring.modulate.a = 0.8 if alive else 0.8 * clampf(1.0 - _dissolve / FINAL_BURST_AT, 0.0, 1.0)
 	if not alive and zap_fx and not _burst_done and _dissolve >= FINAL_BURST_AT:
 		# What's left of her pops: the shards at the end of the strike animation.
 		_burst_done = true
 		var burst_y := 215.0 - 128.0   # the burst sits this far below the frame's centre
 		zap_fx.bolt(Fx.Bolt.STRIKE, to_global(BODY_CENTRE) - Vector2(0, burst_y * 1.3), 0.0, Vector2.ONE * 1.3, 16.0, 3)
-		if _death_ring:
-			_death_ring.queue_free()
-			_death_ring = null
+		if _ring:
+			_ring.queue_free()
+			_ring = null
 	if not alive and zap_fx and _dissolve < 0.95:
 		_flicker_timer -= delta
 		if _flicker_timer <= 0.0:

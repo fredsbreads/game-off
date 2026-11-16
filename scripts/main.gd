@@ -465,6 +465,7 @@ func _update_pause_visuals() -> void:
 	blood_fx.frozen = fx.frozen
 	# Lit markers drain during the "your move" freeze as the time runs out.
 	player.marker_fill = clampf(_hitstop / _pause_length, 0.0, 1.0) if chain_pause else 1.0
+	player.freeze_ring = chain_pause   # her lightning circles her for the whole freeze
 	player.target_x = [_slash_target_x(Rules.Move.FORWARD), _slash_target_x(Rules.Move.VERTICAL),
 		_slash_target_x(Rules.Move.DIAGONAL)]
 	# Every enemy a teleport would slash right now gets a red glint.
@@ -611,7 +612,6 @@ func _teleport(move: int) -> void:
 		_pause_elapsed = 0.0
 		if _pause_is_chain:
 			cam.punch(to)
-			fx.bolt(Fx.Bolt.RING, player.to_global(Player.BODY_CENTRE), randf() * TAU, Vector2.ONE * 1.2, 16.0)
 			_chain_awaiting = true
 			_pressed_during_pause = false
 		else:
@@ -661,7 +661,7 @@ const STRIKES := [preload("res://assets/sounds/strike_13.ogg"),
 const STRIKES_SHORT := [preload("res://assets/sounds/strike_13_short.ogg"),
 	preload("res://assets/sounds/strike_16_short.ogg"), preload("res://assets/sounds/strike_26_short.ogg")]
 const STRIKE_DB := 0.0
-const STRIKE_UNDER_CUT_DB := -6.0
+const STRIKE_UNDER_CUT_DB := 0.0
 
 
 func _play_strike(kills: bool) -> void:

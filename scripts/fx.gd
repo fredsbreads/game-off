@@ -7,10 +7,9 @@ extends Node2D
 const GRAVITY := 900.0
 # Her effects are all reds, each a slightly different one so they don't merge
 # into one red blur: the landing ring darker, the
-# kill ring bright, the slash streak pale, the sparks a mix. (The teleport
+# slash streak pale, the sparks a mix. (The teleport
 # itself is sprite lightning: see bolt().)
 const LANDING_RING_COLOR := Color(0.75, 0.12, 0.18, 0.85)
-const KILL_RING_COLOR := Color(1.0, 0.35, 0.3, 0.9)
 const SLASH_COLOR := Color(1.0, 0.62, 0.6)
 const KILL_COLORS := [Color(1.0, 0.3, 0.28), Color(0.85, 0.08, 0.14), Color(1.0, 0.55, 0.5)]
 const BLOOD_COLORS := [Color(0.9, 0.08, 0.1), Color(1.0, 0.18, 0.15), Color(0.7, 0.03, 0.06)]
@@ -76,7 +75,6 @@ func landing_ring(pos: Vector2) -> void:
 ## Bigger and brighter the longer the chain.
 func kill_burst(pos: Vector2, combo: int) -> void:
 	var c := mini(combo, 8)
-	_ring(pos, 12.0, 60.0 + 10.0 * c, 0.3, 4.0 + c * 0.5, KILL_RING_COLOR)
 	_items.append({"kind": "slash", "t": 0.0, "life": 0.16, "pos": pos, "len": 80.0 + 10.0 * c})
 	for i in 8 + c * 3:
 		var dir := Vector2.from_angle(randf_range(-PI, 0.2))
