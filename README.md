@@ -93,7 +93,7 @@ A bar above the ceiling row fills as you chain kills; filling it levels you up.
 
 - Enemy: "Martial Hero 3" asset pack (CC0, see `assets/sprites/martial_hero/License.txt`).
 - Kill sound: "Quick saber cut" from Mixkit (Mixkit free sound effects licence), trimmed to `assets/sounds/saber_cut.ogg`.
-- Death sound: "Sword slash swoosh" from Mixkit (same licence), slowed down with echoes and a reverb tail, in `assets/sounds/death_slash.ogg`.
+- Death sound: "Sword slash swoosh" from Mixkit (same licence), slowed down with echoes and a reverb tail, with the hit of "Big cinematic impact" under it, in `assets/sounds/death_slash.ogg`.
 - TOO SLOW sound: the rumble after the hit of "Big cinematic impact" from Mixkit (same licence), in `assets/sounds/too_slow.ogg`.
 - PERFECT chain sound: the kill sound with a higher layer, echoes and reverb added (`assets/sounds/perfect.ogg`).
 - Teleport sound (when it hits nothing, a MISSED drop included): "Dagger woosh" from Mixkit (same licence), in `assets/sounds/teleport.ogg`.
