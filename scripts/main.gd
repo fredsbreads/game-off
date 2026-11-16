@@ -739,11 +739,15 @@ func _update_knight_threats() -> void:
 		var k := e as Knight
 		if k == null or not k.alive:
 			continue
-		var across := state == State.PLAYING and Rules.knight_across(k.tile_x, k.row, player.x, player.row)
+		# Once you're fighting him he's past warning you (no wind-up, no swish).
+		var across := state == State.PLAYING and not k.engaged \
+				and Rules.knight_across(k.tile_x, k.row, player.x, player.row)
 		if across and not k.threat:
 			k.warn()
-			_warn_sound.pitch_scale = _jitter()
-			_warn_sound.play()
+			if not k.warned:   # the swish only the first time he's aggroed
+				k.warned = true
+				_warn_sound.pitch_scale = _jitter()
+				_warn_sound.play()
 		elif not across and k.threat:
 			k.calm()
 		any = any or across

@@ -55,6 +55,7 @@ var step_index := 0
 var engaged := false
 ## True while she's straight across from him: he's winding up to strike.
 var threat := false
+var warned := false   # he's already given his wind-up swish once
 var _slashing := false   # the killing blow: green outline held
 var _arc: AnimatedSprite2D
 ## Where his body goes in a clash swing: a layer above her (set by main.gd).
