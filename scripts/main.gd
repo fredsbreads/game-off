@@ -127,7 +127,7 @@ func _ready() -> void:
 	add_child(_death_sound)
 	_level_up_sound = AudioStreamPlayer.new()
 	_level_up_sound.stream = preload("res://assets/sounds/level_up.ogg")
-	_level_up_sound.volume_db = -5.0
+	_level_up_sound.volume_db = -3.0   # same as PERFECT: it's that sound plus an impact
 	add_child(_level_up_sound)
 	_perfect_sound = AudioStreamPlayer.new()
 	_perfect_sound.stream = preload("res://assets/sounds/perfect.ogg")
@@ -135,7 +135,7 @@ func _ready() -> void:
 	add_child(_perfect_sound)
 	_dropped_sound = AudioStreamPlayer.new()
 	_dropped_sound.stream = preload("res://assets/sounds/too_slow.ogg")
-	_dropped_sound.volume_db = -3.0
+	_dropped_sound.volume_db = 0.0
 	add_child(_dropped_sound)
 	_teleport_sound = AudioStreamPlayer.new()
 	_teleport_sound.stream = preload("res://assets/sounds/teleport.ogg")
@@ -711,9 +711,9 @@ func _end_chain(grade: String, word: String = "") -> void:
 		# One sound: a level-up outranks the PERFECT that earned it, and
 		# either replaces the last kill's saber cut.
 		if levelled:
-			# The PERFECT sound with a deep impact under it; the boom (in the
-			# file) carries the weight, so keep the pitch steady.
-			_level_up_sound.pitch_scale = 1.0
+			# The PERFECT sound with an impact under it, pitched like the cut
+			# it replaces (as PERFECT is), so it never sounds duller than one.
+			_level_up_sound.pitch_scale = _kill_sound.pitch_scale
 			_play_jingle(_level_up_sound)
 		elif grade == "PERFECT":
 			# The saber cut with a shimmer: pitched like the cut it replaces.

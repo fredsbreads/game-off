@@ -97,7 +97,7 @@ A bar above the ceiling row fills as you chain kills; filling it levels you up.
 - TOO SLOW sound: the rumble after the hit of "Big cinematic impact" from Mixkit (same licence), in `assets/sounds/too_slow.ogg`.
 - PERFECT chain sound: the kill sound with a higher layer, echoes and reverb added (`assets/sounds/perfect.ogg`).
 - Teleport sound (when it hits nothing, a MISSED drop included): "Dagger woosh" from Mixkit (same licence), in `assets/sounds/teleport.ogg`.
-- Level-up sound: the PERFECT sound with the hit of "Big cinematic impact" (low end only) under it (`assets/sounds/level_up.ogg`).
+- Level-up sound: the PERFECT sound with the hit of "Big cinematic impact" (filtered) under it (`assets/sounds/level_up.ogg`).
 - `art/`: layered Piskel sources for the Red Flash sprites (the game uses the flattened PNGs in `assets/sprites`).
   After editing `art/red_flash_attack_frames.piskel`, regenerate the strike poses and slash arcs (needs Pillow):
   `python3 tools/build_attack_arcs.py art/red_flash_attack_frames.piskel assets/sprites/attack`.
