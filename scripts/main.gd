@@ -481,6 +481,12 @@ func _physics_process(delta: float) -> void:
 				if _hitstop <= 0.0 and _pause_is_chain and _chain_awaiting \
 						and not _pressed_during_pause and not _pending_forward and not _pending_vertical:
 					_end_chain("DROPPED", "TOO SLOW")   # waited too long in the "your move" freeze
+					# A knight she's fighting (or straight across from her) strikes
+					# right now: a press after TOO SLOW is too late.
+					var k := _knight_after_drop()
+					if k:
+						_clear_pending()
+						_knight_strikes(k)
 			else:
 				_step()
 				moving = state == State.PLAYING
@@ -720,6 +726,16 @@ func _pouncing_knight(run_from: float) -> Knight:
 		if Rules.knight_runs_past(k.tile_x, k.row, run_from, player.x, player.row):
 			return k
 	return null
+
+
+## A knight that strikes the moment a chain drops: one she's fighting within
+## a teleport of her, or one straight across from her.
+func _knight_after_drop() -> Knight:
+	for e in level.enemies:
+		var k := e as Knight
+		if k and k.alive and k.engaged and absf(k.tile_x - player.x) <= Rules.FORWARD:
+			return k
+	return _knight_across()
 
 
 ## A knight straight across from her right now, or null.
