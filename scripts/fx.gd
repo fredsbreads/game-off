@@ -248,9 +248,9 @@ func _draw() -> void:
 				draw_line(pos - dir * half, pos - dir * half + dir * half * 2.0 * grow, Color(Palette.tint(SLASH_COLOR), fade), 2.0 + 6.0 * fade)
 			"blood":
 				var s: float = it["size"]
-				draw_rect(Rect2(it["pos"] - Vector2(s, s) * 0.5, Vector2(s, s)), it["color"])
+				draw_rect(Rect2(it["pos"] - Vector2(s, s) * 0.5, Vector2(s, s)), Palette.blood(it["color"]))
 			"stain":
-				var col: Color = it["color"]   # stays until it scrolls off screen
+				var col: Color = Palette.blood(it["color"])   # stays until it scrolls off screen
 				var s: float = it["size"]
 				draw_rect(Rect2(it["pos"] - Vector2(s, 2.0), Vector2(s * 2.0, 3.0)), col)
 			"particle":

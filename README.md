@@ -91,7 +91,7 @@ run upside down.
   from red to her level-10 colour with a flash: her hair, her lightning, slashes,
   afterimages, markers and the target glint (`scripts/palette.gd`,
   `shaders/accent.gdshaderinc`; the `accent_pink` shader global, 0 = red,
-  1 = pink). Blood stays red. `FINISHER_*` in `scripts/main.gd`.
+  1 = pink). Blood follows it too (`BLOOD_FOLLOWS_COLOUR` in `scripts/palette.gd`; off = always red). `FINISHER_*` in `scripts/main.gd`.
 - **Her level-10 colour** is one setting: `COLOUR` at the top of
   `scripts/palette.gd` (e.g. `"ember"`, `"magenta"`, `"violet"`; every name is
   in `COLOURS` there, matching the mock-up sheets). While playing on a

@@ -3,10 +3,14 @@ extends RefCounted
 ## Her colour: red until level 10, then COLOUR (below). Shaders read it
 ## through globals (shaders/accent.gdshaderinc); colours set in code go
 ## through tint(). Only reds move (whites, greys, the knight's green don't),
-## and blood is drawn without it, so it stays red.
+## and blood follows it too (BLOOD_FOLLOWS_COLOUR).
 
 ## >>> Her colour from level 10. Change this to any name in COLOURS. <<<
 const COLOUR := "ember"
+
+## Blood takes her colour too (from level 10, like her effects). Off = it
+## always stays red.
+const BLOOD_FOLLOWS_COLOUR := true
 
 ## While playing, the C key cycles through every colour here (and shows its
 ## name), so they can be compared in the game. Off = false.
@@ -94,6 +98,11 @@ static func sweep_to(at: float) -> void:
 
 static func for_level(level: int) -> float:
 	return 1.0 if level >= PINK_FROM_LEVEL else 0.0
+
+
+## A blood colour: hers if BLOOD_FOLLOWS_COLOUR, else red as it is.
+static func blood(c: Color) -> Color:
+	return tint(c) if BLOOD_FOLLOWS_COLOUR else c
 
 
 ## The same as accent() in the shader, for colours set in code.
