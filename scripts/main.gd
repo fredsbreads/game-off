@@ -965,7 +965,10 @@ func _end_chain(grade: String, word: String = "") -> void:
 			_play_jingle(_perfect_sound)
 		elif grade == "DROPPED" and word == "TOO SLOW":
 			_dropped_sound.play()   # a muted thud: the chance passed
-		if grade == "DROPPED":
+		# TOO SLOW with her straight across from a knight: he strikes at once.
+		# A MISSED teleport that lands her across from one gets the usual
+		# warning and grace instead (as if she'd run there).
+		if grade == "DROPPED" and word == "TOO SLOW":
 			_drop_pounce = true
 		if grade != "SINGLE":
 			var above := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row) - Rules.TILE * 1.4)

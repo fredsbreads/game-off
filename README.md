@@ -67,9 +67,10 @@ run upside down.
   pressing can't skip it) before he blinks away.
   You can teleport past him, but not run past him across the rows: while
   you're straight across from him (your across teleport would hit him) he
-  raises his sword and a swish starts; run on out of reach, or let a chain
-  drop (TOO SLOW / MISSED) while across from him, and he teleports to you and
-  cuts you down. Same if a freeze ends with him hit but not finished and
+  raises his sword and a swish starts; run on out of reach, or let a freeze
+  run out (TOO SLOW) while across from him, and he teleports to you and cuts
+  you down. A teleport that drops a chain (MISSED) and lands you across from
+  him gets the same warning and grace as running there. Same if a freeze ends with him hit but not finished and
   within a teleport (6 tiles) of you.
   Level 9 opens with a knight alone and every chain in it ends with one, so
   the level-up into 10 is always on a knight. From level 10 any enemy in a
