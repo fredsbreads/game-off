@@ -217,6 +217,15 @@ func slash(her_x: float) -> void:
 		_sprite.frame = KILL_SLASH_FRAME
 		_material.set_shader_parameter("outline_color", SLASH_OUTLINE)
 		_material.set_shader_parameter("glint", 1.0)
+		# His body over her (and her effects) for the killing blow; the arc
+		# stays behind.
+		if front_parent and _sprite.get_parent() == self:
+			var holder := Node2D.new()
+			front_parent.add_child(holder)
+			holder.global_position = global_position
+			holder.scale = scale
+			_sprite.reparent(holder, false)
+			tree_exiting.connect(holder.queue_free)
 	_slashing = true
 
 
