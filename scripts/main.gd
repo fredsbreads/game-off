@@ -102,7 +102,7 @@ const FINISHER_HOLD := 0.8         # after the level-up, the freeze frame holds 
 const FINISHER_PINK_TIME := 0.45   # (a level-up into 10 without the finisher: a quick fade)
 const FINISHER_ZOOM := 0.35
 const FINISHER_SIDE := 2.2          # tiles either side of him she strikes from
-const FINISHER_FLASH := Color(0.9, 0.22, 0.72, 0.55)   # magenta, like her new colour
+const FINISHER_FLASH := Color(0.3, 0.02, 0.05, 0.6)   # black-red, like her new colour
 var _finishing := false
 const CLASH_PAUSE_FACTOR := 1.5    # the freeze after a clash is this much longer
 # A clash gets its moment: both hold still mid-swing for this long (a press
