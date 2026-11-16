@@ -96,6 +96,7 @@ A bar above the ceiling row fills as you chain kills; filling it levels you up.
 - Death sound: "Sword slash swoosh" from Mixkit (same licence), slowed down with echoes and a reverb tail, in `assets/sounds/death_slash.ogg`.
 - Dropped chain sound: "Game user interface tone" from Mixkit (same licence), trimmed to `assets/sounds/dropped.ogg`.
 - PERFECT chain sound: the kill sound with a higher layer, echoes and reverb added (`assets/sounds/perfect.ogg`).
+- Teleport sound (when it hits nothing): the kill sound pitched up, filtered and shortened (`assets/sounds/teleport.ogg`).
 - Level-up sound: the kill sound layered higher, lower and doubled, with more echoes and a longer reverb (`assets/sounds/level_up.ogg`).
 - `art/`: layered Piskel sources for the Red Flash sprites (the game uses the flattened PNGs in `assets/sprites`).
   After editing `art/red_flash_attack_frames.piskel`, regenerate the strike poses and slash arcs (needs Pillow):
