@@ -262,6 +262,7 @@ func score() -> int:
 func begin() -> void:
 	state = State.PLAYING
 	player.running = true
+	_start_music()
 	hud.hide_message()
 	hud.set_pause_button_visible(true)
 
@@ -1298,6 +1299,32 @@ func _save_best(value: int) -> void:
 	cfg.load(SAVE_PATH)   # keep the other settings
 	cfg.set_value("scores", "best", value)
 	cfg.save(SAVE_PATH)
+
+
+# Background music: the melody layer of "Tense Suspense" (Monume), the
+# droning background removed. It plays once through, then repeats its last
+# two loops (MUSIC_LOOP_FROM on), which join up seamlessly.
+const MUSIC := preload("res://assets/music/background.ogg")
+const MUSIC_DB := -9.0
+const MUSIC_LOOP_FROM := 7.459   # seconds: exactly two 14.77 s loops before its end
+
+
+## Starts the music with the first run (browsers only allow sound after a
+## press). It lives outside the scene, so it carries on through retries.
+func _start_music() -> void:
+	var music := get_tree().root.get_node_or_null("Music") as AudioStreamPlayer
+	if music == null:
+		music = AudioStreamPlayer.new()
+		music.name = "Music"
+		var stream: AudioStreamOggVorbis = MUSIC
+		stream.loop = true
+		stream.loop_offset = MUSIC_LOOP_FROM
+		music.stream = stream
+		music.volume_db = MUSIC_DB
+		music.process_mode = Node.PROCESS_MODE_ALWAYS
+		get_tree().root.add_child(music)
+	if not music.playing:
+		music.play()
 
 
 ## Her level-10 colour (picked on the pause screen) is kept between visits.

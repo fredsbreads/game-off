@@ -136,6 +136,7 @@ A bar above the ceiling row fills as you chain kills; filling it levels you up.
 
 ## Art and sound
 
+- Background music: "Tense Suspense Background Music" by Monume (Pixabay), only its melody layer (the droning background cancelled out by subtracting a clean pass of its repeating loop), in `assets/music/background.ogg`. It plays once, then repeats its last two loops (`MUSIC_*` in `scripts/main.gd`).
 - Enemy: "Martial Hero 3" asset pack (CC0, see `assets/sprites/martial_hero/License.txt`).
 - Knight: "Hero Knight" asset pack (CC0, see `assets/sprites/hero_knight/License.txt`); his lightning is the Frostwindz pack recoloured green.
 - Knight wind-up sound: "Sword blade swish" from Mixkit (same licence), in `assets/sounds/knight_warn.ogg`.
