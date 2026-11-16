@@ -244,14 +244,14 @@ static func _apply(prev: Vector2, token: String) -> Vector2:
 	return Vector2(prev.x + float(shape[0]), row)
 
 
-## True if two things would be in one spot at the same time. A knight's later
-## spots only exist after everything before him is dead, so they may reuse
-## those spots (and his own earlier ones); nothing else may share a spot.
+## True if two things could be in one spot at the same time. A knight may
+## blink back to a spot he's left, but never onto anyone else's: she can skip
+## the enemies before him (e.g. go straight for him), so they may still be
+## there when he blinks.
 static func _overlaps(enemies: Array[Vector2], knights: Array[int]) -> bool:
 	for j in enemies.size():
-		var later_knight_spot := knights[j] >= 0 and j > 0 and knights[j - 1] == knights[j]
 		for i in j:
-			if enemies[i] == enemies[j] and not later_knight_spot:
+			if enemies[i] == enemies[j] and not (knights[j] >= 0 and knights[i] == knights[j]):
 				return true
 	return false
 

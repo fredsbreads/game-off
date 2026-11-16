@@ -269,10 +269,31 @@ func _process(delta: float) -> void:
 	if _slashing:
 		return   # keep the green outline (Enemy would fade it to the target glint)
 	super(delta)
+	if _arc:
+		# Only the killing blow's follow-through outlines the arc (fading).
+		_arc.material.set_shader_parameter("glint", _glint if _sprite.animation == "kill" else 0.0)
 
 
 func clear_glint() -> void:
 	if not _slashing:
+		super()
+
+
+## After the killing blow's freeze (the world starts moving again): he
+## follows through with the rest of the swing, then goes back to idle.
+func set_anim_speed(value: float) -> void:
+	super(value)
+	if _slashing and value > 0.0 and _sprite:
+		_slashing = false   # the green outline fades (Enemy._process)
+		targeted = false
+		_glint = 1.0
+		_sprite.play("kill")
+
+
+func _on_animation_finished() -> void:
+	if _sprite.animation == "kill" or _sprite.animation == "attack":
+		_sprite.play("idle")
+	else:
 		super()
 
 
