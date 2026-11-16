@@ -83,10 +83,15 @@ run upside down.
 - **The level-10 finisher**: the hit that kills a knight and levels you up
   from 9 to 10 plays her blinking to his other side and back, in each of her
   three strike poses, the last held as a freeze frame. Then her colour turns
-  from red to pink with a flash: her hair, her lightning, slashes,
+  from red to her level-10 colour with a flash: her hair, her lightning, slashes,
   afterimages, markers and the target glint (`scripts/palette.gd`,
   `shaders/accent.gdshaderinc`; the `accent_pink` shader global, 0 = red,
   1 = pink). Blood stays red. `FINISHER_*` in `scripts/main.gd`.
+- **Her level-10 colour** is one setting: `COLOUR` at the top of
+  `scripts/palette.gd` (e.g. `"ember"`, `"magenta"`, `"violet"`; every name is
+  in `COLOURS` there, matching the mock-up sheets). While playing on a
+  keyboard, **C** cycles through them all and shows the name (it stays for
+  retries; off with `CYCLE_KEY`).
 - Score, distance and the kill counter are tracked but **not shown** for now
   (kills, level reached and the Flawless Streak (No Survivors): the most
   kills in a row, knight hits included, without letting an enemy get away,

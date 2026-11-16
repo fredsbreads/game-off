@@ -9,11 +9,11 @@ global uniform float accent_pink;
 // on the line. -1 = all of them (the usual).
 global uniform float accent_wipe;
 
-// Ember, red-orange (option D of the red mock-ups; magenta was 0.883, 0.9,
-// 0.95). Keep in step with palette.gd.
-const float ACCENT_PINK_HUE = 0.045;   // ~16 degrees
-const float ACCENT_PINK_SAT = 1.0;     // x her red's saturation
-const float ACCENT_PINK_VAL = 1.0;     // x her red's brightness
+// The colour itself (hue 0..1, saturation and brightness as multiples of her
+// red's): set from palette.gd (Palette.COLOUR), so it's chosen in one place.
+global uniform float accent_hue;
+global uniform float accent_sat;
+global uniform float accent_val;
 
 vec3 accent_rgb2hsv(vec3 c) {
 	vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
@@ -38,7 +38,7 @@ vec3 accent(vec3 c, float sx) {
 	vec3 hsv = accent_rgb2hsv(c);
 	float from_red = min(hsv.x, 1.0 - hsv.x);   // hue distance from red (0..0.5)
 	float w = (1.0 - smoothstep(0.05, 0.11, from_red)) * smoothstep(0.12, 0.3, hsv.y);
-	vec3 pink = accent_hsv2rgb(vec3(ACCENT_PINK_HUE, hsv.y * ACCENT_PINK_SAT, min(1.0, hsv.z * ACCENT_PINK_VAL)));
+	vec3 pink = accent_hsv2rgb(vec3(accent_hue, min(1.0, hsv.y * accent_sat), min(1.0, hsv.z * accent_val)));
 	float swept = smoothstep(accent_wipe - 0.002, accent_wipe + 0.002, sx);
 	vec3 out_c = mix(c, pink, w * accent_pink * swept);
 	if (accent_wipe > -0.5) {

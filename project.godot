@@ -65,3 +65,15 @@ accent_wipe={
 "type": "float",
 "value": -1.0
 }
+accent_hue={
+"type": "float",
+"value": 0.045
+}
+accent_sat={
+"type": "float",
+"value": 1.0
+}
+accent_val={
+"type": "float",
+"value": 1.0
+}

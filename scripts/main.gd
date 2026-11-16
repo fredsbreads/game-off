@@ -102,7 +102,6 @@ const FINISHER_HOLD := 0.8         # after the level-up, the freeze frame holds 
 const FINISHER_PINK_TIME := 0.45   # (a level-up into 10 without the finisher: a quick fade)
 const FINISHER_ZOOM := 0.35
 const FINISHER_SIDE := 2.2          # tiles either side of him she strikes from
-const FINISHER_FLASH := Color(1.0, 0.4, 0.1, 0.55)   # ember, like her new colour
 var _finishing := false
 const CLASH_PAUSE_FACTOR := 1.5    # the freeze after a clash is this much longer
 # A clash gets its moment: both hold still mid-swing for this long (a press
@@ -217,6 +216,7 @@ func _ready() -> void:
 	if START_LEVEL > 1:
 		progression.level = START_LEVEL
 		level.level = START_LEVEL
+	Palette.use_colour(Palette.colour_name)   # COLOUR, or the last one picked with C
 	Palette.set_pink(Palette.for_level(progression.level))
 	player.x = START_X
 	level.start_x = START_X
@@ -286,6 +286,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _is_enemies_key(event):
 		get_viewport().set_input_as_handled()
 		_toggle_enemies()
+		return
+	if Palette.CYCLE_KEY and event is InputEventKey and event.pressed and event.physical_keycode == KEY_C:
+		get_viewport().set_input_as_handled()
+		_cycle_colour()
 		return
 	if state == State.PLAYING and (event.is_action_pressed("pause") or _is_pause_button_press(event)):
 		get_viewport().set_input_as_handled()
@@ -872,16 +876,27 @@ func _her_screen_span() -> Vector2:
 ## level-up into 10).
 func _finisher_level_up(grade: String) -> void:
 	Palette.set_pink(1.0)
-	hud.flash(FINISHER_FLASH, 0.6)
+	hud.flash(Palette.flash_colour(), 0.6)   # in her new colour
 	cam.shake(0.25, 14.0)
 	var body := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row))
 	fx.bolt(Fx.Bolt.RING, body, randf() * TAU, Vector2.ONE * 2.2, 12.0)
 	_end_chain(grade)   # the level-up (its jingle, the bar)
 
 
+## Testing colours: the C key switches her level-10 colour to the next one
+## in Palette.COLOURS (shown at once, at any level, with its name).
+func _cycle_colour() -> void:
+	var name := Palette.next_colour()
+	Palette.set_pink(1.0)
+	var above := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row) - Rules.TILE * 1.8)
+	if player.row == Rules.Row.CEILING:
+		above.y += Rules.TILE * 3.6
+	text_fx.text(above, name.replace("_", " ").to_upper(), 26, Color.WHITE, Rules.RUN_SPEED * Rules.TILE if state == State.PLAYING else 0.0, 1.2)
+
+
 ## Her colour turns from red to pink (level 10), with a flash.
 func _turn_pink() -> void:
-	hud.flash(FINISHER_FLASH, 0.6)
+	hud.flash(Palette.flash_colour(), 0.6)
 	cam.shake(0.25, 14.0)
 	var body := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row))
 	var from := Palette.pink
