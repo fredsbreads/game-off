@@ -6,15 +6,26 @@ extends Node2D
 
 const GRAVITY := 900.0
 # Her effects are all reds, each a slightly different one so they don't merge
-# into one red blur: the teleport line scarlet, the landing ring darker, the
-# kill ring bright, the slash streak pale, the sparks a mix.
-const TRAIL_COLOR := Color(1.0, 0.25, 0.3)
+# into one red blur: the landing ring darker, the
+# kill ring bright, the slash streak pale, the sparks a mix. (The teleport
+# itself is sprite lightning: see bolt().)
 const LANDING_RING_COLOR := Color(0.75, 0.12, 0.18, 0.85)
 const KILL_RING_COLOR := Color(1.0, 0.35, 0.3, 0.9)
 const SLASH_COLOR := Color(1.0, 0.62, 0.6)
 const KILL_COLORS := [Color(1.0, 0.3, 0.28), Color(0.85, 0.08, 0.14), Color(1.0, 0.55, 0.5)]
 const BLOOD_COLORS := [Color(0.9, 0.08, 0.1), Color(1.0, 0.18, 0.15), Color(0.7, 0.03, 0.06)]
 const STAIN_SECONDS := 4.0   # how long a drop of blood stays on the floor
+# Lightning sprite strips (Frostwindz "Pixel Art Skill Animations - Lightning",
+# recoloured red), each one row of equal frames.
+enum Bolt { THIN, THICK, STRIKE, BIG_STRIKE, RING, SPARKS }
+const BOLT_SHEETS := [
+	preload("res://assets/vfx/lightning_1.png"), preload("res://assets/vfx/lightning_2.png"),
+	preload("res://assets/vfx/lightning_3.png"), preload("res://assets/vfx/lightning_4.png"),
+	preload("res://assets/vfx/lightning_5.png"), preload("res://assets/vfx/lightning_6.png"),
+]
+const BOLT_FRAMES := [4, 4, 5, 5, 4, 8]
+const SPARK_FRAMES := [0, 1, 2, 3, 4, 5]   # the small bolts in SPARKS with something in them
+const BOLT_LENGTH := 211.0   # pixels the THIN / THICK bolts span across their frame
 
 var _items: Array[Dictionary] = []
 ## While true, every effect holds still (used during the kill pause).
@@ -25,10 +36,36 @@ var bolt_alpha := 1.0   # lightning fades with her as she dissolves
 
 
 ## from / to are body centres in pixels.
-func teleport_trail(from: Vector2, to: Vector2) -> void:
-	_items.append({"kind": "trail", "t": 0.0, "life": 0.22, "a": from, "b": to})
+## Plays one lightning animation once, on real time (it keeps going through
+## the kill pause and slow motion). `pos` is the frame's centre.
+func bolt(kind: int, pos: Vector2, angle := 0.0, size := Vector2.ONE, fps := 20.0) -> void:
+	var s := _bolt_sprite(kind, pos, angle, size)
+	_items.append({"kind": "anim", "t": 0.0, "node": s, "fps": fps, "frames": BOLT_FRAMES[kind]})
 
 
+## A horizontal bolt (THIN or THICK) stretched to run from `a` to `b`.
+func bolt_between(kind: int, a: Vector2, b: Vector2, thickness := 1.2, fps := 20.0) -> void:
+	var d := b - a
+	bolt(kind, (a + b) * 0.5, d.angle(), Vector2(d.length() / BOLT_LENGTH, thickness), fps)
+
+
+func _bolt_sprite(kind: int, pos: Vector2, angle: float, size: Vector2) -> Sprite2D:
+	var s := Sprite2D.new()
+	s.texture = BOLT_SHEETS[kind]
+	s.hframes = BOLT_FRAMES[kind]
+	s.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	s.position = pos
+	s.rotation = angle
+	s.scale = size
+	add_child(s)
+	return s
+
+
+func _remove(i: int) -> void:
+	var node: Node = _items[i].get("node")
+	if node:
+		node.queue_free()
+	_items.remove_at(i)
 func landing_ring(pos: Vector2) -> void:
 	_ring(pos, 10.0, 46.0, 0.25, 3.0, LANDING_RING_COLOR)
 
@@ -70,16 +107,10 @@ func blood(pos: Vector2, dir_x: float, amount: int = 24, burst: float = 0.0, dir
 ## along with her; `size` is the body's half-extent the arcs stay within.
 func zap(pos: Vector2, arcs: int = 2, vel: Vector2 = Vector2.ZERO, size: Vector2 = Vector2(18, 34), sparks: int = 3) -> void:
 	for a in arcs:
-		var start := pos + Vector2(randf_range(-1, 1) * size.x, randf_range(-1, 1) * size.y)
-		var end := pos + Vector2(randf_range(-1, 1) * size.x * 1.6, randf_range(-1, 1) * size.y * 1.2)
-		var pts := PackedVector2Array([start])
-		var steps := 5
-		for i in range(1, steps):
-			var p := start.lerp(end, float(i) / steps)
-			var n := (end - start).orthogonal().normalized()
-			pts.append(p + n * randf_range(-8.0, 8.0))
-		pts.append(end)
-		_items.append({"kind": "bolt", "t": 0.0, "life": randf_range(0.06, 0.12), "pts": pts, "vel": vel})
+		var at := pos + Vector2(randf_range(-1, 1) * size.x, randf_range(-1, 1) * size.y)
+		var s := _bolt_sprite(Bolt.SPARKS, at, randf() * TAU, Vector2.ONE * randf_range(0.6, 0.9))
+		s.frame = SPARK_FRAMES.pick_random()
+		_items.append({"kind": "bolt", "t": 0.0, "life": randf_range(0.06, 0.12), "node": s, "vel": vel})
 	for i in sparks:
 		var dir := Vector2.from_angle(randf() * TAU)
 		_items.append({"kind": "particle", "t": 0.0, "life": randf_range(0.25, 0.45),
@@ -89,20 +120,18 @@ func zap(pos: Vector2, arcs: int = 2, vel: Vector2 = Vector2.ZERO, size: Vector2
 
 ## A jagged arc along a line (lightning running down her sword), moving with `vel`.
 func zap_line(a: Vector2, b: Vector2, vel: Vector2 = Vector2.ZERO) -> void:
-	var pts := PackedVector2Array([a])
-	var steps := 5
-	var n := (b - a).orthogonal().normalized()
-	for i in range(1, steps):
-		pts.append(a.lerp(b, float(i) / steps) + n * randf_range(-6.0, 6.0))
-	pts.append(b)
-	_items.append({"kind": "bolt", "t": 0.0, "life": randf_range(0.06, 0.12), "pts": pts, "vel": vel})
+	var d := b - a
+	var s := _bolt_sprite(Bolt.THIN, (a + b) * 0.5, d.angle(), Vector2(d.length() / BOLT_LENGTH, 0.5))
+	s.frame = randi() % BOLT_FRAMES[Bolt.THIN]
+	s.flip_v = randf() < 0.5
+	_items.append({"kind": "bolt", "t": 0.0, "life": randf_range(0.06, 0.12), "node": s, "vel": vel})
 
 
 ## Removes the lightning arcs (so frozen lightning can flicker: redrawn each time).
 func clear_bolts() -> void:
 	for i in range(_items.size() - 1, -1, -1):
 		if _items[i]["kind"] == "bolt":
-			_items.remove_at(i)
+			_remove(i)
 
 
 ## Floating text at `pos`. `speed` (pixels/s) moves it forward: at the run
@@ -117,20 +146,30 @@ func _ring(pos: Vector2, r0: float, r1: float, life: float, width: float, color:
 
 
 func _process(real_delta: float) -> void:
+	# Lightning animations run on real time, frozen or not.
+	for i in range(_items.size() - 1, -1, -1):
+		var it := _items[i]
+		if it["kind"] == "anim":
+			it["t"] += real_delta
+			var f := int(it["t"] * it["fps"])
+			if f >= it["frames"]:
+				_remove(i)
+			else:
+				it["node"].frame = f
+		elif it["kind"] == "bolt" and it.has("node"):
+			it["node"].modulate.a = bolt_alpha
 	if frozen:
 		queue_redraw()   # effects added while frozen still need drawing once
 		return
 	var delta := real_delta * time_scale
 	for i in range(_items.size() - 1, -1, -1):
 		var it := _items[i]
+		if it["kind"] == "anim":
+			continue
 		# Lightning ages on real time, so it keeps flickering in slow motion.
 		it["t"] += real_delta if it["kind"] == "bolt" else delta
 		if it["kind"] == "bolt":
-			var shift: Vector2 = it["vel"] * delta
-			var pts: PackedVector2Array = it["pts"]
-			for p in pts.size():
-				pts[p] += shift
-			it["pts"] = pts
+			it["node"].position += it["vel"] * delta
 		if it["kind"] == "particle" or it["kind"] == "blood":
 			it["vel"].y += GRAVITY * delta
 			it["pos"] += it["vel"] * delta
@@ -141,7 +180,7 @@ func _process(real_delta: float) -> void:
 			it["t"] = 0.0
 			it["life"] = STAIN_SECONDS
 		if it["t"] >= it["life"]:
-			_items.remove_at(i)
+			_remove(i)
 	queue_redraw()
 
 
@@ -150,14 +189,11 @@ func _draw() -> void:
 	var gy := Rules.GROUND_Y
 	var font := ThemeDB.fallback_font
 	for it in _items:
+		if it.has("node"):
+			continue   # sprites draw themselves
 		var k: float = it["t"] / it["life"]
 		var fade := 1.0 - k
 		match it["kind"]:
-			"trail":
-				var a: Vector2 = it["a"]
-				var b: Vector2 = it["b"]
-				# (The afterimages of her along the path are drawn by player.gd.)
-				draw_line(a, b, Color(TRAIL_COLOR, 0.9 * fade), 1.0 + 5.0 * fade)
 			"ring":
 				var r := lerpf(it["r0"], it["r1"], 1.0 - pow(1.0 - k, 3.0))
 				var col: Color = it["color"]
@@ -177,11 +213,6 @@ func _draw() -> void:
 				col.a = minf(1.0, fade * 3.0)   # fades out over its last third
 				var s: float = it["size"]
 				draw_rect(Rect2(it["pos"] - Vector2(s, 2.0), Vector2(s * 2.0, 3.0)), col)
-			"bolt":
-				var pts: PackedVector2Array = it["pts"]
-				var a := fade * bolt_alpha
-				draw_polyline(pts, Color(1.0, 0.2, 0.25, 0.9 * a), 5.0)
-				draw_polyline(pts, Color(1.0, 0.95, 0.9, a), 2.0)
 			"particle":
 				var col: Color = it["color"]
 				col.a = fade

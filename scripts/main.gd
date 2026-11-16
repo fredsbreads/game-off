@@ -588,7 +588,7 @@ func _teleport(move: int) -> void:
 		# Forward and diagonal: the line runs at sword height, along the throw.
 		from = player.sword_point(move, from_feet, from_row)
 		to = player.sword_point(move, Vector2(to_x * Rules.TILE, Rules.surface_y(to_row)), to_row)
-	fx.teleport_trail(from, to)
+	_teleport_lightning(move, from, to, not hit.is_empty())
 	player.teleport_afterimages(move, from_feet, from_row)
 
 	if hit.is_empty():
@@ -611,6 +611,7 @@ func _teleport(move: int) -> void:
 		_pause_elapsed = 0.0
 		if _pause_is_chain:
 			cam.punch(to)
+			fx.bolt(Fx.Bolt.RING, player.to_global(Player.BODY_CENTRE), randf() * TAU, Vector2.ONE * 1.2, 16.0)
 			_chain_awaiting = true
 			_pressed_during_pause = false
 		else:
@@ -650,6 +651,23 @@ func _bot_acts_in_pause() -> void:
 			_pressed_during_pause = true
 			_hitstop = minf(_hitstop, maxf(KILL_PAUSE_MIN - _pause_elapsed, 0.0))
 			return
+
+
+## The teleport's lightning: a thin bolt along the throw, a thick one when it
+## kills; across the rows, a strike that bursts where she lands.
+func _teleport_lightning(move: int, from: Vector2, to: Vector2, kills: bool) -> void:
+	if move == Rules.Move.VERTICAL:
+		var down := to.y > from.y
+		# The strike's burst sits near the bottom of its frame: put it on her.
+		var length := absf(to.y - from.y)
+		var sy := length / 200.0
+		var centre := Vector2(to.x, to.y + (-1.0 if down else 1.0) * (STRIKE_BURST_Y - 128.0) * sy)
+		fx.bolt(Fx.Bolt.STRIKE, centre, 0.0 if down else PI, Vector2(1.0, sy), 18.0)
+	else:
+		fx.bolt_between(Fx.Bolt.THICK if kills else Fx.Bolt.THIN, from, to, 1.3 if kills else 1.0)
+
+
+const STRIKE_BURST_Y := 215.0   # pixels down the STRIKE frame where its burst is
 
 
 func _kill(e: Enemy) -> void:
@@ -756,6 +774,11 @@ func _die(kind: String, killer: Enemy = null) -> void:
 	_death_released = false
 	player.running = false
 	player.die(kind)
+	# A big strike comes down on her.
+	var hit_at := player.to_global(Player.BODY_CENTRE)
+	var on_ceiling := player.row == Rules.Row.CEILING
+	fx.bolt(Fx.Bolt.BIG_STRIKE, hit_at + Vector2(0, (-1.0 if not on_ceiling else 1.0) * (230.0 - 128.0) * 1.3),
+		0.0 if not on_ceiling else PI, Vector2(1.3, 1.3), 14.0)
 	_death_sound.play()
 	for e in level.enemies:
 		e.clear_glint()   # no red glints lingering on the death moment
