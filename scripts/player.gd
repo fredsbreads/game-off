@@ -384,15 +384,14 @@ const FLICKER_EVERY := 0.06              # seconds (real time): the frozen light
 const FREEZE_SPARKLE := 0.14             # share of her pixels glowing in the death freeze
 var _flicker_timer := 0.0
 # A ring of her own lightning looping around her: through the "your move"
-# freeze (main.gd sets freeze_ring) and while she dies, then a last burst as
-# she finishes dissolving.
+# freeze (main.gd sets freeze_ring) and while she dies, fading out as she
+# dissolves.
 const DEATH_RING_FPS := 14.0
 const DEATH_RING_SCALE := 1.15
-const FINAL_BURST_AT := 0.85             # dissolve amount when she bursts
+const RING_GONE_AT := 0.85               # dissolve amount when the ring has faded out
 var _ring: Sprite2D
 var freeze_ring := false
 var _ring_time := 0.0
-var _burst_done := false
 const BODY_CENTRE := Vector2(0, -54)     # her body's middle, from her feet (local, before tilt)
 # Her own effects layer, drawn over her, for the lightning. main.gd slows and
 # freezes it with the death moment like the other effects.
@@ -498,15 +497,10 @@ func _process(delta: float) -> void:
 		if step % n == 0 and _ring.frame != 0:
 			_ring.rotation = randf() * TAU
 		_ring.frame = step % n
-		_ring.modulate.a = 0.8 if alive else 0.8 * clampf(1.0 - _dissolve / FINAL_BURST_AT, 0.0, 1.0)
-	if not alive and zap_fx and not _burst_done and _dissolve >= FINAL_BURST_AT:
-		# What's left of her pops: the shards at the end of the strike animation.
-		_burst_done = true
-		var burst_y := 215.0 - 128.0   # the burst sits this far below the frame's centre
-		zap_fx.bolt(Fx.Bolt.STRIKE, to_global(BODY_CENTRE) - Vector2(0, burst_y * 1.3), 0.0, Vector2.ONE * 1.3, 16.0, 3)
-		if _ring:
-			_ring.queue_free()
-			_ring = null
+		_ring.modulate.a = 0.8 if alive else 0.8 * clampf(1.0 - _dissolve / RING_GONE_AT, 0.0, 1.0)
+	if not alive and _ring and _dissolve >= RING_GONE_AT:
+		_ring.queue_free()
+		_ring = null
 	if not alive and zap_fx and _dissolve < 0.95:
 		_flicker_timer -= delta
 		if _flicker_timer <= 0.0:
