@@ -38,6 +38,14 @@ var engaged := false
 ## True while she's straight across from him: he's winding up to strike.
 var threat := false
 var _slashing := false   # the killing blow: green outline held
+var _arc: AnimatedSprite2D
+
+
+func _part_material(part: int) -> ShaderMaterial:
+	var m := ShaderMaterial.new()
+	m.shader = OUTLINE_SHADER
+	m.set_shader_parameter("white_part", part)
+	return m
 const WINDUP_FRAME := 1             # sword raised, from his attack animation
 
 
@@ -50,15 +58,25 @@ func _ready() -> void:
 		tile_x = path[0].x
 		row = int(path[0].y)
 	_place()
+	# His slash arcs (the white in his attack frames) go behind him: a copy
+	# of him drawing only them, underneath.
+	_arc = AnimatedSprite2D.new()
+	_arc.sprite_frames = _build_knight_frames()
+	_arc.centered = false
+	_arc.offset = Vector2(-(K_FRAME.x - K_FEET.x), -K_FEET.y)
+	_arc.scale = Vector2(K_SCALE, K_SCALE)
+	_arc.flip_h = true
+	_arc.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_arc.material = _part_material(2)
+	add_child(_arc)
 	_sprite = AnimatedSprite2D.new()
-	_sprite.sprite_frames = _build_knight_frames()
+	_sprite.sprite_frames = _arc.sprite_frames
 	_sprite.centered = false
 	_sprite.offset = Vector2(-(K_FRAME.x - K_FEET.x), -K_FEET.y)
 	_sprite.scale = Vector2(K_SCALE, K_SCALE)
 	_sprite.flip_h = true   # the art faces right; he faces her (left)
 	_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_material = ShaderMaterial.new()
-	_material.shader = OUTLINE_SHADER
+	_material = _part_material(1)
 	_sprite.material = _material
 	add_child(_sprite)
 	_sprite.play("idle")
@@ -109,22 +127,25 @@ func blink() -> Vector2:
 func _leave_ghost() -> void:
 	if get_parent() == null or _sprite == null:
 		return
-	var ghost := Sprite2D.new()
+	var ghost := Node2D.new()
+	ghost.position = position
+	ghost.scale = Vector2(K_SCALE, K_SCALE * scale.y)
 	var tex := AtlasTexture.new()
 	tex.atlas = K_ATTACK
 	tex.region = Rect2(Vector2(CLASH_FRAMES[0] * K_FRAME.x, 0), Vector2(K_FRAME))
-	ghost.texture = tex
-	ghost.centered = false
-	ghost.offset = _sprite.offset
-	ghost.flip_h = true
-	ghost.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	ghost.position = position
-	ghost.scale = Vector2(K_SCALE, K_SCALE * scale.y)
-	var mat := ShaderMaterial.new()
-	mat.shader = OUTLINE_SHADER
-	mat.set_shader_parameter("outline_color", SLASH_OUTLINE)
-	mat.set_shader_parameter("glint", 1.0)
-	ghost.material = mat
+	for part in [2, 1]:   # the arc first, so it's behind him
+		var s := Sprite2D.new()
+		s.texture = tex
+		s.centered = false
+		s.offset = _sprite.offset
+		s.flip_h = true
+		s.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		var mat := _part_material(part)
+		if part == 1:
+			mat.set_shader_parameter("outline_color", SLASH_OUTLINE)
+			mat.set_shader_parameter("glint", 1.0)
+		s.material = mat
+		ghost.add_child(s)
 	get_parent().add_child(ghost)
 	var tween := ghost.create_tween()
 	tween.tween_method(func(f: float) -> void:
@@ -175,6 +196,11 @@ func slash(her_x: float) -> void:
 
 
 func _process(delta: float) -> void:
+	if _arc and _sprite:
+		if _arc.animation != _sprite.animation:
+			_arc.play(_sprite.animation)
+		_arc.frame = _sprite.frame
+		_arc.pause()
 	if _slashing:
 		return   # keep the green outline (Enemy would fade it to the target glint)
 	super(delta)
