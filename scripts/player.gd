@@ -139,8 +139,13 @@ var cinematic := false
 var charged := false
 var auto_chain := false
 const CHARGE_CRACKLE_EVERY := 0.07   # seconds between crackles while charged
-const CHARGE_GLOW := Color(1.15, 1.25, 1.6)
+const CHARGE_ARC_EVERY := 0.11       # ...heavy bolts lashing out of her
+const CHARGE_STRIKE_EVERY := 0.45    # ...lightning striking down onto her
+const CHARGE_ARC_LENGTH := 80.0      # pixels
+const CHARGE_GLOW := Color(1.3, 1.4, 1.9)
 var _charge_timer := 0.0
+var _arc_timer := 0.0
+var _strike_timer := 0.0
 
 var _striking := false    # showing a strike pose
 var _strike_time := 0.0
@@ -579,14 +584,30 @@ func _update_charge_look(delta: float) -> void:
 	if not on:
 		_sprite.self_modulate = Color.WHITE
 		return
+	var vel := Vector2(Rules.RUN_SPEED * Rules.TILE, 0) if running and not frozen else Vector2.ZERO
+	var body := to_global(BODY_CENTRE)
+	# Lead the spot a little: the bolts are left in the world as she runs on.
+	var lead := body + vel * 0.06
+	_arc_timer -= delta
+	if _arc_timer <= 0.0:
+		# A heavy bolt lashing out of her, any direction.
+		_arc_timer = CHARGE_ARC_EVERY * randf_range(0.6, 1.4)
+		var dir := Vector2.from_angle(randf() * TAU)
+		var from := lead + dir * 10.0
+		zap_fx.bolt_between(Fx.Bolt.THICK, from, from + dir * CHARGE_ARC_LENGTH * randf_range(0.7, 1.2), randf_range(0.6, 0.9), 24.0)
+	_strike_timer -= delta
+	if _strike_timer <= 0.0:
+		# Lightning comes down onto her (up from the floor when she's on the ceiling).
+		_strike_timer = CHARGE_STRIKE_EVERY * randf_range(0.7, 1.3)
+		var up := -1.0 if row == Rules.Row.FLOOR else 1.0
+		zap_fx.strike(lead + Vector2(randf_range(-50, 50), up * 230.0), lead, false, 20.0)
 	_charge_timer -= delta
 	if _charge_timer > 0.0:
 		return
 	_charge_timer = CHARGE_CRACKLE_EVERY
-	var vel := Vector2(Rules.RUN_SPEED * Rules.TILE, 0) if running and not frozen else Vector2.ZERO
-	zap_fx.zap(to_global(BODY_CENTRE), 3 if auto_chain else 2, vel, Vector2(20, 34), 1)
+	zap_fx.zap(body, 4 if auto_chain else 3, vel, Vector2(22, 36), 2)
 	var k := randf()
-	_sprite.self_modulate = Color.WHITE.lerp(CHARGE_GLOW, (0.6 + 0.4 * k) if auto_chain else (0.3 + 0.5 * k))
+	_sprite.self_modulate = Color.WHITE.lerp(CHARGE_GLOW, (0.6 + 0.4 * k) if auto_chain else (0.35 + 0.6 * k))
 
 
 func _draw() -> void:

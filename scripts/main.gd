@@ -115,6 +115,7 @@ const STREAK_REWARD := 50
 const CHARGE_FULL := 10
 const CHARGE_GAIN := {"PERFECT": 2, "CLEAN": 1}
 const AUTO_STEP := 0.1          # seconds between her auto-chain hops
+const AUTO_DUEL_STEP := 0.32    # ...after a clash or a knight's last hit: the duel gets its weight
 const AUTO_GAP_TILES := 12.0    # extra empty run after an auto-chain
 var charge := 0                 # the meter (0..CHARGE_FULL)
 var _charged := false           # full: the next chainable kill sets it off
@@ -568,7 +569,8 @@ func _physics_process(delta: float) -> void:
 				_bot_acts_in_pause()
 				_hitstop -= delta
 				_pause_elapsed += delta
-				if _auto and not _finishing and _pause_elapsed >= AUTO_STEP:
+				var auto_wait := AUTO_DUEL_STEP if (_clashed or _knight_felled) else AUTO_STEP
+				if _auto and not _finishing and _pause_elapsed >= auto_wait:
 					_auto_hop()
 					return
 				if _hitstop <= 0.0 and _pause_is_chain and _chain_awaiting \
