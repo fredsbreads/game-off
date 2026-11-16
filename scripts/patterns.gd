@@ -50,13 +50,12 @@ const GENERATED_STEPS := ["F", "V", "D"]
 const NEW_PATTERN_WEIGHT := 2.0
 const OLD_PATTERN_WEIGHT := 1.0
 
-# Knights (see knight.gd). Level 9 opens with one alone, and every chain in
-# it ends with one, so the level-up into 10 is always on a knight. From level
-# 10 any enemy in a chain can be a knight: KNIGHT_CHANCE, plus
-# KNIGHT_CHANCE_STEP for every level after that.
-const KNIGHT_DEBUT_LEVEL := 9
+# Knights (see knight.gd). Her debut level opens with one alone; from then on
+# any enemy in a generated chain can be a knight: KNIGHT_CHANCE at the debut
+# level, plus KNIGHT_CHANCE_STEP for every level after that.
+const KNIGHT_DEBUT_LEVEL := 5
 const KNIGHT_CHANCE := 0.05
-const KNIGHT_CHANCE_STEP := 0.03
+const KNIGHT_CHANCE_STEP := 0.02
 # A knight's blinks: to any of her three landing spots, but never back to a
 # spot she's been on (so never across twice in a row, see _overlaps).
 const KNIGHT_STEPS := ["F", "V", "D"]
@@ -148,14 +147,14 @@ static func average_chain_length(level: int) -> float:
 
 ## The chance that an enemy in a generated chain at `level` is a knight.
 static func knight_chance(level: int) -> float:
-	if level <= KNIGHT_DEBUT_LEVEL:
+	if level < KNIGHT_DEBUT_LEVEL:
 		return 0.0
-	return KNIGHT_CHANCE + KNIGHT_CHANCE_STEP * (level - KNIGHT_DEBUT_LEVEL - 1)
+	return KNIGHT_CHANCE + KNIGHT_CHANCE_STEP * (level - KNIGHT_DEBUT_LEVEL)
 
 
 ## A random chain for a generated level: a length from chain_length_range,
-## each step F, V or D with equal odds. Knights (see knight_chance; in level
-## 9 the last enemy always is one) take KNIGHT_HITS_MIN-MAX spots: where she
+## each step F, V or D with equal odds. Knights (see knight_chance) take
+## KNIGHT_HITS_MIN-MAX spots: where she
 ## starts, then one blink per hit to a random landing spot. The length counts
 ## spots (every hit), so knights don't make chains any longer.
 ## Returns {enemies, knights, steps, name}: `knights` has one entry per spot,
@@ -170,10 +169,7 @@ static func generate(level: int, rng: RandomNumberGenerator) -> Dictionary:
 		var n := rng.randi_range(lengths.x, lengths.y)
 		# Spend n spots: a plain enemy takes one, a knight her hits.
 		var hits: Array[int] = []   # per enemy: 1, or a knight's hits
-		var last_knight := 0
-		if level == KNIGHT_DEBUT_LEVEL:
-			last_knight = rng.randi_range(Rules.KNIGHT_HITS_MIN, Rules.KNIGHT_HITS_MAX)
-		var left := n - last_knight
+		var left := n
 		while left > 0:
 			if left >= Rules.KNIGHT_HITS_MIN and rng.randf() < chance:
 				var h := mini(rng.randi_range(Rules.KNIGHT_HITS_MIN, Rules.KNIGHT_HITS_MAX), left)
@@ -182,8 +178,6 @@ static func generate(level: int, rng: RandomNumberGenerator) -> Dictionary:
 			else:
 				hits.append(1)
 				left -= 1
-		if last_knight > 0:
-			hits.append(last_knight)
 		var built := _build(hits, rng)
 		if not built.is_empty():
 			built["name"] = "generated L%d: %s" % [level, built["steps"]]
@@ -196,7 +190,7 @@ static func generate(level: int, rng: RandomNumberGenerator) -> Dictionary:
 	return fallback
 
 
-## A lone knight (the start of level 9).
+## A lone knight (the start of her debut level).
 static func knight_alone(rng: RandomNumberGenerator) -> Dictionary:
 	for _attempt in 40:
 		var built := _build([rng.randi_range(Rules.KNIGHT_HITS_MIN, Rules.KNIGHT_HITS_MAX)], rng)

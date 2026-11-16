@@ -58,7 +58,7 @@ run upside down.
   In the "your move" pause the red drains toward the tip as the time to act
   runs out.
 - Run speed is a constant 6 tiles/s.
-- **The knight** (from level 9, `scripts/knight.gd`), a woman, takes 3-4
+- **The knight** (from level 5, `scripts/knight.gd`), a woman, takes 3-4
   hits. Each hit (swords clash) she blinks, with green lightning, to one of
   your three landing spots, picked when her chain was generated, so it's
   always catchable, and you chase her down. Each hit counts double on the
@@ -79,9 +79,9 @@ run upside down.
   If two knights would strike at once (a freeze running out, running on or
   past, or running into one), both do: the one further ahead from the front,
   the other from behind the player (more than two: the two nearest).
-  Level 9 opens with a knight alone and every chain in it ends with one. From
-  level 10 any enemy in a chain is a knight with a 5% chance, +3% per level
-  (`KNIGHT_CHANCE`, `KNIGHT_CHANCE_STEP` in `scripts/patterns.gd`). A chain's
+  Level 5 opens with a knight alone (`KNIGHT_DEBUT_LEVEL`). From then on any
+  enemy in a generated chain is a knight with a 5% chance at level 5, +2% per
+  level (`KNIGHT_CHANCE`, `KNIGHT_CHANCE_STEP` in `scripts/patterns.gd`). A chain's
   length counts every hit (a knight's 3-4 hits use up 3-4 of it), so knights
   don't make chains longer.
   You may leave a duel early (chain onto another enemy instead of her), so a
@@ -135,12 +135,12 @@ A bar above the ceiling row fills as you chain kills; filling it levels you up.
 - Levels 1-3 use the hand-made patterns; each level adds new ones, which show
   up twice as often as the previous level's (older ones drop out). From level
   4, chains are generated: x-2 to x+2 enemies long at level x (at least 3),
-  each step F, V or D with equal odds. From level 8 on (so level 9 opens with
-  its knight), once the chains already laid could
-  (at best) fill the bar, no more are laid until it's decided, so the chain
-  that levels you up is the last one at the old level; the new level's first
-  chain starts just off screen (a short breather). If those chains are
-  dropped instead, laying resumes just off screen too.
+  each step F, V or D with equal odds. In level 4 (so level 5 opens with
+  the knight alone), once the chains already laid could (at best) fill the
+  bar, no more are laid until it's decided, so the chain that levels you up
+  is the last one at the old level; level 5's first chain starts just off
+  screen. If those chains are dropped instead, laying resumes just off screen
+  too. Every other level flows straight into the next.
 
 ## Art and sound
 
@@ -226,7 +226,7 @@ It prints `SOAK OK` if it reaches the distance, or `SOAK FAIL` with the chunk it
 died in. Other options are listed at the top of `scripts/debug_tools.gd`
 (`--autostart`, `--shots=DIR` for screenshots, `--level=N` to start at a level).
 
-The start screen has a **Start at level 1 / 9** button (tap it, or press L,
-1 or 9): 9 goes straight to the knight. The pause screen has a **Colour**
+The start screen has a **Start at level 1 / 5** button (tap it, or press L,
+1 or 5): 5 goes straight to the knight's debut. The pause screen has a **Colour**
 button that steps through her reward colours. Both choices are saved
 between visits (`user://save.cfg`).

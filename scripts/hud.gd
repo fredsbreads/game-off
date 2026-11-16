@@ -52,7 +52,7 @@ const FLIP_BUTTON_SIZE := Vector2(300, 64)
 var _enemies_button: Control
 # Her level-10 colour (Palette), stepped through on the pause screen.
 var _colour_button: Control
-# The start screen's "Start at level" choice (1 or 9).
+# The start screen's "Start at level" choice (1 or 5).
 var _level_button: Control
 var _start_level := 1
 var _enemies_off_label: Label

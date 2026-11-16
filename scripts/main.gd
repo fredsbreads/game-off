@@ -10,9 +10,9 @@ extends Node2D
 enum State { READY, PLAYING, DYING, OVER }
 
 const START_X := 3.0
-# The level a run starts at: picked on the start screen (1 or 9: straight to
-# the knight), and kept between visits.
-const START_LEVELS := [1, 9]
+# The level a run starts at: picked on the start screen (1, or 5: straight to
+# the knight's debut), and kept between visits.
+const START_LEVELS := [1, 5]
 # Every kill gets a short hit freeze (invert flash).
 const KILL_HIT := 0.06
 # If another enemy is under any marker where you land, the
@@ -85,9 +85,9 @@ var _clashed := false                # this teleport hit a knight who blinked aw
 var _knight_felled := false          # this teleport finished a knight off
 var _felled_knight: Knight = null
 var _last_felled: Enemy = null   # the last enemy killed (the finisher plays on them)
-# The level 9 -> 10 finisher: the hit that kills the knight and levels her up
-# plays her blinking back and forth across the enemy in each of her three strike
-# poses, the last held as a freeze frame, and she turns pink (see _finisher).
+# The streak finisher (see _finisher): her blinking back and forth across the
+# enemy in each of her three strike poses, the last held as a freeze frame
+# while she takes on her reward colour.
 # Played slow, like the death moment: grey world, zoomed in, her lightning
 # ring, slow lightning, blood hanging in the air.
 const FINISHER_HOP := 0.6          # seconds between her strikes
@@ -1119,6 +1119,9 @@ func _kill(e: Enemy) -> void:
 	var knight := e as Knight
 	chain += 1
 	chain_points += Rules.KNIGHT_POINTS if knight else 1
+	# The bar room the level builder sees includes this chain's kills so far
+	# (at their best: a PERFECT), so it stops laying chains in time.
+	level.bar_room = progression.bar_size() - progression.bar - chain_points * float(Progression.MULTIPLIER["PERFECT"])
 	best_chain = maxi(best_chain, chain)
 	var points := Rules.KILL_POINTS * chain
 	kill_score += points
@@ -1396,7 +1399,7 @@ func _load_setting(key: String, default: Variant) -> Variant:
 
 
 ## The start screen's level choice: tap its button (or L) to switch between
-## the start levels, or press 1 / 9. The run is rebuilt at that level.
+## the start levels, or press 1 / 5. The run is rebuilt at that level.
 ## Returns true if the event was that.
 func _start_level_input(event: InputEvent) -> bool:
 	var tap: bool = (event is InputEventScreenTouch or event is InputEventMouseButton) and event.pressed
@@ -1407,7 +1410,7 @@ func _start_level_input(event: InputEvent) -> bool:
 		match event.physical_keycode:
 			KEY_L: want = 0
 			KEY_1: want = 1
-			KEY_9: want = 9
+			KEY_5: want = 5
 	if want < 0:
 		return false
 	if want == 0:   # the next one

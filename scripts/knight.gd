@@ -1,6 +1,6 @@
 class_name Knight
 extends Enemy
-## The chase enemy (debuts in level 9): a knight, a woman, who takes several
+## The chase enemy (debuts in level 5, Patterns.KNIGHT_DEBUT_LEVEL): a knight, a woman, who takes several
 ## hits. Each hit she blinks to one of the player's three landing spots,
 ## chosen when her chain was generated (so the chain is provably catchable),
 ## and you chase her down.

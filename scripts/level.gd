@@ -37,13 +37,13 @@ var corpses: Array = []
 static var enemies_off := false
 
 ## How much more the progression bar can take before it's full (main.gd
-## keeps it up to date). Once the chains already laid could fill it, no more
-## are laid until it's decided: so the chain that levels you up is the last
-## one at the old level, and the new level starts on a clear screen.
+## keeps it up to date). In the level before the knight's debut, once the
+## chains already laid could fill it, no more are laid until it's decided: so
+## the debut level starts on a clear screen, with the knight alone first.
 var bar_room := INF
-const HOLD_FROM_LEVEL := Patterns.KNIGHT_DEBUT_LEVEL - 1
+const HOLD_AT_LEVEL := Patterns.KNIGHT_DEBUT_LEVEL - 1
 var _held := false
-var _knight_intro_done := false   # level 9 opens with a knight alone, once
+var _knight_intro_done := false   # the debut level opens with a knight alone, once
 var _cursor := RUNWAY_TILES        # where the next chain's first enemy goes
 var _cursor_row := Rules.Row.FLOOR # ...and its row (the row the last one ended in)
 var _rng := RandomNumberGenerator.new()
@@ -106,9 +106,8 @@ func _pick_pattern() -> Dictionary:
 ## a PERFECT), fill the rest of the bar. Ones she's already left behind
 ## (a dropped chain's leftovers) don't count: they can't level her up.
 func _could_level_up(player_x: float) -> bool:
-	# Early levels flow straight into each other; from the level-up into the
-	# knight's debut on, each level starts on a clear screen.
-	if level < HOLD_FROM_LEVEL:
+	# Levels flow straight into each other, except into the knight's debut.
+	if level != HOLD_AT_LEVEL:
 		return false
 	var best := 0.0
 	for e in enemies:

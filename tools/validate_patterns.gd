@@ -57,7 +57,7 @@ func _init() -> void:
 	if lone_bad > 0:
 		failures += 1
 	else:
-		print("  ok    L9  %d lone knights" % SAMPLES_PER_LEVEL)
+		print("  ok    L%d  %d lone knights" % [Patterns.KNIGHT_DEBUT_LEVEL, SAMPLES_PER_LEVEL])
 
 	var sizes: PackedStringArray = []
 	var prog := Progression.new()
