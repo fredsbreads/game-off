@@ -21,5 +21,5 @@ void fragment() {
 	// done the whole slash is solid (as white as a knight's).
 	float trail = progress >= 1.0 ? 1.0 : 0.55 + 0.45 * (1.0 - (progress - t));
 	float a = max_alpha * fade * trail;
-	COLOR = vec4(accent(c.rgb), c.a * clamp(a, 0.0, 1.0));
+	COLOR = vec4(accent(c.rgb, SCREEN_UV.x), c.a * clamp(a, 0.0, 1.0));
 }

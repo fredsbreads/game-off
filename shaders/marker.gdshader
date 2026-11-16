@@ -18,5 +18,5 @@ void fragment() {
 	// The image (the diagonal sword) has the hilt at the top and the tip at
 	// the bottom.
 	COLOR = UV.y >= 1.0 - fill ? mix(plain, lit, lit_mix) : plain;
-	COLOR.rgb = accent(COLOR.rgb);
+	COLOR.rgb = accent(COLOR.rgb, SCREEN_UV.x);
 }

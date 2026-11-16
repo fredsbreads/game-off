@@ -75,6 +75,7 @@ var _dropped_sound: AudioStreamPlayer
 var _teleport_sound: AudioStreamPlayer
 var _clash_sound: AudioStreamPlayer
 var _knight_kill_sound: AudioStreamPlayer   # the sword impact when a knight goes down
+var _pink_shift_sound: AudioStreamPlayer   # her colour sweeping from red to pink
 var _warn_sound: AudioStreamPlayer   # a knight winding up to strike
 const KILL_STRIKE_FPS := 5.0         # his teleport onto her lingers (normal: 18)
 const WARN_PEAK := 0.33              # seconds into it where the swish peaks
@@ -84,10 +85,16 @@ var _felled_knight: Knight = null
 # The level 9 -> 10 finisher: the hit that kills the knight and levels her up
 # plays her blinking back and forth across him in each of her three strike
 # poses, the last held as a freeze frame, and she turns pink (see _finisher).
-const FINISHER_HOP := 0.2          # seconds between her strikes
-const FINISHER_HOLD := 0.8         # the last pose holds this long
-const FINISHER_PINK_TIME := 0.45   # her colour turns over this long
-const FINISHER_ZOOM := 0.22
+# Played slow, like the death moment: grey world, zoomed in, her lightning
+# ring, slow lightning, blood hanging in the air.
+const FINISHER_HOP := 0.6          # seconds between her strikes
+const FINISHER_STRIKE_FPS := 6.0   # her blink lightning, slowed (normal: 18)
+const FINISHER_STRIKE_FLASH := Color(1, 1, 1, 0.35)
+const FINISHER_SWEEP_AFTER := 0.3  # on the last pose, this long before the colour sweeps
+const FINISHER_SWEEP_TIME := 0.9   # pink sweeps across her, right to left, over this long
+const FINISHER_HOLD := 0.8         # after the level-up, the freeze frame holds this long
+const FINISHER_PINK_TIME := 0.45   # (a level-up into 10 without the finisher: a quick fade)
+const FINISHER_ZOOM := 0.35
 const FINISHER_SIDE := 2.2          # tiles either side of him she strikes from
 const FINISHER_FLASH := Color(1.0, 0.45, 0.75, 0.55)
 var _finishing := false
@@ -187,6 +194,9 @@ func _ready() -> void:
 	_knight_kill_sound.stream = preload("res://assets/sounds/knight_kill.ogg")
 	_knight_kill_sound.volume_db = KILL_CUT_DB
 	add_child(_knight_kill_sound)
+	_pink_shift_sound = AudioStreamPlayer.new()
+	_pink_shift_sound.stream = preload("res://assets/sounds/pink_shift.ogg")
+	add_child(_pink_shift_sound)
 	_clash_sound = AudioStreamPlayer.new()
 	_clash_sound.stream = preload("res://assets/sounds/clash.ogg")
 	_clash_sound.volume_db = KILL_CUT_DB
@@ -534,7 +544,7 @@ func _update_pause_visuals() -> void:
 		return
 	var paused := state == State.PLAYING and _hitstop > 0.0
 	var flashing := paused and INVERT_FLASH and _pause_elapsed < INVERT_TIME
-	var chain_pause := paused and _pause_is_chain
+	var chain_pause := paused and (_pause_is_chain or _finishing)   # the finisher too
 	freeze_effect.set_state(1.0 if flashing else 0.0, 1.0 if chain_pause and not flashing else 0.0)
 	fx.frozen = paused and _pause_elapsed >= FX_FREEZE_AFTER
 	blood_fx.frozen = fx.frozen
@@ -763,6 +773,7 @@ func _finisher(k: Knight, grade: String) -> void:
 	_pause_is_chain = false
 	_pause_elapsed = 0.0
 	k.set_anim_speed(0.0)
+	player.hold_slash(FINISHER_HOP)
 	# Far enough either side of him that he's seen between her strikes.
 	var left_x := k.tile_x - FINISHER_SIDE
 	var right_x := k.tile_x + FINISHER_SIDE
@@ -777,6 +788,14 @@ func _finisher(k: Knight, grade: String) -> void:
 	t.tween_callback(_finisher_strike.bind(k, right_x, -1.0, poses[0], ""))
 	t.tween_interval(FINISHER_HOP)
 	t.tween_callback(_finisher_strike.bind(k, left_x, 1.0, poses[1], grade))
+	# The freeze frame: pink sweeps across her, then the level-up.
+	t.tween_interval(FINISHER_SWEEP_AFTER)
+	var sweep := func(at: float) -> void:
+		var r := _her_screen_span()
+		Palette.sweep_to(lerpf(r.y, r.x, at))
+	t.tween_callback(_pink_shift_sound.play)
+	t.tween_method(sweep, 0.0, 1.0, FINISHER_SWEEP_TIME)
+	t.tween_callback(_finisher_level_up.bind(grade))
 	t.tween_interval(FINISHER_HOLD)
 	t.tween_callback(_finisher_done.bind(k, focus))
 
@@ -791,14 +810,17 @@ func _finisher_strike(k: Knight, to_x: float, face: float, pose: int, grade: Str
 	var dir := signf(to_x - player.x)
 	player.x = to_x
 	player.facing = face
-	fx.strike(from, Vector2(to_x * Rules.TILE, Rules.body_center_y(player.row)))
+	fx.strike(from, Vector2(to_x * Rules.TILE, Rules.body_center_y(player.row)), false, FINISHER_STRIKE_FPS)
 	player.strike_from(from_feet)
 	player.strike(pose)
+	# Her slash stays up until the next strike (the last one: through the sweep).
+	player.hold_slash(FINISHER_HOP if grade == "" else FINISHER_SWEEP_AFTER + FINISHER_SWEEP_TIME + FINISHER_HOLD)
 	_play_strike(true)
+	hud.flash(FINISHER_STRIKE_FLASH, 0.15)
 	var pos := Vector2(k.tile_x * Rules.TILE, Rules.body_center_y(k.row))
 	blood_fx.blood(pos, dir, 30, BLOOD_BURST, 1.0 if k.row == Rules.Row.CEILING else -1.0)
 	fx.kill_burst(pos, 6)
-	cam.shake(0.1, 10.0)
+	cam.shake(0.15, 14.0)
 	if is_instance_valid(k):
 		k.modulate = Color(2.5, 2.5, 2.5)
 		k.create_tween().tween_property(k, "modulate", Color.WHITE, 0.12)
@@ -808,8 +830,28 @@ func _finisher_strike(k: Knight, to_x: float, face: float, pose: int, grade: Str
 		return
 	_knight_kill_sound.pitch_scale = _jitter()
 	_knight_kill_sound.play()
+
+
+## Where she is on screen, as screen x fractions (left, right): the pink
+## sweeps across this, a bit wider than her and her slash.
+func _her_screen_span() -> Vector2:
+	var to_screen := get_viewport().get_canvas_transform()
+	var width := get_viewport().get_visible_rect().size.x
+	var body := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row))
+	var a := (to_screen * (body - Vector2(110, 0))).x / width
+	var b := (to_screen * (body + Vector2(150, 0))).x / width
+	return Vector2(a, b)
+
+
+## The sweep is done: she's pink, with a flash, and the chain ends (the
+## level-up into 10).
+func _finisher_level_up(grade: String) -> void:
+	Palette.set_pink(1.0)
+	hud.flash(FINISHER_FLASH, 0.6)
+	cam.shake(0.25, 14.0)
+	var body := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row))
+	fx.bolt(Fx.Bolt.RING, body, randf() * TAU, Vector2.ONE * 2.2, 12.0)
 	_end_chain(grade)   # the level-up (its jingle, the bar)
-	_turn_pink()
 
 
 ## Her colour turns from red to pink (level 10), with a flash.

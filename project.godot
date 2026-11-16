@@ -61,3 +61,7 @@ accent_pink={
 "type": "float",
 "value": 0.0
 }
+accent_wipe={
+"type": "float",
+"value": -1.0
+}

@@ -26,6 +26,15 @@ static func sprite_material() -> ShaderMaterial:
 static func set_pink(value: float) -> void:
 	pink = clampf(value, 0.0, 1.0)
 	RenderingServer.global_shader_parameter_set("accent_pink", pink)
+	RenderingServer.global_shader_parameter_set("accent_wipe", -1.0)
+
+
+## The change-over as a sweep: everything right of screen x `at` (0..1) is
+## pink, left of it still red (shaders only; tint() stays red until it's
+## done). Ends with set_pink(1.0).
+static func sweep_to(at: float) -> void:
+	RenderingServer.global_shader_parameter_set("accent_pink", 1.0)
+	RenderingServer.global_shader_parameter_set("accent_wipe", at)
 
 
 static func for_level(level: int) -> float:

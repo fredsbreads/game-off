@@ -37,7 +37,7 @@ void fragment() {
 		} else {
 			COLOR = c;
 		}
-		COLOR.rgb = accent(COLOR.rgb);
+		COLOR.rgb = accent(COLOR.rgb, SCREEN_UV.x);
 	} else {
 		vec2 cell = floor(UV / TEXTURE_PIXEL_SIZE / block);
 		float n = hash(cell);
@@ -50,6 +50,6 @@ void fragment() {
 		} else {
 			COLOR = c;
 		}
-		COLOR.rgb = accent(COLOR.rgb);
+		COLOR.rgb = accent(COLOR.rgb, SCREEN_UV.x);
 	}
 }

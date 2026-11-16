@@ -47,6 +47,6 @@ void fragment() {
 			+ part_alpha(texture(TEXTURE, UV + vec2(0.0, px.y))) + part_alpha(texture(TEXTURE, UV - vec2(0.0, px.y)));
 		float shimmer = 0.8 + 0.2 * sin(TIME * 9.0);
 		float a = n > 0.0 ? outline_color.a * glint * shimmer * tint.a : 0.0;
-		COLOR = vec4(accent(outline_color.rgb), a);   // her colour (the knight's green stays)
+		COLOR = vec4(accent(outline_color.rgb, SCREEN_UV.x), a);   // her colour (the knight's green stays)
 	}
 }

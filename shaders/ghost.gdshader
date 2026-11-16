@@ -20,9 +20,9 @@ void fragment() {
 	float n = texture(TEXTURE, UV + vec2(px.x, 0.0)).a + texture(TEXTURE, UV - vec2(px.x, 0.0)).a
 		+ texture(TEXTURE, UV + vec2(0.0, px.y)).a + texture(TEXTURE, UV - vec2(0.0, px.y)).a;
 	if (a > 0.0) {
-		COLOR = vec4(accent(fill.rgb), fill.a * fade);
+		COLOR = vec4(accent(fill.rgb, SCREEN_UV.x), fill.a * fade);
 	} else if (n > 0.0 && outline.a > 0.0) {
-		COLOR = vec4(accent(outline.rgb), outline.a * fade);
+		COLOR = vec4(accent(outline.rgb, SCREEN_UV.x), outline.a * fade);
 	} else {
 		discard;
 	}
