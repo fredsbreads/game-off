@@ -774,11 +774,6 @@ func _die(kind: String, killer: Enemy = null) -> void:
 	_death_released = false
 	player.running = false
 	player.die(kind)
-	# A big strike comes down on her.
-	var hit_at := player.to_global(Player.BODY_CENTRE)
-	var on_ceiling := player.row == Rules.Row.CEILING
-	fx.bolt(Fx.Bolt.BIG_STRIKE, hit_at + Vector2(0, (-1.0 if not on_ceiling else 1.0) * (230.0 - 128.0) * 1.3),
-		0.0 if not on_ceiling else PI, Vector2(1.3, 1.3), 14.0)
 	_death_sound.play()
 	for e in level.enemies:
 		e.clear_glint()   # no red glints lingering on the death moment
