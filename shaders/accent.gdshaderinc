@@ -9,11 +9,10 @@ global uniform float accent_pink;
 // on the line. -1 = all of them (the usual).
 global uniform float accent_wipe;
 
-// Black-red (option G of the red mock-ups; was magenta, option D: 0.883,
-// 0.9, 0.95). Keep in step with palette.gd.
-const float ACCENT_PINK_HUE = 0.99;    // ~356 degrees
-const float ACCENT_PINK_SAT = 1.0;     // x her red's saturation
-const float ACCENT_PINK_VAL = 0.38;    // x her red's brightness
+// Magenta (option D of the mock-ups). Keep in step with palette.gd.
+const float ACCENT_PINK_HUE = 0.883;   // ~318 degrees
+const float ACCENT_PINK_SAT = 0.9;     // x her red's saturation
+const float ACCENT_PINK_VAL = 0.95;    // x her red's brightness
 
 vec3 accent_rgb2hsv(vec3 c) {
 	vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
@@ -43,7 +42,7 @@ vec3 accent(vec3 c, float sx) {
 	vec3 out_c = mix(c, pink, w * accent_pink * swept);
 	if (accent_wipe > -0.5) {
 		float edge = 1.0 - smoothstep(0.0, 0.01, abs(sx - accent_wipe));
-		out_c = mix(out_c, vec3(1.0, 0.8, 0.8), w * edge * 0.9);
+		out_c = mix(out_c, vec3(1.0, 0.9, 0.97), w * edge * 0.9);
 	}
 	return out_c;
 }
