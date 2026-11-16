@@ -6,10 +6,11 @@ extends RefCounted
 ## and blood is drawn without it, so it stays red.
 
 const PINK_FROM_LEVEL := 10
-# Magenta (option D of the mock-ups). Keep in step with accent.gdshaderinc.
-const PINK_HUE := 0.883
-const PINK_SAT := 0.9
-const PINK_VAL := 0.95
+# Ember, red-orange (option D of the red mock-ups; magenta was 0.883, 0.9,
+# 0.95). Keep in step with accent.gdshaderinc.
+const PINK_HUE := 0.045
+const PINK_SAT := 1.0
+const PINK_VAL := 1.0
 const SHADER := preload("res://shaders/accent_sprite.gdshader")
 
 ## 0 = red, 1 = pink (in between while it changes over).
