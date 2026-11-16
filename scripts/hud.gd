@@ -514,7 +514,7 @@ func _draw_colour_button() -> void:
 	var sw := Rect2(Vector2(16, 14), Vector2(36, s.y - 28))
 	_colour_button.draw_rect(sw, Palette.swatch())
 	var font := ThemeDB.fallback_font
-	var text := "Colour: " + Palette.colour_name.capitalize()
+	var text := "Color: " + Palette.colour_name.capitalize()
 	var size := 24
 	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
 	var left := sw.end.x + 10.0

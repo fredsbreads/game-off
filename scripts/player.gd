@@ -134,18 +134,12 @@ var frozen := false      # kill pause: hold the current animation frame
 var facing := 1.0
 ## The level-10 finisher is playing: no markers.
 var cinematic := false
-## The auto-chain power-up: charged (ready) / playing. Either way she
-## crackles with lightning and glows.
+## The auto-chain power-up: charged (ready) / playing. Either way her
+## lightning ring loops around her.
 var charged := false
 var auto_chain := false
-const CHARGE_CRACKLE_EVERY := 0.07   # seconds between crackles while charged
-const CHARGE_ARC_EVERY := 0.11       # ...heavy bolts lashing out of her
-const CHARGE_STRIKE_EVERY := 0.45    # ...lightning striking down onto her
-const CHARGE_ARC_LENGTH := 80.0      # pixels
-const CHARGE_GLOW := Color(1.3, 1.4, 1.9)
+const FREEZE_SPARKLE_EVERY := 0.08   # seconds between sparkles in the freeze
 var _charge_timer := 0.0
-var _arc_timer := 0.0
-var _strike_timer := 0.0
 
 var _striking := false    # showing a strike pose
 var _strike_time := 0.0
@@ -425,9 +419,10 @@ const DISSOLVE_TIME := 0.55              # seconds (game time, so the slow motio
 const FLICKER_EVERY := 0.06              # seconds (real time): the frozen lightning redraws this often
 const FREEZE_SPARKLE := 0.14             # share of her pixels glowing in the death freeze
 var _flicker_timer := 0.0
-# A ring of her own lightning looping around her: through the "your move"
-# freeze (main.gd sets freeze_ring) and while she dies, fading out as she
-# dissolves.
+# A ring of her own lightning looping around her: while she holds the
+# auto-chain power-up (charged / auto_chain), and while she dies, fading out
+# as she dissolves. (freeze_ring, set by main.gd in the "your move" freeze,
+# now gives sparkles instead: _update_charge_look.)
 const DEATH_RING_FPS := 14.0
 const DEATH_RING_SCALE := 1.15
 const RING_GONE_AT := 0.85               # dissolve amount when the ring has faded out
@@ -527,8 +522,9 @@ func _process(delta: float) -> void:
 		_update_arc()
 	# Death: the lightning flickers on real time (freeze, slow motion and
 	# all) as long as there's some of her left, moving with her body.
-	if alive and freeze_ring != (_ring != null):
-		if freeze_ring:
+	var want_ring := charged or auto_chain   # her lightning ring = the power-up
+	if alive and want_ring != (_ring != null):
+		if want_ring:
 			_make_ring()
 		else:
 			_ring.queue_free()
@@ -577,37 +573,16 @@ func _process(delta: float) -> void:
 	_hitbox.queue_redraw()
 
 
-## Charged / auto-chaining: lightning crackles over her and her sword, and she
-## flickers with a cold glow (stronger while the auto-chain plays).
+## The "your move" freeze: small sparkles of her lightning flicker on her.
+## (The ring around her is the power-up's: see _process.)
 func _update_charge_look(delta: float) -> void:
-	var on := alive and (charged or auto_chain)
-	if not on:
-		_sprite.self_modulate = Color.WHITE
+	if not (alive and freeze_ring):
 		return
-	var vel := Vector2(Rules.RUN_SPEED * Rules.TILE, 0) if running and not frozen else Vector2.ZERO
-	var body := to_global(BODY_CENTRE)
-	# Lead the spot a little: the bolts are left in the world as she runs on.
-	var lead := body + vel * 0.06
-	_arc_timer -= delta
-	if _arc_timer <= 0.0:
-		# A heavy bolt lashing out of her, any direction.
-		_arc_timer = CHARGE_ARC_EVERY * randf_range(0.6, 1.4)
-		var dir := Vector2.from_angle(randf() * TAU)
-		var from := lead + dir * 10.0
-		zap_fx.bolt_between(Fx.Bolt.THICK, from, from + dir * CHARGE_ARC_LENGTH * randf_range(0.7, 1.2), randf_range(0.6, 0.9), 24.0)
-	_strike_timer -= delta
-	if _strike_timer <= 0.0:
-		# Lightning comes down onto her (up from the floor when she's on the ceiling).
-		_strike_timer = CHARGE_STRIKE_EVERY * randf_range(0.7, 1.3)
-		var up := -1.0 if row == Rules.Row.FLOOR else 1.0
-		zap_fx.strike(lead + Vector2(randf_range(-50, 50), up * 230.0), lead, false, 20.0)
 	_charge_timer -= delta
 	if _charge_timer > 0.0:
 		return
-	_charge_timer = CHARGE_CRACKLE_EVERY
-	zap_fx.zap(body, 4 if auto_chain else 3, vel, Vector2(22, 36), 2)
-	var k := randf()
-	_sprite.self_modulate = Color.WHITE.lerp(CHARGE_GLOW, (0.6 + 0.4 * k) if auto_chain else (0.35 + 0.6 * k))
+	_charge_timer = FREEZE_SPARKLE_EVERY
+	zap_fx.zap(to_global(BODY_CENTRE), 1, Vector2.ZERO, Vector2(18, 32), 2)
 
 
 func _draw() -> void:

@@ -104,8 +104,9 @@ run upside down.
   `shaders/accent.gdshaderinc`.
 - **The auto-chain power-up**: a thin meter under the level bar fills as
   chains end (CLEAN +1, PERFECT +2; full at 10; dropped and one-kill chains
-  add nothing, and nothing drains it). Full = she's charged: she crackles
-  with lightning and glows, the meter flashes. Her next kill that has a chain
+  add nothing, and nothing drains it). Full = she's charged: her lightning
+  ring loops around her (the "your move" freeze shows sparkles on her
+  instead), the meter flashes. Her next kill that has a chain
   after it sets it off: the rest of that chain plays itself, perfectly and
   fast (`AUTO_STEP` between hops), then a big lightning strike and thunder,
   the chain ahead is cleared and the next one comes in past the screen's
@@ -114,7 +115,7 @@ run upside down.
   `CHARGE_*`, `_auto_*` in `scripts/main.gd`.
 - **Her reward colour** is one setting: `COLOUR` at the top of
   `scripts/palette.gd` (default `"yellow"`; every name is in `COLOURS`
-  there). The pause screen's **Colour** button steps through them (saved);
+  there). The pause screen's **Color** button steps through them (saved);
   on a keyboard, **C** does too and shows the name (off with `CYCLE_KEY`).
 - Score, distance and the kill counter are tracked but **not shown** for now
   (kills, level reached and the best Flawless Streak (No Survivors) are on
@@ -237,6 +238,6 @@ died in. Other options are listed at the top of `scripts/debug_tools.gd`
 (`--autostart`, `--shots=DIR` for screenshots, `--level=N` to start at a level).
 
 The start screen has a **Start at level 1 / 5** button (tap it, or press L,
-1 or 5): 5 goes straight to the knight's debut. The pause screen has a **Colour**
+1 or 5): 5 goes straight to the knight's debut. The pause screen has a **Color**
 button that steps through her reward colours. Both choices are saved
 between visits (`user://save.cfg`).
