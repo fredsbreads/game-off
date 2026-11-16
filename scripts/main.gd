@@ -1301,12 +1301,13 @@ func _save_best(value: int) -> void:
 	cfg.save(SAVE_PATH)
 
 
-# Background music: the melody layer of "Tense Suspense" (Monume), the
-# droning background removed. It plays once through, then repeats its last
-# two loops (MUSIC_LOOP_FROM on), which join up seamlessly.
+# Background music: "Suspense Tension Building" (Monume). Its quiet intro
+# plays once; then the body loops (from MUSIC_LOOP_FROM to the end of the
+# file, seven 16 s phrases with a crossfade baked into the end). Its quiet
+# fade-out was cut.
 const MUSIC := preload("res://assets/music/background.ogg")
 const MUSIC_DB := -9.0
-const MUSIC_LOOP_FROM := 7.459   # seconds: exactly two 14.77 s loops before its end
+const MUSIC_LOOP_FROM := 9.0   # seconds: where the end of the file joins up again
 
 
 ## Starts the music with the first run (browsers only allow sound after a
