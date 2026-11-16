@@ -90,6 +90,11 @@ var _felled_knight: Knight = null
 const FINISHER_HOP := 0.6          # seconds between her strikes
 const FINISHER_STRIKE_FPS := 6.0   # her blink lightning, slowed (normal: 18)
 const FINISHER_STRIKE_FLASH := Color(1, 1, 1, 0.35)
+# Each blink also brings a bolt straight down onto her spot (Fx.Bolt.BIG_STRIKE),
+# slow enough that the last one is still up as she turns pink (and turns with her).
+const FINISHER_BOLT_FPS := 4.5
+const FINISHER_BOLT_SIZE := Vector2(1.2, 1.4)
+const BIG_STRIKE_BURST_Y := 225.0   # pixels down its frame where the ground burst is
 const FINISHER_SWEEP_AFTER := 0.3  # on the last pose, this long before the colour sweeps
 const FINISHER_SWEEP_TIME := 0.9   # pink sweeps across her, right to left, over this long
 const FINISHER_HOLD := 0.8         # after the level-up, the freeze frame holds this long
@@ -551,7 +556,7 @@ func _update_pause_visuals() -> void:
 	text_fx.frozen = fx.frozen
 	# Lit markers drain during the "your move" freeze as the time runs out.
 	player.marker_fill = clampf(_hitstop / _pause_length, 0.0, 1.0) if chain_pause else 1.0
-	player.freeze_ring = chain_pause   # her lightning circles her for the whole freeze
+	player.freeze_ring = chain_pause and not _finishing   # her lightning circles her for the whole freeze (not the finisher)
 	player.target_x = [_slash_target_x(Rules.Move.FORWARD), _slash_target_x(Rules.Move.VERTICAL),
 		_slash_target_x(Rules.Move.DIAGONAL)]
 	# Every enemy a teleport would slash right now gets a red glint.
@@ -781,6 +786,7 @@ func _finisher(k: Knight, grade: String) -> void:
 	player.x = left_x
 	player.strike(player.last_pose())
 	player.hold_slash(FINISHER_HOP)
+	_finisher_bolt()
 	var poses: Array = []
 	for p in Player.ATTACK_COUNT:
 		if p != player.last_pose():
@@ -820,6 +826,7 @@ func _finisher_strike(k: Knight, to_x: float, face: float, pose: int, grade: Str
 	# Her slash stays up until the next strike (the last one: through the sweep).
 	player.hold_slash(FINISHER_HOP if grade == "" else FINISHER_SWEEP_AFTER + FINISHER_SWEEP_TIME + FINISHER_HOLD)
 	_play_strike(true)
+	_finisher_bolt()
 	hud.flash(FINISHER_STRIKE_FLASH, 0.15)
 	var pos := Vector2(k.tile_x * Rules.TILE, Rules.body_center_y(k.row))
 	blood_fx.blood(pos, dir, 30, BLOOD_BURST, 1.0 if k.row == Rules.Row.CEILING else -1.0)
@@ -834,6 +841,15 @@ func _finisher_strike(k: Knight, to_x: float, face: float, pose: int, grade: Str
 		return
 	_knight_kill_sound.pitch_scale = _jitter()
 	_knight_kill_sound.play()
+
+
+## A bolt straight down onto where she is (up from the floor when she's on the
+## ceiling), its burst at her feet.
+func _finisher_bolt() -> void:
+	var feet := Vector2(player.x * Rules.TILE, Rules.surface_y(player.row))
+	var up := -1.0 if player.row == Rules.Row.FLOOR else 1.0   # toward the other row
+	var centre := feet + Vector2(0, up * (BIG_STRIKE_BURST_Y - 128.0) * FINISHER_BOLT_SIZE.y)
+	fx.bolt(Fx.Bolt.BIG_STRIKE, centre, 0.0 if player.row == Rules.Row.FLOOR else PI, FINISHER_BOLT_SIZE, FINISHER_BOLT_FPS)
 
 
 ## Where she is on screen, as screen x fractions (left, right): the pink
