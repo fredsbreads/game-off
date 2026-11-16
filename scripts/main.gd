@@ -142,9 +142,9 @@ func _ready() -> void:
 	_dropped_sound.stream = preload("res://assets/sounds/too_slow.ogg")
 	_dropped_sound.volume_db = 0.0
 	add_child(_dropped_sound)
+	# One player, one voice: each move's strike cuts off the last one, so a
+	# chain is a run of cracks rather than a wash.
 	_teleport_sound = AudioStreamPlayer.new()
-	_teleport_sound.stream = preload("res://assets/sounds/teleport.ogg")
-	_teleport_sound.max_polyphony = 3
 	add_child(_teleport_sound)
 	if not OS.get_cmdline_user_args().is_empty():
 		debug = DebugTools.new()
@@ -596,12 +596,12 @@ func _teleport(move: int) -> void:
 		fx.landing_ring(to)
 		if _chain_awaiting:
 			_end_chain("DROPPED", "MISSED")   # teleported into empty space while an enemy was in reach
-		# A teleport that hits nothing (a miss too): a light whoosh.
-		_teleport_sound.pitch_scale = randf_range(0.95, 1.05)
-		_teleport_sound.play()
+		# A teleport that hits nothing (a miss too): the full lightning strike.
+		_play_strike(false)
 	else:
 		player.cooldown = 0
 		player.strike()
+		_play_strike(true)
 		for e in hit:
 			_kill(e)
 		var targets := _chain_targets(to_x, to_row)
@@ -651,6 +651,25 @@ func _bot_acts_in_pause() -> void:
 			_pressed_during_pause = true
 			_hitstop = minf(_hitstop, maxf(KILL_PAUSE_MIN - _pause_elapsed, 0.0))
 			return
+
+
+# Every move crackles: a lightning strike (one of three, at random). A move
+# that kills gets only its first crack, quieter, under the saber cut, which
+# carries the hit.
+const STRIKES := [preload("res://assets/sounds/strike_13.ogg"),
+	preload("res://assets/sounds/strike_16.ogg"), preload("res://assets/sounds/strike_26.ogg")]
+const STRIKES_SHORT := [preload("res://assets/sounds/strike_13_short.ogg"),
+	preload("res://assets/sounds/strike_16_short.ogg"), preload("res://assets/sounds/strike_26_short.ogg")]
+const STRIKE_DB := 0.0
+const STRIKE_UNDER_CUT_DB := -6.0
+
+
+func _play_strike(kills: bool) -> void:
+	var i := randi() % STRIKES.size()
+	_teleport_sound.stream = STRIKES_SHORT[i] if kills else STRIKES[i]
+	_teleport_sound.volume_db = STRIKE_UNDER_CUT_DB if kills else STRIKE_DB
+	_teleport_sound.pitch_scale = randf_range(0.95, 1.05)
+	_teleport_sound.play()
 
 
 ## The teleport's lightning: a thin bolt along the throw, a thick one when it
