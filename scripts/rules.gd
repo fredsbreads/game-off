@@ -50,8 +50,8 @@ const STRIKE_OFFSET := 0.7
 # Run speed in tiles per second. Constant for now.
 const RUN_SPEED := 6.0
 
-# The knight (see knight.gd): each hit on him counts this many kills toward
-# the progression bar, since you can't see where he'll blink ahead of time.
+# The knight (see knight.gd): each hit on her counts this many kills toward
+# the progression bar, since you can't see where she'll blink ahead of time.
 const KNIGHT_POINTS := 2
 const KNIGHT_HITS_MIN := 3
 const KNIGHT_HITS_MAX := 4
@@ -85,14 +85,15 @@ static func in_kill_zone(move: int, enemy_x: float, landing_x: float) -> bool:
 	return d > -zone.x and d < zone.y
 
 
-## True if she's straight across from a knight (at knight_x in knight_row):
-## her across teleport would hit him.
+## True if the player is straight across from a knight (at knight_x in
+## knight_row): the player's across teleport would hit the knight.
 static func knight_across(knight_x: float, knight_row: int, x: float, row: int) -> bool:
 	return knight_row != row and in_kill_zone(Move.VERTICAL, knight_x, x)
 
 
-## True if running from from_x to x takes her on past a knight straight across
-## from her: he was in reach of her across teleport and now he's behind it.
+## True if running from from_x to x takes the player on past a knight straight
+## across: the knight was in reach of the player's across teleport and now is
+## behind it.
 static func knight_runs_past(knight_x: float, knight_row: int, from_x: float, x: float, row: int) -> bool:
 	return knight_across(knight_x, knight_row, from_x, row) and not knight_across(knight_x, knight_row, x, row) \
 			and knight_x < x

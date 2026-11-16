@@ -15,10 +15,10 @@ extends RefCounted
 ## Enemies are Vector2(x, row). States are [x, row, cooldown, killed_mask].
 ##
 ## Knights (optional `knights`, one entry per enemy: -1, or the knight's
-## number) are listed as one entry per spot he'll be in, in order. A spot
+## number) are listed as one entry per spot she'll be in, in order. A spot
 ## only exists once the one before it (same knight) is hit. And:
 ##   5. running on past a knight straight across from you (out of reach of
-##      your across teleport) makes him teleport to you: you die
+##      your across teleport) makes her teleport to you: you die
 ##   6. a knight you've hit is within a teleport of you while you run: same
 ## (both checked after running, so chaining on from a kill never triggers it;
 ## teleporting past a knight is fine).
@@ -159,10 +159,10 @@ static func exists(i: int, mask: int, knights: Array) -> bool:
 	return (mask & (1 << (i - 1))) != 0
 
 
-## The index of a knight that teleports to her as she runs from `from_x` to
-## x in `row`, or -1: one straight across from her that she runs on past (he
-## was in reach of her across teleport and now isn't), or one she's hit that's
-## within a teleport of her. Same rules as main.gd.
+## The index of a knight that teleports to the player as the player runs from
+## `from_x` to x in `row`, or -1: one straight across that the player runs on
+## past (in reach of the player's across teleport, and now not), or one the
+## player has hit that's within a teleport. Same rules as main.gd.
 static func knight_pounces(enemies: Array[Vector2], mask: int, from_x: float, x: float, row: int, knights: Array) -> int:
 	if knights.is_empty():
 		return -1

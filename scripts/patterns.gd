@@ -58,7 +58,7 @@ const KNIGHT_DEBUT_LEVEL := 9
 const KNIGHT_CHANCE := 0.05
 const KNIGHT_CHANCE_STEP := 0.03
 # A knight's blinks: to any of her three landing spots, but never back to a
-# spot he's been on (so never across twice in a row, see _overlaps).
+# spot she's been on (so never across twice in a row, see _overlaps).
 const KNIGHT_STEPS := ["F", "V", "D"]
 
 # "Maybe" for later: off-beat patterns (with a visual cue). Not spawned.
@@ -155,11 +155,11 @@ static func knight_chance(level: int) -> float:
 
 ## A random chain for a generated level: a length from chain_length_range,
 ## each step F, V or D with equal odds. Knights (see knight_chance; in level
-## 9 the last enemy always is one) take KNIGHT_HITS_MIN-MAX spots: where he
+## 9 the last enemy always is one) take KNIGHT_HITS_MIN-MAX spots: where she
 ## starts, then one blink per hit to a random landing spot. The length counts
 ## spots (every hit), so knights don't make chains any longer.
 ## Returns {enemies, knights, steps, name}: `knights` has one entry per spot,
-## -1 for a plain enemy or the knight's number (his spots are consecutive).
+## -1 for a plain enemy or the knight's number (her spots are consecutive).
 ## Chainable by construction: every step puts the next spot exactly under a
 ## marker, and no two things can be in one spot at the same time (see
 ## _overlaps). The validator runs the full solver check on samples.
@@ -168,7 +168,7 @@ static func generate(level: int, rng: RandomNumberGenerator) -> Dictionary:
 	var chance := knight_chance(level)
 	for _attempt in 40:
 		var n := rng.randi_range(lengths.x, lengths.y)
-		# Spend n spots: a plain enemy takes one, a knight his hits.
+		# Spend n spots: a plain enemy takes one, a knight her hits.
 		var hits: Array[int] = []   # per enemy: 1, or a knight's hits
 		var last_knight := 0
 		if level == KNIGHT_DEBUT_LEVEL:
@@ -257,13 +257,13 @@ static func _apply(prev: Vector2, token: String) -> Vector2:
 	return Vector2(prev.x + float(shape[0]), row)
 
 
-## True if the chain could end within a knight's reach while he's still
+## True if the chain could end within a knight's reach while she's still
 ## alive. You may leave a duel early (chain onto another enemy instead of
-## him), so after every knight that isn't the chain's last enemy, the chain
-## goes on until it's out of his reach: its last enemy is more than a forward
-## teleport (plus the strike offset) past his furthest spot. Then finishing
-## the chain always leaves you clear of him; he can only get you if the
-## chain is dropped (TOO SLOW, MISSED) or you run into him.
+## her), so after every knight that isn't the chain's last enemy, the chain
+## goes on until it's out of her reach: its last enemy is more than a forward
+## teleport (plus the strike offset) past her furthest spot. Then finishing
+## the chain always leaves you clear of her; she can only get you if the
+## chain is dropped (TOO SLOW, MISSED) or you run into her.
 static func _strands_by_knight(enemies: Array[Vector2], knights: Array[int]) -> bool:
 	var last := enemies.size() - 1
 	var furthest := {}
@@ -272,15 +272,15 @@ static func _strands_by_knight(enemies: Array[Vector2], knights: Array[int]) -> 
 			furthest[knights[i]] = maxf(furthest.get(knights[i], -INF), enemies[i].x)
 	for group in furthest:
 		if knights[last] == group:
-			continue   # he's the chain's last enemy: it ends on him
+			continue   # she's the chain's last enemy: it ends on her
 		if enemies[last].x - float(furthest[group]) <= Rules.FORWARD + Rules.STRIKE_OFFSET:
 			return true
 	return false
 
 
 ## True if any two spots in the chain are the same. Every spot is used once:
-## a knight never blinks onto anyone else's spot (she can skip the enemies
-## before him, so they may still be there), nor back to one he's been on
+## a knight never blinks onto anyone else's spot (the player can skip the
+## enemies before her, so they may still be there), nor back to one she's been on
 ## (so no across-and-back).
 static func _overlaps(enemies: Array[Vector2], _knights: Array[int]) -> bool:
 	for j in enemies.size():

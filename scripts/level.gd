@@ -72,7 +72,7 @@ func ensure_generated(player_x: float) -> void:
 			_cursor = maxf(_cursor, player_x + CameraRig.VIEW_TILES - CameraRig.HOME_TILES + 1.0)
 		var pattern := _pick_pattern()
 		if pattern.get("name", "").begins_with("knight alone"):
-			_cursor_row = Rules.Row.FLOOR   # his debut: on the floor
+			_cursor_row = Rules.Row.FLOOR   # her debut: on the floor
 		_append_pattern(pattern)
 	while tiles.size() < _cursor + Patterns.BREAK:
 		tiles.append(Rules.Tile.GROUND)
@@ -134,7 +134,7 @@ func _append_pattern(pattern: Dictionary) -> void:
 			continue   # keep the layout the same, just empty
 		var group: int = int(knights[i]) if not knights.is_empty() else -1
 		if group >= 0 and i > 0 and int(knights[i - 1]) == group:
-			knight.path.append(Vector2(_cursor + e.x, row))   # one of his later spots
+			knight.path.append(Vector2(_cursor + e.x, row))   # one of her later spots
 			continue
 		var enemy: Enemy
 		if group >= 0:

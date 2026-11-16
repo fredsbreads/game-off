@@ -1,20 +1,22 @@
 class_name Knight
 extends Enemy
-## The chase enemy (debuts in level 9): a knight who takes several hits. Each
-## hit he blinks to one of her three landing spots, chosen when his chain was
-## generated (so the chain is provably catchable), and you chase him down.
+## The chase enemy (debuts in level 9): a knight, a woman, who takes several
+## hits. Each hit she blinks to one of the player's three landing spots,
+## chosen when her chain was generated (so the chain is provably catchable),
+## and you chase her down.
 ##
-## You can teleport past him, but not run past him across the rows: while
-## she's straight across from him (he's under her across marker) he winds up
-## (sound, sword raised), and if she runs on out of reach, or a freeze ends
-## (dropped) with her there, he teleports to her and cuts her down. Same if a
-## freeze ends with him hit but not finished and within a teleport of her.
+## You can teleport past her, but not run past her across the rows: while
+## the player is straight across from her (under the player's across marker)
+## she winds up (sound, sword raised), and if the player runs on out of
+## reach, or a freeze ends (dropped) there, she teleports to the player and
+## cuts the player down. Same if a freeze ends with her hit but not finished and
+## within a teleport of the player.
 ## main.gd checks this every frame; ChunkSolver mirrors the running part.
 ## Art: "Hero Knight" (CC0), assets/sprites/hero_knight.
 
 const K_IDLE := preload("res://assets/sprites/hero_knight/idle.png")
 const K_DEATH := preload("res://assets/sprites/hero_knight/death.png")
-const K_ATTACK := preload("res://assets/sprites/hero_knight/attack.png")   # "Attack1": his clash swings
+const K_ATTACK := preload("res://assets/sprites/hero_knight/attack.png")   # "Attack1": her clash swings
 const K_ATTACK2 := preload("res://assets/sprites/hero_knight/attack2.png") # "Attack2": the killing blow
 const K_TAKE_HIT := preload("res://assets/sprites/hero_knight/take_hit.png") # struck in the level-10 finisher
 const K_HIT_FRAMES := 3   # recoil, white flash, recoil (not the recovery after)
@@ -27,42 +29,43 @@ const K_DEATH_FPS := 14.0
 const K_ATTACK_FPS := 16.0
 const K_ATTACK_START := 2
 const KILL_SLASH_FRAME := 3         # "Attack2"'s big arc: held in the death freeze
-# On the frames with the biggest arcs the art paints the arc over his head
-# and body, so with the arc moved behind him his body is taken from the next
-# frame, where it's whole: frame -> frame to draw his body from.
+# On the frames with the biggest arcs the art paints the arc over her head
+# and body, so with the arc moved behind her, her body is taken from the next
+# frame, where it's whole: frame -> frame to draw her body from.
 const KILL_BODY_FROM := {3: 4}
-# His clash swing: either attack, at random. Per attack: the sheet, the
+# Her clash swing: either attack, at random. Per attack: the sheet, the
 # frames from the swing on, the frame held through the clash beat, and
-# frame -> frame his body is drawn from (see KILL_BODY_FROM).
+# frame -> frame her body is drawn from (see KILL_BODY_FROM).
 const CLASH_SWINGS := [
 	{"sheet": K_ATTACK, "frames": [2, 3, 4, 5, 6], "hold": 3, "body_from": {3: 5, 4: 5}},
 	{"sheet": K_ATTACK2, "frames": [2, 3, 4, 5, 6], "hold": 3, "body_from": {3: 4}},
 ]
-# Which of his swings answers each of her three strike poses, and how far
-# (tiles) past his real spot it's drawn so the two read as a clash: her 1 vs
-# his 1, her 2 vs his 2 (his lunge, so further back), her 3 vs his 1.
+# Which of the knight's swings answers each of the player's three strike
+# poses, and how far (tiles) past the knight's real spot it's drawn so the two
+# read as a clash: player 1 vs knight 1, player 2 vs knight 2 (the knight's
+# lunge, so further back), player 3 vs knight 1.
 const CLASH_BY_POSE := [
 	{"swing": 0, "gap": 1.3 + 1.0 / 3.0},
 	{"swing": 1, "gap": 2.6 + 0.75},
 	{"swing": 0, "gap": 1.3 + 1.0 / 3.0},
 ]
-const KILL_DISTANCE := 2.6          # tiles ahead of her he swings his killing blow from
-const AFTERIMAGE_FADE := 0.35       # seconds his clash swing lingers after he blinks away
-const CLASH_TIME := 0.25           # seconds his clash swing (left where he was) plays
-const SLASH_OUTLINE := Color(0.35, 1.0, 0.45, 1.0)   # green outline while he swings
+const KILL_DISTANCE := 2.6          # tiles ahead of the player the knight swings her killing blow from
+const AFTERIMAGE_FADE := 0.35       # seconds her clash swing lingers after she blinks away
+const CLASH_TIME := 0.25           # seconds her clash swing (left where she was) plays
+const SLASH_OUTLINE := Color(0.35, 1.0, 0.45, 1.0)   # green outline while she swings
 
-## Every spot he'll be in, in order: Vector2(tile x, row). path[0] is where
-## he starts; each hit moves him to the next one.
+## Every spot she'll be in, in order: Vector2(tile x, row). path[0] is where
+## she starts; each hit moves her to the next one.
 var path: Array[Vector2] = []
 var step_index := 0
-## True once he's been hit (and not yet killed): he's in a duel with her.
+## True once she's been hit (and not yet killed): she's in a duel with the player.
 var engaged := false
-## True while she's straight across from him: he's winding up to strike.
+## True while the player is straight across from her: she's winding up to strike.
 var threat := false
-var warned := false   # he's already given his wind-up swish once
+var warned := false   # she's already given her wind-up swish once
 var _slashing := false   # the killing blow: green outline held
 var _arc: AnimatedSprite2D
-## Where his body goes in a clash swing: a layer above her (set by main.gd).
+## Where her body goes in a clash swing: a layer above the player (set by main.gd).
 static var front_parent: Node = null
 
 
@@ -71,7 +74,7 @@ func _part_material(part: int) -> ShaderMaterial:
 	m.shader = OUTLINE_SHADER
 	m.set_shader_parameter("white_part", part)
 	return m
-const WINDUP_FRAME := 1             # sword raised, from his attack animation
+const WINDUP_FRAME := 1             # sword raised, from her attack animation
 
 
 func hits_left() -> int:
@@ -83,8 +86,8 @@ func _ready() -> void:
 		tile_x = path[0].x
 		row = int(path[0].y)
 	_place()
-	# His slash arcs (the white in his attack frames) go behind him: a copy
-	# of him drawing only them, underneath.
+	# Her slash arcs (the white in her attack frames) go behind her: a copy
+	# of her drawing only them, underneath.
 	_arc = AnimatedSprite2D.new()
 	_arc.sprite_frames = _build_knight_frames()
 	_arc.centered = false
@@ -99,7 +102,7 @@ func _ready() -> void:
 	_sprite.centered = false
 	_sprite.offset = Vector2(-(K_FRAME.x - K_FEET.x), -K_FEET.y)
 	_sprite.scale = Vector2(K_SCALE, K_SCALE)
-	_sprite.flip_h = true   # the art faces right; he faces her (left)
+	_sprite.flip_h = true   # the art faces right; she faces the player (left)
 	_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_material = _part_material(1)
 	_sprite.material = _material
@@ -133,7 +136,7 @@ func _build_knight_frames() -> SpriteFrames:
 	return frames
 
 
-## Struck (the level-10 finisher): his take-hit, ending on the recoil, held
+## Struck (the streak finisher): her take-hit, ending on the recoil, held
 ## until the next strike.
 func take_hit() -> void:
 	if _sprite:
@@ -142,19 +145,19 @@ func take_hit() -> void:
 		_sprite.frame = 0
 
 
-## The finisher's over: now he falls.
+## The finisher's over: now she falls.
 func fall() -> void:
 	if _sprite:
 		_sprite.speed_scale = 1.0
 		_sprite.play("death")
 
 
-## Hit but not finished: leaves a white flash where he was and blinks to his
-## next spot. Returns the spot he left (pixels, body centre).
-## `beat`: seconds his swing holds where he was before he reappears.
-## `her_pose`: the strike pose she hit him with (picks his swing).
-## `reappear`: seconds until he shows at his new spot (< beat, so she can
-## see where he went while the clash still plays out where he was).
+## Hit but not finished: leaves a white flash where she was and blinks to her
+## next spot. Returns the spot she left (pixels, body centre).
+## `beat`: seconds her swing holds where she was before she reappears.
+## `her_pose`: the strike pose the player hit her with (picks her swing).
+## `reappear`: seconds until she shows at her new spot (< beat, so the player
+## can see where she went while the clash still plays out where she was).
 func blink(beat := 0.0, her_pose := 0, reappear := -1.0) -> Vector2:
 	var from := Vector2(tile_x * Rules.TILE, Rules.body_center_y(row))
 	_leave_ghost(beat, her_pose)
@@ -172,7 +175,7 @@ func blink(beat := 0.0, her_pose := 0, reappear := -1.0) -> Vector2:
 	_place()
 	threat = false
 	if _sprite:
-		# Engaged now: he waits at his new spot with his sword raised (the
+		# Engaged now: she waits at her new spot with her sword raised (the
 		# wind-up pose), not idle.
 		_sprite.play("attack")
 		_sprite.frame = WINDUP_FRAME
@@ -180,7 +183,7 @@ func blink(beat := 0.0, her_pose := 0, reappear := -1.0) -> Vector2:
 	return from
 
 
-## His clash swing, left where he was as he blinks away: "Attack1" from the
+## Her clash swing, left where she was as she blinks away: "Attack1" from the
 ## swing on, with a green outline, then fading.
 func _leave_ghost(beat := 0.0, her_pose := 0) -> void:
 	if get_parent() == null or _sprite == null:
@@ -193,12 +196,12 @@ func _leave_ghost(beat := 0.0, her_pose := 0) -> void:
 	arc_tex.atlas = swing["sheet"]
 	var body_tex := AtlasTexture.new()
 	body_tex.atlas = swing["sheet"]
-	# His arc goes behind everything; his body in front of her and her slash
+	# Her arc goes behind everything; her body in front of the player and the player's slash
 	# (front_parent), so the clash reads.
 	var parts: Array[Node2D] = []
 	for part in [2, 1]:
 		var holder := Node2D.new()
-		# Further from her than his real spot (by the swing's "gap", tiles),
+		# Further from the player than her real spot (by the swing's "gap", tiles),
 		# so the clash reads as two swords meeting rather than one figure.
 		holder.position = position + Vector2(float(answer["gap"]) * Rules.TILE, 0)
 		holder.scale = Vector2(K_SCALE, K_SCALE * scale.y)
@@ -227,7 +230,7 @@ func _leave_ghost(beat := 0.0, her_pose := 0) -> void:
 	show.call(0.0)
 	tween.tween_method(show, 0.0, float(held), CLASH_TIME * 0.4)
 	tween.tween_interval(maxf(beat - CLASH_TIME * 0.4, 0.0))
-	# He's gone: what's left is an afterimage of the clash, fading.
+	# She's gone: what's left is an afterimage of the clash, fading.
 	tween.tween_method(func(a: float) -> void:
 		for p in parts:
 			if is_instance_valid(p):
@@ -238,7 +241,7 @@ func _leave_ghost(beat := 0.0, her_pose := 0) -> void:
 				p.queue_free())
 
 
-## She's straight across from him: he raises his sword and holds it.
+## The player is straight across from her: she raises her sword and holds it.
 func warn() -> void:
 	threat = true
 	if alive and _sprite:
@@ -247,16 +250,16 @@ func warn() -> void:
 		_sprite.pause()
 
 
-## She's no longer across from him.
+## The player is no longer across from her.
 func calm() -> void:
 	threat = false
 	if alive and _sprite and _sprite.animation == "attack":
 		_sprite.play("idle")
 
 
-## He teleports to her (just ahead of her, in her row) and cuts her down.
-## Returns the spot he left (pixels, body centre).
-## `side`: 1 = he lands in front of her (facing back at her), -1 = behind
+## She teleports to the player (just ahead, in the player's row) and cuts
+## the player down. Returns the spot she left (pixels, body centre).
+## `side`: 1 = she lands in front of the player (facing back), -1 = behind
 ## her (facing forward), when two strike at once.
 func pounce(her_x: float, her_row: int, side := 1.0) -> Vector2:
 	var from := Vector2(tile_x * Rules.TILE, Rules.body_center_y(row))
@@ -265,11 +268,11 @@ func pounce(her_x: float, her_row: int, side := 1.0) -> Vector2:
 	return from
 
 
-## The killing blow (she ran into him, or he teleported to her): "Attack2" on
+## The killing blow (the player ran into her, or she teleported to the player): "Attack2" on
 ## its big arc (that's what the death freeze holds), outlined green.
 func slash(her_x: float, side := 1.0) -> void:
 	threat = false
-	# Far enough off that his arc lands on her rather than him standing in her.
+	# Far enough off that her arc lands on the player rather than her standing inside the player.
 	tile_x = her_x + KILL_DISTANCE * side
 	scale.x = side   # behind her: turned round to face her
 	_place()
@@ -280,7 +283,7 @@ func slash(her_x: float, side := 1.0) -> void:
 		for m in [_material, _arc.material]:
 			m.set_shader_parameter("outline_color", SLASH_OUTLINE)
 			m.set_shader_parameter("glint", 1.0)
-		# His body over her (and her effects) for the killing blow; the arc
+		# Her body over the player (and the player's effects) for the killing blow; the arc
 		# stays behind.
 		if front_parent and _sprite.get_parent() == self:
 			var holder := Node2D.new()
@@ -311,7 +314,7 @@ func clear_glint() -> void:
 		super()
 
 
-## After the killing blow's freeze (the world starts moving again): he
+## After the killing blow's freeze (the world starts moving again): she
 ## follows through with the rest of the swing, then goes back to idle.
 func set_anim_speed(value: float) -> void:
 	super(value)

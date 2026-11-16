@@ -79,14 +79,14 @@ var _knight_kill_sound: AudioStreamPlayer   # the sword impact when a knight goe
 var _pink_shift_sound: AudioStreamPlayer   # her colour sweeping from red to pink
 var _lose_colour_sound: AudioStreamPlayer  # the streak breaks: back to red
 var _warn_sound: AudioStreamPlayer   # a knight winding up to strike
-const KILL_STRIKE_FPS := 5.0         # his teleport onto her lingers (normal: 18)
+const KILL_STRIKE_FPS := 5.0         # the knight's teleport onto the player lingers (normal: 18)
 const WARN_PEAK := 0.33              # seconds into it where the swish peaks
 var _clashed := false                # this teleport hit a knight who blinked away
 var _knight_felled := false          # this teleport finished a knight off
 var _felled_knight: Knight = null
-var _last_felled: Enemy = null   # the last enemy killed (the finisher plays on him)
+var _last_felled: Enemy = null   # the last enemy killed (the finisher plays on them)
 # The level 9 -> 10 finisher: the hit that kills the knight and levels her up
-# plays her blinking back and forth across him in each of her three strike
+# plays her blinking back and forth across the enemy in each of her three strike
 # poses, the last held as a freeze frame, and she turns pink (see _finisher).
 # Played slow, like the death moment: grey world, zoomed in, her lightning
 # ring, slow lightning, blood hanging in the air.
@@ -107,13 +107,13 @@ const FINISHER_HOLD := 0.8         # after the level-up, the freeze frame holds 
 const STREAK_REWARD := 50
 const LOSE_COLOUR_TIME := 0.3     # back to red when the streak breaks
 const FINISHER_ZOOM := 0.35
-const FINISHER_SIDE := 2.2          # tiles either side of him she strikes from
+const FINISHER_SIDE := 2.2          # tiles either side of the enemy she strikes from
 var _finishing := false
 const CLASH_PAUSE_FACTOR := 1.5    # the freeze after a clash is this much longer
 # A clash gets its moment: both hold still mid-swing for this long (a press
-# can't skip it), with a zoom and a shake, before he blinks away.
+# can't skip it), with a zoom and a shake, before the knight blinks away.
 const CLASH_BEAT := 0.12
-const CLASH_REAPPEAR := 0.0  # he shows at his new spot this soon (the clash plays on behind)
+const CLASH_REAPPEAR := 0.0  # the knight shows at her new spot this soon (the clash plays on behind)
 const CLASH_ZOOM := 0.1   # how much closer the clash zooms at its peak (0.1 = 10 %)
 const CLASH_FLASH := Color(1, 1, 1, 0.22)
 var _pause_min := KILL_PAUSE_MIN
@@ -624,7 +624,7 @@ func _slash_target_x(move: int) -> float:
 	var best := NAN
 	for e in level.enemies_hit_by(move, tx, trow):
 		if not e.visible:
-			continue   # a knight mid-clash: don't give away where he's going
+			continue   # a knight mid-clash: don't give away where she's going
 		if is_nan(best) or absf(e.tile_x - tx) < absf(best - tx):
 			best = e.tile_x
 	return best
@@ -660,7 +660,7 @@ func _step() -> void:
 			return   # killed: stay exactly on the enemy, so the markers line up
 
 	# A chain just dropped (TOO SLOW, or this teleport MISSED) with her
-	# straight across from a knight: he strikes at once.
+	# straight across from a knight: the knight strikes at once.
 	if _drop_pounce and not (_press_x_set and player.cooldown == 0):
 		_drop_pounce = false
 		if _knight_across():
@@ -687,7 +687,7 @@ func _step() -> void:
 					var from := back.pounce(player.x, player.row, -1.0)
 					fx.strike(from, Vector2(back.tile_x * Rules.TILE, Rules.body_center_y(back.row)), true, KILL_STRIKE_FPS)
 					_second_killer = back
-				k.slash(player.x)   # the same killing blow as when he teleports to her
+				k.slash(player.x)   # the same killing blow as when the knight teleports to the player
 				_warn_sound.play(WARN_PEAK)
 				_die("knight", k)
 			else:
@@ -769,9 +769,9 @@ func _teleport(move: int) -> void:
 		_pause_length = maxf(KILL_PAUSE - KILL_PAUSE_STEP * (chain - 1), KILL_PAUSE_FLOOR)
 		_pause_min = KILL_PAUSE_MIN
 		if _clashed:
-			# You can't see where he'll blink to; and the clash itself plays first.
+			# You can't see where the knight will blink to; and the clash itself plays first.
 			_pause_length = _pause_length * CLASH_PAUSE_FACTOR + CLASH_BEAT
-			_pause_min = maxf(KILL_PAUSE_MIN, CLASH_REAPPEAR)   # she can go as soon as she sees where he went
+			_pause_min = maxf(KILL_PAUSE_MIN, CLASH_REAPPEAR)   # the player can go as soon as the knight shows where she went
 		_hitstop = _pause_length if _pause_is_chain else KILL_HIT
 		_pause_elapsed = 0.0
 		if _pause_is_chain:
@@ -782,8 +782,8 @@ func _teleport(move: int) -> void:
 		else:
 			# Nothing left to chain: the chain ends here, on a kill.
 			# PERFECT only if this chain killed the whole spawned chain, first
-			# enemy to last; otherwise CLEAN. (A knight counts once he's dead:
-			# hitting him and leaving him behind doesn't, see _kill.)
+			# enemy to last; otherwise CLEAN. (A knight counts once she's dead:
+			# hitting her and leaving her behind doesn't, see _kill.)
 			var whole := not _chain_killed.is_empty()
 			for id in level.section_ids_of(_chain_killed.back()):
 				if not _chain_killed.has(id):
@@ -798,10 +798,10 @@ func _teleport(move: int) -> void:
 
 
 ## The streak finisher (a flawless streak of STREAK_REWARD, then a chain that
-## ends on a kill). Her hit has landed (pose one, left of him): she blinks to
-## his other side in her next pose, then back in the last, which holds as a
+## ends on a kill). Her hit has landed (pose one, left of the enemy): she blinks
+## to the enemy's other side in her next pose, then back in the last, which holds as a
 ## freeze frame while her colour sweeps across the screen; then the chain
-## ends. He stays standing until it's over, then falls. She keeps the colour
+## ends. The enemy stays standing until it's over, then falls. She keeps the colour
 ## until the streak breaks (_break_streak).
 func _finisher(k: Enemy, grade: String) -> void:
 	_finishing = true
@@ -810,12 +810,12 @@ func _finisher(k: Enemy, grade: String) -> void:
 	_pause_min = 999.0
 	_pause_is_chain = false
 	_pause_elapsed = 0.0
-	k.take_hit()   # (her first strike) he recoils, and stays standing until it's over
-	# Far enough either side of him that he's seen between her strikes.
+	k.take_hit()   # (her first strike) the enemy recoils, and stays standing until it's over
+	# Far enough either side of the enemy that it's seen between her strikes.
 	var left_x := k.tile_x - FINISHER_SIDE
 	var right_x := k.tile_x + FINISHER_SIDE
 	# The first slash too: her hit landed at the usual strike distance (close
-	# to him); on this same frame she's put back to where the others are.
+	# to the enemy); on this same frame she's put back to where the others are.
 	player.x = left_x
 	player.strike(player.last_pose())
 	player.hold_slash(FINISHER_HOP)
@@ -825,7 +825,7 @@ func _finisher(k: Enemy, grade: String) -> void:
 		if p != player.last_pose():
 			poses.append(p)
 	var focus := Vector2(k.tile_x * Rules.TILE, Rules.body_center_y(k.row))
-	cam.hold_zoom(focus, FINISHER_ZOOM, 10.0, 0.5)   # centred on him
+	cam.hold_zoom(focus, FINISHER_ZOOM, 10.0, 0.5)   # centred on the enemy
 	var t := create_tween()
 	t.tween_interval(FINISHER_HOP)
 	t.tween_callback(_finisher_strike.bind(k, right_x, -1.0, poses[0], ""))
@@ -932,7 +932,7 @@ func _finisher_done(k: Enemy, focus: Vector2) -> void:
 	player.cinematic = false
 	player.facing = 1.0
 	if is_instance_valid(k):
-		k.fall()   # now he falls
+		k.fall()   # now the enemy falls
 	cam.hold_zoom(focus, 0.0, 4.0)
 	_hitstop = 0.0
 	_pause_min = KILL_PAUSE_MIN
@@ -940,7 +940,7 @@ func _finisher_done(k: Enemy, focus: Vector2) -> void:
 
 
 ## A knight that comes for her after she ran from run_from to where she is:
-## one she ran on past while straight across from him, or one she's hit
+## one she ran on past while straight across from the knight, or one she's hit
 ## that's within a teleport of her (same rules as ChunkSolver).
 func _pouncing_knight(run_from: float) -> Knight:
 	for e in level.enemies:
@@ -1013,12 +1013,12 @@ func _update_knight_threats() -> void:
 		var k := e as Knight
 		if k == null or not k.alive:
 			continue
-		# Once you're fighting him he's past warning you (no wind-up, no swish).
+		# Once you're fighting a knight she's past warning you (no wind-up, no swish).
 		var across := state == State.PLAYING and not k.engaged \
 				and Rules.knight_across(k.tile_x, k.row, player.x, player.row)
 		if across and not k.threat:
 			k.warn()
-			if not k.warned:   # the swish only the first time he's aggroed
+			if not k.warned:   # the swish only the first time the knight is aggroed
 				k.warned = true
 				_warn_sound.pitch_scale = _jitter()
 				_warn_sound.play()
@@ -1033,7 +1033,7 @@ func _knight_strikes(k: Knight) -> void:
 	var from := k.pounce(player.x, player.row)
 	# Slower than a teleport, so it's still there through the death freeze.
 	fx.strike(from, Vector2(k.tile_x * Rules.TILE, Rules.body_center_y(k.row)), true, KILL_STRIKE_FPS)
-	# His swish lands with the slash: skip to its peak if it isn't there yet.
+	# The knight's swish lands with the slash: skip to its peak if it isn't there yet.
 	if not _warn_sound.playing or _warn_sound.get_playback_position() < WARN_PEAK:
 		_warn_sound.play(WARN_PEAK)
 	_die("knight", k)
@@ -1065,7 +1065,7 @@ func _chain_targets(x: float, row: int) -> Array[Enemy]:
 func _bot_acts_in_pause() -> void:
 	if not (debug and debug.bot) or not _pause_is_chain or _pressed_during_pause:
 		return
-	# A knight she's fighting first (leaving him means he comes for her).
+	# A knight the player is fighting first (leaving the knight means she comes for the player).
 	for move in [Rules.Move.FORWARD, Rules.Move.VERTICAL, Rules.Move.DIAGONAL]:
 		var tx: float = player.x + Rules.move_dx(move)
 		var trow: int = (1 - player.row) if Rules.move_flips_row(move) else player.row
@@ -1127,7 +1127,7 @@ func _kill(e: Enemy) -> void:
 	if knight and knight.hits_left() > 1:
 		_clash(knight)
 		return
-	_chain_killed.append(e.get_instance_id())   # dead (a knight only on his last hit)
+	_chain_killed.append(e.get_instance_id())   # dead (a knight only on her last hit)
 	_last_felled = e
 	e.die()
 	level.enemies.erase(e)   # out of the game now; the body stays (level.corpses)
@@ -1159,8 +1159,8 @@ func _kill(e: Enemy) -> void:
 
 
 
-## A hit on a knight that doesn't finish him: swords clash, he flashes and
-## blinks (green lightning) to his next spot, under one of her markers.
+## A hit on a knight that doesn't finish her: swords clash, the knight flashes
+## and blinks (green lightning) to her next spot, under one of the player's markers.
 func _clash(knight: Knight) -> void:
 	_clashed = true
 	player.hold_slash(CLASH_BEAT)   # her big slash stays up through the beat
@@ -1168,11 +1168,11 @@ func _clash(knight: Knight) -> void:
 	_clash_sound.pitch_scale = _jitter()
 	_clash_sound.play()
 	cam.shake(0.3, 16.0)
-	# The zoom eases out only after he's reappeared and his lightning is done.
+	# The zoom eases out only after the knight has reappeared and her lightning is done.
 	cam.punch((from + Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row))) * 0.5, CLASH_ZOOM, CLASH_BEAT + 0.15)
 	hud.flash(CLASH_FLASH, 0.12)
-	# He blinks away at once: a quick green strike to his new spot, so she
-	# can see where he went straight away (his swing stays behind as a fading
+	# The knight blinks away at once: a quick green strike to her new spot, so
+	# the player sees where she went straight away (her swing stays behind as a fading
 	# afterimage, see Knight.blink).
 	var to := Vector2(knight.tile_x * Rules.TILE, Rules.body_center_y(knight.row))
 	var reappear := func() -> void:
@@ -1230,7 +1230,7 @@ func _end_chain(grade: String, word: String = "") -> void:
 			_play_jingle(_perfect_sound)
 		elif grade == "DROPPED" and word == "TOO SLOW":
 			_dropped_sound.play()   # a muted thud: the chance passed
-		# TOO SLOW with her straight across from a knight: he strikes at once.
+		# TOO SLOW with the player straight across from a knight: the knight strikes at once.
 		# A MISSED teleport that lands her across from one gets the usual
 		# warning and grace instead (as if she'd run there).
 		if grade == "DROPPED" and word == "TOO SLOW":
@@ -1312,7 +1312,7 @@ func _update_death_visuals() -> void:
 		_killer.set_anim_speed(speed)
 	if is_instance_valid(_second_killer):
 		_second_killer.set_anim_speed(speed)
-	# Grey world, she, he and the blood in colour; fades out with the slow motion.
+	# Grey world, the player, her killer and the blood in colour; fades out with the slow motion.
 	var grey := clampf(_state_time / DEATH_GREY_IN, 0.0, 1.0) if frozen else clampf(1.0 - (_state_time - DEATH_FREEZE) / DEATH_SLOWMO, 0.0, 1.0)
 	freeze_effect.set_state(0.0, grey)
 

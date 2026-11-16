@@ -58,42 +58,42 @@ run upside down.
   In the "your move" pause the red drains toward the tip as the time to act
   runs out.
 - Run speed is a constant 6 tiles/s.
-- **The knight** (from level 9, `scripts/knight.gd`) takes 3-4 hits. Each hit
-  (swords clash) he blinks, with green lightning, to one of your three
-  landing spots, picked when his chain was generated, so it's always
-  catchable, and you chase him down. Each hit counts double on the bar, and
-  the freeze after a clash is 1.5x as long, plus a short beat. On the clash
-  frame he's already standing at his next spot (with her teleport strike in
-  green from where he was), while the clash plays out where he was: both
-  mid-swing, his swing left as a fading afterimage, a zoom, a flash and a
-  shake. You can go again as soon as you could after any kill. He never blinks onto
-  another enemy's spot, or back onto one he's been on.
-  You can teleport past him, but not run past him across the rows: while
-  you're straight across from him (your across teleport would hit him) he
-  raises his sword and a swish starts; run on out of reach, or let a freeze
-  run out (TOO SLOW) while across from him, and he teleports to you and cuts
+- **The knight** (from level 9, `scripts/knight.gd`), a woman, takes 3-4
+  hits. Each hit (swords clash) she blinks, with green lightning, to one of
+  your three landing spots, picked when her chain was generated, so it's
+  always catchable, and you chase her down. Each hit counts double on the
+  bar, and the freeze after a clash is 1.5x as long, plus a short beat. On
+  the clash frame she's already standing at her next spot (with the player's
+  teleport strike in green from where she was), while the clash plays out
+  where she was: both mid-swing, her swing left as a fading afterimage, a
+  zoom, a flash and a shake. You can go again as soon as you could after any
+  kill. She never blinks onto another enemy's spot, or back onto one she's
+  been on.
+  You can teleport past her, but not run past her across the rows: while
+  you're straight across from her (your across teleport would hit her) she
+  raises her sword and a swish starts; run on out of reach, or let a freeze
+  run out (TOO SLOW) while across from her, and she teleports to you and cuts
   you down. A teleport that drops a chain (MISSED) and lands you across from
-  him gets the same warning and grace as running there. Same if a freeze ends with him hit but not finished and
-  within a teleport (6 tiles) of you.
+  her gets the same warning and grace as running there. Same if a freeze
+  ends with her hit but not finished and within a teleport (6 tiles) of you.
   If two knights would strike at once (a freeze running out, running on or
-  past, or running into one), both do: the
-  one further ahead from the front, the other from behind her (more than
-  two: the two nearest).
-  Level 9 opens with a knight alone and every chain in it ends with one, so
-  the level-up into 10 is always on a knight. From level 10 any enemy in a
-  chain is a knight with a 5% chance, +3% per level. A chain's length counts
-  every hit (a knight's 3-4 hits use up 3-4 of it), so knights don't make
-  chains longer.
-  You may leave a duel early (chain onto another enemy instead of him), so a
-  chain never ends within reach of a knight unless it ends on him: after each
-  knight, it goes on more than a forward teleport past his furthest spot
+  past, or running into one), both do: the one further ahead from the front,
+  the other from behind the player (more than two: the two nearest).
+  Level 9 opens with a knight alone and every chain in it ends with one. From
+  level 10 any enemy in a chain is a knight with a 5% chance, +3% per level
+  (`KNIGHT_CHANCE`, `KNIGHT_CHANCE_STEP` in `scripts/patterns.gd`). A chain's
+  length counts every hit (a knight's 3-4 hits use up 3-4 of it), so knights
+  don't make chains longer.
+  You may leave a duel early (chain onto another enemy instead of her), so a
+  chain never ends within reach of a knight unless it ends on her: after each
+  knight, it goes on more than a forward teleport past her furthest spot
   (`_strands_by_knight` in `scripts/patterns.gd`). Finishing a chain always
-  leaves you clear of him.
+  leaves you clear of her.
 - **The streak reward**: the Flawless Streak (shown right of the level bar)
   counts kills in a row, knight hits included, without letting an enemy get
   away or dropping a chain (TOO SLOW / MISSED); either one resets it. At 50
   (`STREAK_REWARD` in `scripts/main.gd`), the next chain that ends on a kill
-  plays the finisher on that enemy: she blinks to his other side and back in
+  plays the finisher on that enemy: she blinks to the enemy's other side and back in
   each of her three strike poses (slowed, the world grey, a bolt onto each
   spot), the last held as a freeze frame while a wave sweeps across the
   screen turning her colour from red to her reward colour: hair, lightning,
@@ -146,7 +146,7 @@ A bar above the ceiling row fills as you chain kills; filling it levels you up.
 
 - Background music: "Suspense Tension Building" by Monume (Pixabay), in `assets/music/background.ogg`: the quiet intro plays once, then the body loops (seven 16 s phrases, a 1 s crossfade baked into the end of the file); the quiet fade-out is cut (`MUSIC_*` in `scripts/main.gd`).
 - Enemy: "Martial Hero 3" asset pack (CC0, see `assets/sprites/martial_hero/License.txt`).
-- Knight: "Hero Knight" asset pack (CC0, see `assets/sprites/hero_knight/License.txt`); his lightning is the Frostwindz pack recoloured green.
+- Knight: "Hero Knight" asset pack (CC0, see `assets/sprites/hero_knight/License.txt`); her lightning is the Frostwindz pack recoloured green.
 - Knight wind-up sound: "Sword blade swish" from Mixkit (same licence), in `assets/sounds/knight_warn.ogg`.
 - Knight kill sound: "Samurai sword impact" from Mixkit (same licence), the impact only (the build-up cut off), in `assets/sounds/knight_kill.ogg`.
 - Clash sound: "Heavy sword smashes metal" from Mixkit (same licence as the other Mixkit sounds), the crash only, in `assets/sounds/clash.ogg`.

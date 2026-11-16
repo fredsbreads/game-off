@@ -113,7 +113,7 @@ func _replan() -> void:
 			continue
 		var k := e as Knight
 		if k:
-			# Every spot he'll still be in, in order (one entry each).
+			# Every spot she'll still be in, in order (one entry each).
 			for i in range(k.step_index, k.path.size()):
 				near.append(k.path[i])
 				knights.append(group)
@@ -128,7 +128,7 @@ func _replan() -> void:
 	var goal := px + PLAN_AHEAD_TILES
 	var wanted := 0
 	for i in near.size():
-		# A knight in range: all of him (his later spots can be further on).
+		# A knight in range: all of her (her later spots can be further on).
 		var first_of_knight := i
 		while first_of_knight > 0 and knights[i] >= 0 and knights[first_of_knight - 1] == knights[i]:
 			first_of_knight -= 1
