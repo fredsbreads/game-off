@@ -36,6 +36,12 @@ var corpses: Array = []
 # screen). Static, so it stays on across retries.
 static var enemies_off := false
 
+## How much more the progression bar can take before it's full (main.gd
+## keeps it up to date). Once the chains already laid could fill it, no more
+## are laid until it's decided: so the chain that levels you up is the last
+## one at the old level, and the new level starts on a clear screen.
+var bar_room := INF
+var _held := false
 var _knight_intro_done := false   # level 9 opens with a knight alone, once
 var _cursor := RUNWAY_TILES        # where the next chain's first enemy goes
 var _cursor_row := Rules.Row.FLOOR # ...and its row (the row the last one ended in)
@@ -54,6 +60,14 @@ func set_seed(value: int) -> void:
 
 func ensure_generated(player_x: float) -> void:
 	while _cursor < player_x + AHEAD_TILES:
+		if _could_level_up():
+			_held = true
+			break
+		if _held:
+			# Picking up again (a level-up, or the chains that could have done
+			# it were dropped): start off screen, never popping in.
+			_held = false
+			_cursor = maxf(_cursor, player_x + CameraRig.VIEW_TILES + 3.0)
 		_append_pattern(_pick_pattern())
 	while tiles.size() < _cursor + Patterns.BREAK:
 		tiles.append(Rules.Tile.GROUND)
@@ -83,8 +97,25 @@ func _pick_pattern() -> Dictionary:
 	return parsed
 
 
+## True if the chains laid and not yet finished could, at best (every kill,
+## a PERFECT), fill the rest of the bar.
+func _could_level_up() -> bool:
+	var best := 0.0
+	for section in sections:
+		for e in section["enemies"]:
+			if is_instance_valid(e) and e.alive:
+				best += float(section["max_points"])
+				break
+	return best > 0.0 and best >= bar_room - 0.001
+
+
 func _append_pattern(pattern: Dictionary) -> void:
 	var section := {"start": _cursor, "row": _cursor_row, "name": pattern["name"], "enemies": [], "ids": []}
+	var points := 0.0
+	for i in pattern["enemies"].size():
+		var is_knight: bool = pattern.has("knights") and int(pattern["knights"][i]) >= 0
+		points += Rules.KNIGHT_POINTS if is_knight else 1
+	section["max_points"] = points * float(Progression.MULTIPLIER["PERFECT"])
 	var shape: Array = pattern["enemies"]
 	var knights: Array = pattern.get("knights", [])
 	var last_row := _cursor_row

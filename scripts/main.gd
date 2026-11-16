@@ -182,6 +182,7 @@ func _ready() -> void:
 	# Her effects too sit above the grey freeze filter, so they stay red in
 	# the "your move" pause instead of turning grey.
 	fx.reparent($EnemyLayer)
+	level.bar_room = progression.bar_size() - progression.bar
 	level.ensure_generated(player.x)
 	cam.snap(player.x)
 	best_score = _load_best()
@@ -876,6 +877,7 @@ func _end_chain(grade: String, word: String = "") -> void:
 		var old_size := progression.bar_size()
 		var old_level := progression.level
 		var levelled := progression.add_chain(chain_points, grade)
+		level.bar_room = progression.bar_size() - progression.bar
 		if grade == "PERFECT":
 			perfect_chains += 1
 		hud.show_chain_result(grade, chain_points, old_bar, old_size, old_level)
