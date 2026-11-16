@@ -40,7 +40,7 @@ const CLASH_SWINGS := [
 # his 1, her 2 vs his 2 (his lunge, so further back), her 3 vs his 1.
 const CLASH_BY_POSE := [
 	{"swing": 0, "gap": 1.3 + 1.0 / 3.0},
-	{"swing": 1, "gap": 2.6 + 1.0},
+	{"swing": 1, "gap": 2.6 + 0.75},
 	{"swing": 0, "gap": 1.3 + 1.0 / 3.0},
 ]
 const KILL_DISTANCE := 2.6          # tiles ahead of her he swings his killing blow from
