@@ -189,8 +189,14 @@ func _ready() -> void:
 	$EnemyLayer.add_child(blood_fx)
 	# Floating words (PERFECT, TOO SLOW, MISSED...) on their own layer, above
 	# her, the enemies and every slash and bolt.
+	var front_layer := CanvasLayer.new()   # a knight's body mid-clash, over her
+	front_layer.layer = 7
+	front_layer.follow_viewport_enabled = true
+	front_layer.process_mode = Node.PROCESS_MODE_PAUSABLE
+	add_child(front_layer)
+	Knight.front_parent = front_layer
 	var text_layer := CanvasLayer.new()
-	text_layer.layer = 7
+	text_layer.layer = 8
 	text_layer.follow_viewport_enabled = true
 	text_layer.process_mode = Node.PROCESS_MODE_PAUSABLE
 	add_child(text_layer)

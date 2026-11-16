@@ -40,6 +40,8 @@ var engaged := false
 var threat := false
 var _slashing := false   # the killing blow: green outline held
 var _arc: AnimatedSprite2D
+## Where his body goes in a clash swing: a layer above her (set by main.gd).
+static var front_parent: Node = null
 
 
 func _part_material(part: int) -> ShaderMaterial:
@@ -134,13 +136,16 @@ func blink(beat := 0.0) -> Vector2:
 func _leave_ghost(beat := 0.0) -> void:
 	if get_parent() == null or _sprite == null:
 		return
-	var ghost := Node2D.new()
-	ghost.position = position
-	ghost.scale = Vector2(K_SCALE, K_SCALE * scale.y)
 	var tex := AtlasTexture.new()
 	tex.atlas = K_ATTACK
 	tex.region = Rect2(Vector2(CLASH_FRAMES[0] * K_FRAME.x, 0), Vector2(K_FRAME))
-	for part in [2, 1]:   # the arc first, so it's behind him
+	# His arc goes behind everything; his body in front of her and her slash
+	# (front_parent), so the clash reads.
+	var parts: Array[Node2D] = []
+	for part in [2, 1]:
+		var holder := Node2D.new()
+		holder.position = position
+		holder.scale = Vector2(K_SCALE, K_SCALE * scale.y)
 		var s := Sprite2D.new()
 		s.texture = tex
 		s.centered = false
@@ -152,9 +157,11 @@ func _leave_ghost(beat := 0.0) -> void:
 			mat.set_shader_parameter("outline_color", SLASH_OUTLINE)
 			mat.set_shader_parameter("glint", 1.0)
 		s.material = mat
-		ghost.add_child(s)
-	get_parent().add_child(ghost)
-	var tween := ghost.create_tween()
+		holder.add_child(s)
+		var parent: Node = front_parent if part == 1 and front_parent else get_parent()
+		parent.add_child(holder)
+		parts.append(holder)
+	var tween := parts[0].create_tween()
 	# The swing up to its biggest arc, held through the beat, then the rest.
 	var held := CLASH_FRAMES.find(CLASH_HOLD_FRAME)
 	var show := func(f: float) -> void:
@@ -163,8 +170,14 @@ func _leave_ghost(beat := 0.0) -> void:
 	tween.tween_method(show, 0.0, float(held), CLASH_TIME * 0.4)
 	tween.tween_interval(maxf(beat - CLASH_TIME * 0.4, 0.0))
 	tween.tween_method(show, float(held), float(CLASH_FRAMES.size()), CLASH_TIME * 0.6)
-	tween.tween_property(ghost, "modulate:a", 0.0, 0.15)
-	tween.tween_callback(ghost.queue_free)
+	tween.tween_method(func(a: float) -> void:
+		for p in parts:
+			if is_instance_valid(p):
+				p.modulate.a = a, 1.0, 0.0, 0.15)
+	tween.tween_callback(func() -> void:
+		for p in parts:
+			if is_instance_valid(p):
+				p.queue_free())
 
 
 ## She's straight across from him: he raises his sword and holds it.
