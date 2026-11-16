@@ -75,7 +75,8 @@ run upside down.
   you down. A teleport that drops a chain (MISSED) and lands you across from
   him gets the same warning and grace as running there. Same if a freeze ends with him hit but not finished and
   within a teleport (6 tiles) of you.
-  If two knights would strike when a freeze runs out, both do, at once: the
+  If two knights would strike at once (a freeze running out, running on or
+  past, or running into one), both do: the
   one further ahead from the front, the other from behind her (more than
   two: the two nearest).
   Level 9 opens with a knight alone and every chain in it ends with one, so

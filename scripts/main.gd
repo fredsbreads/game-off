@@ -663,9 +663,8 @@ func _step() -> void:
 	# straight across from a knight: he strikes at once.
 	if _drop_pounce and not (_press_x_set and player.cooldown == 0):
 		_drop_pounce = false
-		var across := _knight_across()
-		if across:
-			_knight_strikes(across)
+		if _knight_across():
+			_knights_strike(_strikers())
 			return
 
 	# 2. run
@@ -681,6 +680,13 @@ func _step() -> void:
 		if not (_press_x_set and player.cooldown == 0):
 			var k := touching[0] as Knight
 			if k:
+				# Another knight that would strike now comes from behind her.
+				var others := _strikers(run_from).filter(func(o: Knight) -> bool: return o != k)
+				if not others.is_empty():
+					var back: Knight = others[0]
+					var from := back.pounce(player.x, player.row, -1.0)
+					fx.strike(from, Vector2(back.tile_x * Rules.TILE, Rules.body_center_y(back.row)), true, KILL_STRIKE_FPS)
+					_second_killer = back
 				k.slash(player.x)   # the same killing blow as when he teleports to her
 				_warn_sound.play(WARN_PEAK)
 				_die("knight", k)
@@ -695,7 +701,7 @@ func _step() -> void:
 	# as running into an enemy.)
 	var pouncer: Knight = null if (_press_x_set and player.cooldown == 0) else _pouncing_knight(run_from)
 	if pouncer:
-		_knight_strikes(pouncer)
+		_knights_strike(_strikers(run_from))   # with a second one, if there is
 		return
 	_note_escapes()
 
@@ -954,13 +960,22 @@ func _pouncing_knight(run_from: float) -> Knight:
 ## within a teleport of her, and ones straight across from her. At most two
 ## (the nearest); they come at her from both sides (see _knights_strike).
 func _knights_after_drop() -> Array[Knight]:
+	return _strikers()
+
+
+## Every knight that comes for her when one strikes: ones she's fighting
+## within a teleport of her, ones straight across from her, and (running from
+## run_from) ones she just ran past across the rows. The nearest two; they
+## come at her from both sides (see _knights_strike).
+func _strikers(run_from := NAN) -> Array[Knight]:
 	var found: Array[Knight] = []
 	for e in level.enemies:
 		var k := e as Knight
 		if k == null or not k.alive:
 			continue
 		var fighting := k.engaged and absf(k.tile_x - player.x) <= Rules.FORWARD
-		if fighting or Rules.knight_across(k.tile_x, k.row, player.x, player.row):
+		var passed := not is_nan(run_from) and Rules.knight_runs_past(k.tile_x, k.row, run_from, player.x, player.row)
+		if fighting or passed or Rules.knight_across(k.tile_x, k.row, player.x, player.row):
 			found.append(k)
 	found.sort_custom(func(a: Knight, b: Knight) -> bool:
 		return absf(a.tile_x - player.x) < absf(b.tile_x - player.x))
