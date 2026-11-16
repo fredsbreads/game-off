@@ -525,6 +525,7 @@ func _update_pause_visuals() -> void:
 	var chain_pause := paused and _pause_is_chain
 	freeze_effect.set_state(1.0 if flashing else 0.0, 1.0 if chain_pause and not flashing else 0.0)
 	fx.frozen = paused and _pause_elapsed >= FX_FREEZE_AFTER
+	fx.hold_anims = paused   # the knight's blink strike stays up while she decides
 	blood_fx.frozen = fx.frozen
 	text_fx.frozen = fx.frozen
 	# Lit markers drain during the "your move" freeze as the time runs out.
@@ -926,7 +927,7 @@ func _clash(knight: Knight) -> void:
 	var to := Vector2(knight.tile_x * Rules.TILE, Rules.body_center_y(knight.row))
 	var reappear := func() -> void:
 		if is_instance_valid(knight) and state == State.PLAYING:
-			fx.strike(from, to, true, CLASH_STRIKE_FPS)
+			fx.strike(from, to, true, CLASH_STRIKE_FPS, true)
 			fx.zap(to, 0, Vector2.ZERO, Vector2(10, 20), 5)
 	if CLASH_REAPPEAR > 0.0:
 		get_tree().create_timer(CLASH_REAPPEAR).timeout.connect(reappear)
