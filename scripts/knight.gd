@@ -151,7 +151,11 @@ func blink(beat := 0.0, her_pose := 0, reappear := -1.0) -> Vector2:
 	_place()
 	threat = false
 	if _sprite:
-		_sprite.play("idle")
+		# Engaged now: he waits at his new spot with his sword raised (the
+		# wind-up pose), not idle.
+		_sprite.play("attack")
+		_sprite.frame = WINDUP_FRAME
+		_sprite.pause()
 	return from
 
 
