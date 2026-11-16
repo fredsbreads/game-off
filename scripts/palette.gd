@@ -5,8 +5,10 @@ extends RefCounted
 ## through tint(). Only reds move (whites, greys, the knight's green don't),
 ## and blood follows it too (BLOOD_FOLLOWS_COLOUR).
 
-## >>> Her colour from level 10. Change this to any name in COLOURS. <<<
-const COLOUR := "ember"
+## >>> Her reward colour (a flawless streak, see main.gd STREAK_REWARD).
+## Change this to any name in COLOURS (the pause screen's Colour button
+## picks one too). <<<
+const COLOUR := "yellow"
 
 ## Blood takes her colour too (from level 10, like her effects). Off = it
 ## always stays red.
@@ -33,7 +35,6 @@ const COLOURS := {
 	"pink": [0.93, 0.7, 1.09],
 }
 
-const PINK_FROM_LEVEL := 10
 const SHADER := preload("res://shaders/accent_sprite.gdshader")
 
 ## 0 = red, 1 = her level-10 colour (in between while it changes over).
@@ -95,9 +96,6 @@ static func sweep_to(at: float) -> void:
 	RenderingServer.global_shader_parameter_set("accent_pink", 1.0)
 	RenderingServer.global_shader_parameter_set("accent_wipe", at)
 
-
-static func for_level(level: int) -> float:
-	return 1.0 if level >= PINK_FROM_LEVEL else 0.0
 
 
 ## The same as accent() in the shader, for colours set in code.

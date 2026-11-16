@@ -102,6 +102,20 @@ func die() -> void:
 		queue_free()
 
 
+## Struck again in the streak finisher: held on his first death frame...
+func take_hit() -> void:
+	if _sprite:
+		_sprite.play("death")
+		_sprite.frame = 0
+		_sprite.speed_scale = 0.0
+
+
+## ...then, when it's over, he falls.
+func fall() -> void:
+	if _sprite:
+		_sprite.speed_scale = 1.0
+
+
 ## Slow down or stop his animation (1 = normal, 0 = frozen).
 func set_anim_speed(value: float) -> void:
 	if _sprite:

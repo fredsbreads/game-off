@@ -77,12 +77,14 @@ var _teleport_sound: AudioStreamPlayer
 var _clash_sound: AudioStreamPlayer
 var _knight_kill_sound: AudioStreamPlayer   # the sword impact when a knight goes down
 var _pink_shift_sound: AudioStreamPlayer   # her colour sweeping from red to pink
+var _lose_colour_sound: AudioStreamPlayer  # the streak breaks: back to red
 var _warn_sound: AudioStreamPlayer   # a knight winding up to strike
 const KILL_STRIKE_FPS := 5.0         # his teleport onto her lingers (normal: 18)
 const WARN_PEAK := 0.33              # seconds into it where the swish peaks
 var _clashed := false                # this teleport hit a knight who blinked away
 var _knight_felled := false          # this teleport finished a knight off
 var _felled_knight: Knight = null
+var _last_felled: Enemy = null   # the last enemy killed (the finisher plays on him)
 # The level 9 -> 10 finisher: the hit that kills the knight and levels her up
 # plays her blinking back and forth across him in each of her three strike
 # poses, the last held as a freeze frame, and she turns pink (see _finisher).
@@ -100,7 +102,10 @@ const BIG_STRIKE_FULL_FRAME := 2     # its frame with the whole bolt and the spa
 const FINISHER_SWEEP_AFTER := 0.3  # on the last pose, this long before the colour sweeps
 const FINISHER_SWEEP_TIME := 1.1   # her new colour sweeps across the screen, right to left, over this long
 const FINISHER_HOLD := 0.8         # after the level-up, the freeze frame holds this long
-const FINISHER_PINK_TIME := 0.45   # (a level-up into 10 without the finisher: a quick fade)
+# The reward: a flawless streak (kills in a row, no enemy let go, no chain
+# dropped) this long; the next chain that ends on a kill plays the finisher.
+const STREAK_REWARD := 50
+const LOSE_COLOUR_TIME := 0.3     # back to red when the streak breaks
 const FINISHER_ZOOM := 0.35
 const FINISHER_SIDE := 2.2          # tiles either side of him she strikes from
 var _finishing := false
@@ -200,6 +205,10 @@ func _ready() -> void:
 	_knight_kill_sound.stream = preload("res://assets/sounds/knight_kill.ogg")
 	_knight_kill_sound.volume_db = KILL_CUT_DB
 	add_child(_knight_kill_sound)
+	_lose_colour_sound = AudioStreamPlayer.new()
+	_lose_colour_sound.stream = preload("res://assets/sounds/streak_break.ogg")
+	_lose_colour_sound.volume_db = -4.0
+	add_child(_lose_colour_sound)
 	_pink_shift_sound = AudioStreamPlayer.new()
 	_pink_shift_sound.stream = preload("res://assets/sounds/pink_shift.ogg")
 	add_child(_pink_shift_sound)
@@ -218,7 +227,7 @@ func _ready() -> void:
 		progression.level = _load_setting("start_level", 1)
 		level.level = progression.level
 	Palette.use_colour(_load_colour())   # the one picked last (pause screen / C), else COLOUR
-	Palette.set_pink(Palette.for_level(progression.level))
+	Palette.set_pink(0.0)   # every run starts red (her colour is the streak reward)
 	player.x = START_X
 	level.start_x = START_X
 	level.enemy_parent = $EnemyLayer
@@ -774,26 +783,21 @@ func _teleport(move: int) -> void:
 				if not _chain_killed.has(id):
 					whole = false
 			var grade := "SINGLE" if chain == 1 else ("PERFECT" if whole else "CLEAN")
-			if _knight_felled and _finisher_due(grade):
-				_finisher(_felled_knight, grade)
+			# The reward: a flawless streak of STREAK_REWARD, and this chain ends on
+			# a kill (whoever it is): the triple slash, and she takes on her colour.
+			if sweep >= STREAK_REWARD and Palette.pink <= 0.0 and is_instance_valid(_last_felled):
+				_finisher(_last_felled, grade)
 			else:
 				_end_chain(grade)
 
 
-## True if this chain, ending now on a knight's last hit, takes her from his
-## debut level to the next: that hit gets the finisher.
-func _finisher_due(grade: String) -> bool:
-	if progression.level != Patterns.KNIGHT_DEBUT_LEVEL or not (grade == "PERFECT" or grade == "CLEAN"):
-		return false
-	var gain := chain_points * float(Progression.MULTIPLIER[grade])
-	return progression.bar + gain >= progression.bar_size() - 0.001
-
-
-## The level 9 -> 10 finisher. Her hit has landed (pose one, left of him):
-## she blinks to his other side in her next pose, then back in the last,
-## which holds as a freeze frame while the chain ends (the level-up) and she
-## turns pink. He stays standing until it's over, then falls.
-func _finisher(k: Knight, grade: String) -> void:
+## The streak finisher (a flawless streak of STREAK_REWARD, then a chain that
+## ends on a kill). Her hit has landed (pose one, left of him): she blinks to
+## his other side in her next pose, then back in the last, which holds as a
+## freeze frame while her colour sweeps across the screen; then the chain
+## ends. He stays standing until it's over, then falls. She keeps the colour
+## until the streak breaks (_break_streak).
+func _finisher(k: Enemy, grade: String) -> void:
 	_finishing = true
 	player.cinematic = true
 	_hitstop = 999.0   # held until _finisher_done; a press can't cut it short
@@ -837,7 +841,7 @@ func _finisher(k: Knight, grade: String) -> void:
 
 ## One of the finisher's blinks: to to_x, facing `face`, in `pose`. The last
 ## one (`grade` given) ends the chain and turns her pink.
-func _finisher_strike(k: Knight, to_x: float, face: float, pose: int, grade: String) -> void:
+func _finisher_strike(k: Enemy, to_x: float, face: float, pose: int, grade: String) -> void:
 	if state != State.PLAYING:
 		return
 	var from := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row))
@@ -907,17 +911,17 @@ func _cycle_colour() -> void:
 	text_fx.text(above, name.replace("_", " ").to_upper(), 26, Color.WHITE, Rules.RUN_SPEED * Rules.TILE if state == State.PLAYING else 0.0, 1.2)
 
 
-## Her colour turns from red to pink (level 10), with a flash.
-func _turn_pink() -> void:
-	hud.flash(Palette.flash_colour(), 0.6)
-	cam.shake(0.25, 14.0)
-	var body := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row))
-	var from := Palette.pink
-	create_tween().tween_method(Palette.set_pink, from, 1.0, FINISHER_PINK_TIME)
-	fx.bolt(Fx.Bolt.RING, body, randf() * TAU, Vector2.ONE * 2.2, 16.0)
+## The flawless streak is over (an enemy got away, or a chain was dropped):
+## back to 0, and if she had her colour, she loses it, with a crack.
+func _break_streak() -> void:
+	sweep = 0
+	if Palette.pink > 0.0 and not _finishing:
+		_lose_colour_sound.pitch_scale = _jitter()
+		_lose_colour_sound.play()
+		create_tween().tween_method(Palette.set_pink, Palette.pink, 0.0, LOSE_COLOUR_TIME)
 
 
-func _finisher_done(k: Knight, focus: Vector2) -> void:
+func _finisher_done(k: Enemy, focus: Vector2) -> void:
 	_finishing = false
 	player.cinematic = false
 	player.facing = 1.0
@@ -1025,7 +1029,7 @@ func _note_escapes() -> void:
 	for e in level.enemies:
 		if e.alive and not e.escaped and Rules.knight_passed(e.tile_x - player.x):
 			e.escaped = true
-			sweep = 0
+			_break_streak()
 
 
 ## Live enemies under any marker at this spot, i.e. what one more press
@@ -1109,6 +1113,7 @@ func _kill(e: Enemy) -> void:
 		_clash(knight)
 		return
 	_chain_killed.append(e.get_instance_id())   # dead (a knight only on his last hit)
+	_last_felled = e
 	e.die()
 	level.enemies.erase(e)   # out of the game now; the body stays (level.corpses)
 	level.corpses.append(e)
@@ -1215,6 +1220,8 @@ func _end_chain(grade: String, word: String = "") -> void:
 		# warning and grace instead (as if she'd run there).
 		if grade == "DROPPED" and word == "TOO SLOW":
 			_drop_pounce = true
+		if grade == "DROPPED":
+			_break_streak()   # a dropped chain ends the flawless streak
 		if grade != "SINGLE":
 			var above := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row) - Rules.TILE * 1.4)
 			if player.row == Rules.Row.CEILING:
@@ -1223,8 +1230,6 @@ func _end_chain(grade: String, word: String = "") -> void:
 					-1.0 if player.row == Rules.Row.CEILING else 1.0)   # drift away from her row
 		if levelled:
 			level.level = progression.level
-			if Palette.pink < Palette.for_level(progression.level) and not _finishing:
-				_turn_pink()
 			# Only groups well past the right edge get rebuilt (a sprite reaches
 			# beyond its spot, so one just off screen could already show).
 			level.rebuild_ahead(cam.left() / Rules.TILE + CameraRig.VIEW_TILES + 3.0)

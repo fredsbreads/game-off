@@ -88,22 +88,26 @@ run upside down.
   knight, it goes on more than a forward teleport past his furthest spot
   (`_strands_by_knight` in `scripts/patterns.gd`). Finishing a chain always
   leaves you clear of him.
-- **The level-10 finisher**: the hit that kills a knight and levels you up
-  from 9 to 10 plays her blinking to his other side and back, in each of her
-  three strike poses, the last held as a freeze frame. Then her colour turns
-  from red to her level-10 colour with a flash: her hair, her lightning, slashes,
-  afterimages, markers and the target glint (`scripts/palette.gd`,
-  `shaders/accent.gdshaderinc`; the `accent_pink` shader global, 0 = red,
-  1 = pink). Blood follows it too (`BLOOD_FOLLOWS_COLOUR` in `scripts/palette.gd`; off = always red). `FINISHER_*` in `scripts/main.gd`.
-- **Her level-10 colour** is one setting: `COLOUR` at the top of
-  `scripts/palette.gd` (e.g. `"ember"`, `"magenta"`, `"violet"`; every name is
-  in `COLOURS` there, matching the mock-up sheets). While playing on a
-  keyboard, **C** cycles through them all and shows the name (it stays for
-  retries; off with `CYCLE_KEY`).
+- **The streak reward**: the Flawless Streak (shown right of the level bar)
+  counts kills in a row, knight hits included, without letting an enemy get
+  away or dropping a chain (TOO SLOW / MISSED); either one resets it. At 50
+  (`STREAK_REWARD` in `scripts/main.gd`), the next chain that ends on a kill
+  plays the finisher on that enemy: she blinks to his other side and back in
+  each of her three strike poses (slowed, the world grey, a bolt onto each
+  spot), the last held as a freeze frame while a wave sweeps across the
+  screen turning her colour from red to her reward colour: hair, lightning,
+  slashes, afterimages, markers, the target glint, and blood
+  (`BLOOD_FOLLOWS_COLOUR`). She keeps it until the streak breaks, then snaps
+  back to red with a crack (`streak_break.ogg`). `FINISHER_*` in
+  `scripts/main.gd`; colours in `scripts/palette.gd` and
+  `shaders/accent.gdshaderinc`.
+- **Her reward colour** is one setting: `COLOUR` at the top of
+  `scripts/palette.gd` (default `"yellow"`; every name is in `COLOURS`
+  there). The pause screen's **Colour** button steps through them (saved);
+  on a keyboard, **C** does too and shows the name (off with `CYCLE_KEY`).
 - Score, distance and the kill counter are tracked but **not shown** for now
-  (kills, level reached and the Flawless Streak (No Survivors): the most
-  kills in a row, knight hits included, without letting an enemy get away,
-  are on the game-over screen).
+  (kills, level reached and the best Flawless Streak (No Survivors) are on
+  the game-over screen).
   Toggle with `SHOW_KILLS_UI` / `SHOW_SCORE_UI` / `SHOW_DISTANCE_UI` at the top of `scripts/hud.gd`.
 
 ## Progression

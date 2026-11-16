@@ -276,6 +276,8 @@ func set_progress(level: int, bar: float, bar_size: float, pending: int, ceiling
 ## The current flawless streak, shown right of the bar.
 func set_streak(n: int) -> void:
 	_streak.text = "Streak %d" % n
+	# In her reward colour while she has it.
+	_streak.add_theme_color_override("font_color", Palette.swatch().lightened(0.25) if Palette.pink > 0.5 else Color(1, 1, 1, 0.75))
 	_streak.position = Vector2(PROGRESS_SIZE.x + 12.0, (PROGRESS_SIZE.y - _streak.get_minimum_size().y) / 2.0)
 
 
