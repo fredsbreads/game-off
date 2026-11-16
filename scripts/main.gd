@@ -84,7 +84,7 @@ const CLASH_PAUSE_FACTOR := 1.5    # the freeze after a clash is this much longe
 # can't skip it), with a zoom and a shake, before he blinks away.
 const CLASH_BEAT := 0.12
 const CLASH_REAPPEAR := 0.04   # he shows at his new spot this soon (the clash plays on behind)
-const CLASH_ZOOM := 0.32
+const CLASH_ZOOM := 0.2   # how much closer the clash zooms at its peak (0.2 = 20 %)
 const CLASH_FLASH := Color(1, 1, 1, 0.22)
 const CLASH_STRIKE_FPS := 36.0   # his blink lightning: quick, so he's seen at once
 var _pause_min := KILL_PAUSE_MIN
@@ -716,7 +716,8 @@ func _teleport(move: int) -> void:
 		else:
 			# Nothing left to chain: the chain ends here, on a kill.
 			# PERFECT only if this chain killed the whole spawned chain, first
-			# enemy to last; otherwise CLEAN.
+			# enemy to last; otherwise CLEAN. (A knight counts once he's dead:
+			# hitting him and leaving him behind doesn't, see _kill.)
 			var whole := not _chain_killed.is_empty()
 			for id in level.section_ids_of(_chain_killed.back()):
 				if not _chain_killed.has(id):
@@ -873,7 +874,6 @@ func _kill(e: Enemy) -> void:
 	chain += 1
 	chain_points += Rules.KNIGHT_POINTS if knight else 1
 	best_chain = maxi(best_chain, chain)
-	_chain_killed.append(e.get_instance_id())
 	var points := Rules.KILL_POINTS * chain
 	kill_score += points
 	sweep += 1
@@ -881,6 +881,7 @@ func _kill(e: Enemy) -> void:
 	if knight and knight.hits_left() > 1:
 		_clash(knight)
 		return
+	_chain_killed.append(e.get_instance_id())   # dead (a knight only on his last hit)
 	e.die()
 	level.enemies.erase(e)   # out of the game now; the body stays (level.corpses)
 	level.corpses.append(e)
