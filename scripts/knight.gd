@@ -132,12 +132,16 @@ func _build_knight_frames() -> SpriteFrames:
 ## next spot. Returns the spot he left (pixels, body centre).
 ## `beat`: seconds his swing holds where he was before he reappears.
 ## `her_pose`: the strike pose she hit him with (picks his swing).
-func blink(beat := 0.0, her_pose := 0) -> Vector2:
+## `reappear`: seconds until he shows at his new spot (< beat, so she can
+## see where he went while the clash still plays out where he was).
+func blink(beat := 0.0, her_pose := 0, reappear := -1.0) -> Vector2:
 	var from := Vector2(tile_x * Rules.TILE, Rules.body_center_y(row))
 	_leave_ghost(beat, her_pose)
-	if beat > 0.0:
+	if reappear < 0.0:
+		reappear = beat
+	if reappear > 0.0:
 		visible = false
-		get_tree().create_timer(beat).timeout.connect(func() -> void:
+		get_tree().create_timer(reappear).timeout.connect(func() -> void:
 			if is_instance_valid(self):
 				visible = true)
 	engaged = true

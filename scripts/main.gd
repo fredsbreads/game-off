@@ -83,6 +83,7 @@ const CLASH_PAUSE_FACTOR := 1.5    # the freeze after a clash is this much longe
 # A clash gets its moment: both hold still mid-swing for this long (a press
 # can't skip it), with a zoom and a shake, before he blinks away.
 const CLASH_BEAT := 0.12
+const CLASH_REAPPEAR := 0.04   # he shows at his new spot this soon (the clash plays on behind)
 const CLASH_ZOOM := 0.32
 const CLASH_FLASH := Color(1, 1, 1, 0.22)
 const CLASH_STRIKE_FPS := 36.0   # his blink lightning: quick, so he's seen at once
@@ -704,7 +705,7 @@ func _teleport(move: int) -> void:
 		if _clashed:
 			# You can't see where he'll blink to; and the clash itself plays first.
 			_pause_length = _pause_length * CLASH_PAUSE_FACTOR + CLASH_BEAT
-			_pause_min = CLASH_BEAT
+			_pause_min = maxf(KILL_PAUSE_MIN, CLASH_REAPPEAR)   # she can go as soon as she sees where he went
 		_hitstop = _pause_length if _pause_is_chain else KILL_HIT
 		_pause_elapsed = 0.0
 		if _pause_is_chain:
@@ -910,7 +911,7 @@ func _kill(e: Enemy) -> void:
 func _clash(knight: Knight) -> void:
 	_clashed = true
 	player.hold_slash(CLASH_BEAT)   # her big slash stays up through the beat
-	var from := knight.blink(CLASH_BEAT, player.last_pose())
+	var from := knight.blink(CLASH_BEAT, player.last_pose(), CLASH_REAPPEAR)
 	fx.zap(from, 0, Vector2.ZERO, Vector2(10, 20), 6)
 	_clash_sound.pitch_scale = _jitter()
 	_clash_sound.play()
@@ -921,7 +922,7 @@ func _clash(knight: Knight) -> void:
 	# Then he blinks away: he's there at once, with a quick green strike (his
 	# swing stays behind as a fading afterimage, see Knight.blink).
 	var to := Vector2(knight.tile_x * Rules.TILE, Rules.body_center_y(knight.row))
-	get_tree().create_timer(CLASH_BEAT).timeout.connect(func() -> void:
+	get_tree().create_timer(CLASH_REAPPEAR).timeout.connect(func() -> void:
 		if is_instance_valid(knight) and state == State.PLAYING:
 			fx.strike(from, to, true, CLASH_STRIKE_FPS)
 			fx.zap(to, 0, Vector2.ZERO, Vector2(10, 20), 5))
