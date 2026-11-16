@@ -60,6 +60,7 @@ const SAVE_PATH := "user://save.cfg"
 # the grey "your move" freeze.
 var blood_fx: Fx
 var _kill_sound: AudioStreamPlayer
+var _death_sound: AudioStreamPlayer
 # Kill blood starts this far (seconds) into its flight, so it's already
 # spread out behind the enemy when the "your move" freeze holds it.
 const BLOOD_BURST := 0.35
@@ -116,6 +117,9 @@ func _ready() -> void:
 	_kill_sound.stream = preload("res://assets/sounds/saber_cut.ogg")
 	_kill_sound.max_polyphony = 6   # chained kills overlap
 	add_child(_kill_sound)
+	_death_sound = AudioStreamPlayer.new()
+	_death_sound.stream = preload("res://assets/sounds/death_slash.ogg")
+	add_child(_death_sound)
 	if not OS.get_cmdline_user_args().is_empty():
 		debug = DebugTools.new()
 		debug.main = self
@@ -692,6 +696,7 @@ func _die(kind: String, killer: Enemy = null) -> void:
 	_death_released = false
 	player.running = false
 	player.die(kind)
+	_death_sound.play()
 	for e in level.enemies:
 		e.clear_glint()   # no red glints lingering on the death moment
 	var body := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row))
