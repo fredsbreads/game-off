@@ -677,18 +677,15 @@ func _play_strike(kills: bool) -> void:
 	_teleport_sound.play()
 
 
-## The teleport's lightning: a thin bolt along the throw, a thick one when it
-## kills; across the rows, a strike that bursts where she lands.
-func _teleport_lightning(move: int, from: Vector2, to: Vector2, kills: bool) -> void:
-	if move == Rules.Move.VERTICAL:
-		var down := to.y > from.y
-		# The strike's burst sits near the bottom of its frame: put it on her.
-		var length := absf(to.y - from.y)
-		var sy := length / 200.0
-		var centre := Vector2(to.x, to.y + (-1.0 if down else 1.0) * (STRIKE_BURST_Y - 128.0) * sy)
-		fx.bolt(Fx.Bolt.STRIKE, centre, 0.0 if down else PI, Vector2(1.0, sy), 18.0)
-	else:
-		fx.bolt_between(Fx.Bolt.THICK if kills else Fx.Bolt.THIN, from, to, 1.3 if kills else 1.0)
+## The teleport's lightning, the same for every direction: a strike along the
+## throw that bursts where she lands.
+func _teleport_lightning(_move: int, from: Vector2, to: Vector2, _kills: bool) -> void:
+	var d := to - from
+	var sy := d.length() / 200.0
+	# The strike runs down its frame with the burst near the bottom: turn the
+	# frame's "down" to point along the throw and put the burst on her.
+	var centre := to - d.normalized() * (STRIKE_BURST_Y - 128.0) * sy
+	fx.bolt(Fx.Bolt.STRIKE, centre, d.angle() - PI / 2.0, Vector2(1.0, sy), 18.0)
 
 
 const STRIKE_BURST_Y := 215.0   # pixels down the STRIKE frame where its burst is
