@@ -62,15 +62,19 @@ run upside down.
   (swords clash) he blinks, with green lightning, to one of your three
   landing spots, picked when his chain was generated, so it's always
   catchable, and you chase him down. Each hit counts double on the bar.
-  He can't be crossed: once he's behind you and out of reach while still
-  standing, or a freeze ends with him hit but not finished and within a
-  teleport (6 tiles) of you, he teleports to you and cuts you down.
+  You can teleport past him, but not run past him across the rows: while
+  you're straight across from him (your across teleport would hit him) he
+  raises his sword and a swish starts; run on out of reach, or let a chain
+  drop (TOO SLOW / MISSED) while across from him, and he teleports to you and
+  cuts you down. Same if a freeze ends with him hit but not finished and
+  within a teleport (6 tiles) of you.
   Level 9 opens with a knight alone and every chain in it ends with one, so
   the level-up into 10 is always on a knight. From level 10 any enemy in a
   chain is a knight with a 5% chance, +3% per level.
 - Score, distance and the kill counter are tracked but **not shown** for now
-  (kills, level reached and the longest sweep, the most kills in a row
-  without letting an enemy get away, are on the game-over screen).
+  (kills, level reached and the Flawless Streak (No Survivors): the most
+  kills in a row, knight hits included, without letting an enemy get away,
+  are on the game-over screen).
   Toggle with `SHOW_KILLS_UI` / `SHOW_SCORE_UI` / `SHOW_DISTANCE_UI` at the top of `scripts/hud.gd`.
 
 ## Progression
@@ -104,6 +108,7 @@ A bar above the ceiling row fills as you chain kills; filling it levels you up.
 
 - Enemy: "Martial Hero 3" asset pack (CC0, see `assets/sprites/martial_hero/License.txt`).
 - Knight: "Hero Knight" asset pack (CC0, see `assets/sprites/hero_knight/License.txt`); his lightning is the Frostwindz pack recoloured green.
+- Knight wind-up sound: "Sword blade swish" from Mixkit (same licence), in `assets/sounds/knight_warn.ogg`.
 - Clash sound: "Heavy sword smashes metal" from Mixkit (same licence as the other Mixkit sounds), the crash only, in `assets/sounds/clash.ogg`.
 - Lightning effects: "Pixel Art Skill Animations - Lightning" by Frostwindz (https://frostwindz.itch.io/), recoloured red, in `assets/vfx`.
 - Kill sound: "Quick saber cut" from Mixkit (Mixkit free sound effects licence), trimmed to `assets/sounds/saber_cut.ogg`.
@@ -178,4 +183,8 @@ godot --headless --fixed-fps 60 --path . -- --bot --soak=4000 --seed=1
 
 It prints `SOAK OK` if it reaches the distance, or `SOAK FAIL` with the chunk it
 died in. Other options are listed at the top of `scripts/debug_tools.gd`
-(`--autostart`, `--shots=DIR` for screenshots).
+(`--autostart`, `--shots=DIR` for screenshots, `--level=N` to start at a level).
+
+To start every run at a later level while playtesting (web build too), set
+`START_LEVEL` at the top of `scripts/main.gd` (e.g. 9 to meet the knight
+straight away), and put it back to 1 afterwards.

@@ -10,6 +10,9 @@ extends Node2D
 enum State { READY, PLAYING, DYING, OVER }
 
 const START_X := 3.0
+# Testing: start every run at this level (1 = normal). E.g. 9 to meet the
+# knight straight away. Put it back to 1 before shipping.
+const START_LEVEL := 1
 # Every kill gets a short hit freeze (invert flash).
 const KILL_HIT := 0.06
 # If another enemy is under any marker where you land, the
@@ -70,6 +73,9 @@ var _perfect_sound: AudioStreamPlayer
 var _dropped_sound: AudioStreamPlayer
 var _teleport_sound: AudioStreamPlayer
 var _clash_sound: AudioStreamPlayer
+var _warn_sound: AudioStreamPlayer   # a knight winding up to strike
+const WARN_PEAK := 0.33              # seconds into it where the swish peaks
+var _drop_pounce := false            # a chain just dropped: check for a knight across
 var _cut_pending := false
 var _pause_length := KILL_PAUSE   # this freeze's full length (for the marker fill)
 # Kill blood starts this far (seconds) into its flight, so it's already
@@ -157,10 +163,16 @@ func _ready() -> void:
 	_clash_sound.stream = preload("res://assets/sounds/clash.ogg")
 	_clash_sound.volume_db = KILL_CUT_DB
 	add_child(_clash_sound)
+	_warn_sound = AudioStreamPlayer.new()
+	_warn_sound.stream = preload("res://assets/sounds/knight_warn.ogg")
+	add_child(_warn_sound)
 	if not OS.get_cmdline_user_args().is_empty():
 		debug = DebugTools.new()
 		debug.main = self
 		add_child(debug)
+	if START_LEVEL > 1:
+		progression.level = START_LEVEL
+		level.level = START_LEVEL
 	player.x = START_X
 	level.start_x = START_X
 	level.enemy_parent = $EnemyLayer
@@ -453,6 +465,7 @@ func _physics_process(delta: float) -> void:
 			if _state_time >= DEATH_FREEZE + DEATH_SLOWMO + DEATH_ANIM_TIME * 0.4:
 				_game_over()
 
+	_update_knight_threats()
 	_update_pause_visuals()
 	var run_px := Rules.RUN_SPEED * Rules.TILE if moving else 0.0
 	cam.follow(player.x, run_px, delta)
@@ -545,7 +558,17 @@ func _step() -> void:
 		if _hitstop > 0.0:
 			return   # killed: stay exactly on the enemy, so the markers line up
 
+	# A chain just dropped (TOO SLOW, or this teleport MISSED) with her
+	# straight across from a knight: he strikes at once.
+	if _drop_pounce:
+		_drop_pounce = false
+		var across := _knight_across()
+		if across:
+			_knight_strikes(across)
+			return
+
 	# 2. run
+	var run_from := player.x
 	player.x += Rules.RUN_SPEED / Rules.PHYSICS_FPS
 	distance = player.x - START_X
 
@@ -559,13 +582,11 @@ func _step() -> void:
 			_die("hit", touching[0])
 			return
 
-	# 4. a knight she's left behind, or one she's fighting that's within a
-	# teleport of her, teleports to her (same rule as ChunkSolver).
-	var pouncer := _pouncing_knight()
+	# 4. a knight she ran on past across the rows, or one she's fighting
+	# that's within a teleport of her, teleports to her (same as ChunkSolver).
+	var pouncer := _pouncing_knight(run_from)
 	if pouncer:
-		var from := pouncer.pounce(player.x, player.row)
-		fx.strike(from, Vector2(pouncer.tile_x * Rules.TILE, Rules.body_center_y(pouncer.row)), true)
-		_die("knight", pouncer)
+		_knight_strikes(pouncer)
 		return
 	_note_escapes()
 
@@ -645,15 +666,57 @@ func _teleport(move: int) -> void:
 			_end_chain("SINGLE" if chain == 1 else ("PERFECT" if whole else "CLEAN"))
 
 
-func _pouncing_knight() -> Knight:
+## A knight that comes for her after she ran from run_from to where she is:
+## one she ran on past while straight across from him, or one she's hit
+## that's within a teleport of her (same rules as ChunkSolver).
+func _pouncing_knight(run_from: float) -> Knight:
 	for e in level.enemies:
 		var k := e as Knight
 		if k == null or not k.alive:
 			continue
-		var dx := k.tile_x - player.x
-		if Rules.knight_passed(dx) or (k.engaged and absf(dx) <= Rules.FORWARD):
+		if k.engaged and absf(k.tile_x - player.x) <= Rules.FORWARD:
+			return k
+		if Rules.knight_runs_past(k.tile_x, k.row, run_from, player.x, player.row):
 			return k
 	return null
+
+
+## A knight straight across from her right now, or null.
+func _knight_across() -> Knight:
+	for e in level.enemies:
+		var k := e as Knight
+		if k and k.alive and Rules.knight_across(k.tile_x, k.row, player.x, player.row):
+			return k
+	return null
+
+
+## Every frame (freezes too): a knight she's straight across from winds up
+## (sword raised, the swish starts); one she's no longer across from relaxes.
+func _update_knight_threats() -> void:
+	var any := false
+	for e in level.enemies:
+		var k := e as Knight
+		if k == null or not k.alive:
+			continue
+		var across := state == State.PLAYING and Rules.knight_across(k.tile_x, k.row, player.x, player.row)
+		if across and not k.threat:
+			k.warn()
+			_warn_sound.pitch_scale = _jitter()
+			_warn_sound.play()
+		elif not across and k.threat:
+			k.calm()
+		any = any or across
+	if not any and _warn_sound.playing and state == State.PLAYING:
+		_warn_sound.stop()
+
+
+func _knight_strikes(k: Knight) -> void:
+	var from := k.pounce(player.x, player.row)
+	fx.strike(from, Vector2(k.tile_x * Rules.TILE, Rules.body_center_y(k.row)), true)
+	# His swish lands with the slash: skip to its peak if it isn't there yet.
+	if not _warn_sound.playing or _warn_sound.get_playback_position() < WARN_PEAK:
+		_warn_sound.play(WARN_PEAK)
+	_die("knight", k)
 
 
 ## An enemy left behind alive, out of reach, got away: the sweep is over.
@@ -740,6 +803,8 @@ func _kill(e: Enemy) -> void:
 	_chain_killed.append(e.get_instance_id())
 	var points := Rules.KILL_POINTS * chain
 	kill_score += points
+	sweep += 1
+	best_sweep = maxi(best_sweep, sweep)
 	if knight and knight.hits_left() > 1:
 		_clash(knight)
 		return
@@ -747,8 +812,6 @@ func _kill(e: Enemy) -> void:
 	level.enemies.erase(e)   # out of the game now; the body stays (level.corpses)
 	level.corpses.append(e)
 	kills += 1
-	sweep += 1
-	best_sweep = maxi(best_sweep, sweep)
 
 	var c := mini(chain, 6)
 	var pos := Vector2(e.tile_x * Rules.TILE, Rules.body_center_y(e.row))
@@ -823,6 +886,8 @@ func _end_chain(grade: String, word: String = "") -> void:
 			_play_jingle(_perfect_sound)
 		elif grade == "DROPPED" and word == "TOO SLOW":
 			_dropped_sound.play()   # a muted thud: the chance passed
+		if grade == "DROPPED":
+			_drop_pounce = true
 		if grade != "SINGLE":
 			var above := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row) - Rules.TILE * 1.4)
 			if player.row == Rules.Row.CEILING:

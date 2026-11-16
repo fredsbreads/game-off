@@ -85,6 +85,19 @@ static func in_kill_zone(move: int, enemy_x: float, landing_x: float) -> bool:
 	return d > -zone.x and d < zone.y
 
 
+## True if she's straight across from a knight (at knight_x in knight_row):
+## her across teleport would hit him.
+static func knight_across(knight_x: float, knight_row: int, x: float, row: int) -> bool:
+	return knight_row != row and in_kill_zone(Move.VERTICAL, knight_x, x)
+
+
+## True if running from from_x to x takes her on past a knight straight across
+## from her: he was in reach of her across teleport and now he's behind it.
+static func knight_runs_past(knight_x: float, knight_row: int, from_x: float, x: float, row: int) -> bool:
+	return knight_across(knight_x, knight_row, from_x, row) and not knight_across(knight_x, knight_row, x, row) \
+			and knight_x < x
+
+
 ## A knight dx tiles ahead of her (negative = behind) that she's gone past
 ## for good: behind her and out of reach of every teleport.
 static func knight_passed(dx: float) -> bool:

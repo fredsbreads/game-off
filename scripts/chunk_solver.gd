@@ -17,9 +17,11 @@ extends RefCounted
 ## Knights (optional `knights`, one entry per enemy: -1, or the knight's
 ## number) are listed as one entry per spot he'll be in, in order. A spot
 ## only exists once the one before it (same knight) is hit. And:
-##   5. a knight still standing behind you, out of reach, teleports to you
+##   5. running on past a knight straight across from you (out of reach of
+##      your across teleport) makes him teleport to you: you die
 ##   6. a knight you've hit is within a teleport of you while you run: same
-## (both checked after running, so chaining on from a kill never triggers it).
+## (both checked after running, so chaining on from a kill never triggers it;
+## teleporting past a knight is fine).
 ##
 ## Used by tools/validate_patterns.gd to prove patterns chain, and by the
 ## debug bot to play the game for soak tests and screenshots.
@@ -113,12 +115,13 @@ static func step(enemies: Array[Vector2], state: Array, move: int, speed: float,
 			return [snap_to, row, 0, mask]
 		cooldown = Rules.cooldown_frames()
 
+	var run_from := x
 	x += speed / Rules.PHYSICS_FPS
 	for i in enemies.size():
 		var e := enemies[i]
 		if (mask & (1 << i)) == 0 and exists(i, mask, knights) and int(e.y) == row and absf(e.x - x) < Rules.HIT_RADIUS:
 			return []
-	if knight_pounces(enemies, mask, x, knights) >= 0:
+	if knight_pounces(enemies, mask, run_from, x, row, knights) >= 0:
 		return []
 	cooldown = maxi(cooldown - 1, 0)
 	return [x, row, cooldown, mask]
@@ -156,19 +159,22 @@ static func exists(i: int, mask: int, knights: Array) -> bool:
 	return (mask & (1 << (i - 1))) != 0
 
 
-## The index of a knight that teleports to her at x (running), or -1: one
-## still standing that she's left behind out of reach, or one she's hit
-## that's within a teleport of her. Same rule as main.gd.
-static func knight_pounces(enemies: Array[Vector2], mask: int, x: float, knights: Array) -> int:
+## The index of a knight that teleports to her as she runs from `from_x` to
+## x in `row`, or -1: one straight across from her that she runs on past (he
+## was in reach of her across teleport and now isn't), or one she's hit that's
+## within a teleport of her. Same rules as main.gd.
+static func knight_pounces(enemies: Array[Vector2], mask: int, from_x: float, x: float, row: int, knights: Array) -> int:
 	if knights.is_empty():
 		return -1
 	for i in enemies.size():
 		var g := int(knights[i])
 		if g < 0 or (mask & (1 << i)) != 0 or not exists(i, mask, knights):
 			continue
-		var dx := enemies[i].x - x
+		var e := enemies[i]
 		var engaged := i > 0 and int(knights[i - 1]) == g
-		if Rules.knight_passed(dx) or (engaged and absf(dx) <= Rules.FORWARD):
+		if engaged and absf(e.x - x) <= Rules.FORWARD:
+			return i
+		if Rules.knight_runs_past(e.x, int(e.y), from_x, x, row):
 			return i
 	return -1
 

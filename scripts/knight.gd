@@ -4,10 +4,12 @@ extends Enemy
 ## hit he blinks to one of her three landing spots, chosen when his chain was
 ## generated (so the chain is provably catchable), and you chase him down.
 ##
-## He can't be crossed safely: once she's past him without killing him (he's
-## behind her and out of reach), or a freeze ends with him engaged and within
-## a teleport of her, he teleports to her and cuts her down (main.gd checks
-## this every running frame; ChunkSolver mirrors it).
+## You can teleport past him, but not run past him across the rows: while
+## she's straight across from him (he's under her across marker) he winds up
+## (sound, sword raised), and if she runs on out of reach, or a freeze ends
+## (dropped) with her there, he teleports to her and cuts her down. Same if a
+## freeze ends with him hit but not finished and within a teleport of her.
+## main.gd checks this every frame; ChunkSolver mirrors the running part.
 ## Art: "Hero Knight" (CC0), assets/sprites/hero_knight.
 
 const K_IDLE := preload("res://assets/sprites/hero_knight/idle.png")
@@ -30,6 +32,9 @@ var path: Array[Vector2] = []
 var step_index := 0
 ## True once he's been hit (and not yet killed): he's in a duel with her.
 var engaged := false
+## True while she's straight across from him: he's winding up to strike.
+var threat := false
+const WINDUP_FRAME := 1             # sword raised, from his attack animation
 
 
 func hits_left() -> int:
@@ -89,6 +94,7 @@ func blink() -> Vector2:
 	tile_x = path[step_index].x
 	row = int(path[step_index].y)
 	_place()
+	threat = false
 	if _sprite:
 		_sprite.play("idle")
 	return from
@@ -114,10 +120,27 @@ func _leave_ghost() -> void:
 	tween.tween_callback(ghost.queue_free)
 
 
+## She's straight across from him: he raises his sword and holds it.
+func warn() -> void:
+	threat = true
+	if alive and _sprite:
+		_sprite.play("attack")
+		_sprite.frame = WINDUP_FRAME
+		_sprite.pause()
+
+
+## She's no longer across from him.
+func calm() -> void:
+	threat = false
+	if alive and _sprite and _sprite.animation == "attack":
+		_sprite.play("idle")
+
+
 ## He teleports to her (just ahead of her, in her row) and cuts her down.
 ## Returns the spot he left (pixels, body centre).
 func pounce(her_x: float, her_row: int) -> Vector2:
 	var from := Vector2(tile_x * Rules.TILE, Rules.body_center_y(row))
+	threat = false
 	tile_x = her_x + Rules.HIT_RADIUS * 0.9
 	row = her_row
 	_place()
