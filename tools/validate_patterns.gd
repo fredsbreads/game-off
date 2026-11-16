@@ -9,7 +9,7 @@ extends SceneTree
 ## Run from the project folder:
 ##   godot --headless --path . -s tools/validate_patterns.gd
 
-const GENERATED_LEVELS := 10
+const GENERATED_LEVELS := 14
 const SAMPLES_PER_LEVEL := 15
 
 func _init() -> void:
@@ -41,13 +41,28 @@ func _init() -> void:
 		for i in SAMPLES_PER_LEVEL:
 			var chain := Patterns.generate(level, rng)
 			var n: int = chain["enemies"].size()
-			if n < r.x or n > r.y or not Patterns.is_chainable(chain["enemies"]):
+			# Spots, not enemies: a knight takes several.
+			n = 0
+			for j in chain["knights"].size():
+				if chain["knights"][j] < 0 or j == 0 or chain["knights"][j - 1] != chain["knights"][j]:
+					n += 1
+			if n < r.x or n > r.y or not Patterns.is_chainable(chain["enemies"], chain["knights"]):
 				bad += 1
 				print("  FAIL  L%d  generated %s" % [level, chain["steps"]])
 		if bad > 0:
 			failures += 1
 		else:
-			print("  ok    L%d  %d generated chains of %d-%d enemies" % [level, SAMPLES_PER_LEVEL, r.x, r.y])
+			print("  ok    L%d  %d generated chains of %d-%d enemies (knight chance %d%%)" % [level, SAMPLES_PER_LEVEL, r.x, r.y, roundi(Patterns.knight_chance(level) * 100)])
+	var lone_bad := 0
+	for i in SAMPLES_PER_LEVEL:
+		var lone := Patterns.knight_alone(rng)
+		if lone.is_empty() or not Patterns.is_chainable(lone["enemies"], lone["knights"]):
+			lone_bad += 1
+			print("  FAIL  knight alone %s" % lone.get("steps", "?"))
+	if lone_bad > 0:
+		failures += 1
+	else:
+		print("  ok    L9  %d lone knights" % SAMPLES_PER_LEVEL)
 
 	var sizes: PackedStringArray = []
 	var prog := Progression.new()

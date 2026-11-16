@@ -10,6 +10,7 @@ extends Node
 ##   --seed=N       fixed level seed
 ##   --shots=DIR    save a screenshot every --shot-every frames (default 45)
 ##   --shot-count=N how many screenshots before quitting (default 8)
+##   --level=N      start the run at level N
 
 const PLAN_AHEAD_TILES := 24.0
 const REPLAN_EVERY := 20
@@ -45,6 +46,9 @@ func _ready() -> void:
 			"shots": shots_dir = value
 			"shot-every": shot_every = int(value)
 			"shot-count": shot_count = int(value)
+			"level":
+				main.progression.level = int(value)
+				main.level.level = int(value)
 	if shots_dir != "":
 		DirAccess.make_dir_recursive_absolute(shots_dir)
 
@@ -102,9 +106,21 @@ func think() -> int:
 func _replan() -> void:
 	var px: float = main.player.x
 	var near: Array[Vector2] = []
+	var knights: Array = []
+	var group := 0
 	for e in main.level.enemies:
-		if e.alive and e.tile_x > px - 1.0 and e.tile_x < px + PLAN_AHEAD_TILES + 8.0:
+		if not e.alive or e.tile_x <= px - 1.0 or e.tile_x >= px + PLAN_AHEAD_TILES + 8.0:
+			continue
+		var k := e as Knight
+		if k:
+			# Every spot he'll still be in, in order (one entry each).
+			for i in range(k.step_index, k.path.size()):
+				near.append(k.path[i])
+				knights.append(group)
+			group += 1
+		else:
 			near.append(Vector2(e.tile_x, e.row))
+			knights.append(-1)
 	var start := [px, main.player.row, main.player.cooldown]
 	var limit := px + PLAN_AHEAD_TILES + 30.0
 	# Play like a person going for chains: try to kill every enemy in range,
@@ -112,17 +128,21 @@ func _replan() -> void:
 	var goal := px + PLAN_AHEAD_TILES
 	var wanted := 0
 	for i in near.size():
-		if near[i].x < goal:
+		# A knight in range: all of him (his later spots can be further on).
+		var first_of_knight := i
+		while first_of_knight > 0 and knights[i] >= 0 and knights[first_of_knight - 1] == knights[i]:
+			first_of_knight -= 1
+		if near[first_of_knight].x < goal:
 			wanted |= 1 << i
-	var result := ChunkSolver.search(near, start, goal, limit, Rules.RUN_SPEED, 3000, wanted)
+	var result := ChunkSolver.search(near, start, goal, limit, Rules.RUN_SPEED, 3000, wanted, knights)
 	if not result["ok"]:
-		result = ChunkSolver.search(near, start, goal, limit, Rules.RUN_SPEED)
+		result = ChunkSolver.search(near, start, goal, limit, Rules.RUN_SPEED, 3000, 0, knights)
 	_plan = result["actions"]
 	_predicted.clear()
 	var st: Array = [px, main.player.row, main.player.cooldown, 0]
 	for act in _plan:
 		_predicted.append([st[0], st[1], st[2]])
-		var nxt := ChunkSolver.step(near, st, act, Rules.RUN_SPEED, limit)
+		var nxt := ChunkSolver.step(near, st, act, Rules.RUN_SPEED, limit, knights)
 		if nxt.is_empty():
 			break
 		st = nxt

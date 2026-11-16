@@ -36,6 +36,7 @@ var corpses: Array = []
 # screen). Static, so it stays on across retries.
 static var enemies_off := false
 
+var _knight_intro_done := false   # level 9 opens with a knight alone, once
 var _cursor := RUNWAY_TILES        # where the next chain's first enemy goes
 var _cursor_row := Rules.Row.FLOOR # ...and its row (the row the last one ended in)
 var _rng := RandomNumberGenerator.new()
@@ -61,6 +62,9 @@ func ensure_generated(player_x: float) -> void:
 ## Levels 1-3: a weighted pick from that level's hand-made pool.
 ## Level 4+: a freshly generated chain.
 func _pick_pattern() -> Dictionary:
+	if level == Patterns.KNIGHT_DEBUT_LEVEL and not _knight_intro_done:
+		_knight_intro_done = true
+		return Patterns.knight_alone(_rng)
 	if level >= Patterns.FIRST_GENERATED_LEVEL:
 		return Patterns.generate(level, _rng)
 	var pool := Patterns.pool_for_level(level)
@@ -82,21 +86,32 @@ func _pick_pattern() -> Dictionary:
 func _append_pattern(pattern: Dictionary) -> void:
 	var section := {"start": _cursor, "row": _cursor_row, "name": pattern["name"], "enemies": [], "ids": []}
 	var shape: Array = pattern["enemies"]
+	var knights: Array = pattern.get("knights", [])
 	var last_row := _cursor_row
-	for rel in shape:
-		var e: Vector2 = rel
+	var knight: Knight = null
+	for i in shape.size():
+		var e: Vector2 = shape[i]
 		var row: int = _cursor_row if int(e.y) == 0 else 1 - _cursor_row
+		last_row = row
 		if enemies_off:
-			last_row = row   # keep the layout the same, just empty
+			continue   # keep the layout the same, just empty
+		var group: int = int(knights[i]) if not knights.is_empty() else -1
+		if group >= 0 and i > 0 and int(knights[i - 1]) == group:
+			knight.path.append(Vector2(_cursor + e.x, row))   # one of his later spots
 			continue
-		var enemy := Enemy.new()
+		var enemy: Enemy
+		if group >= 0:
+			knight = Knight.new()
+			knight.path.append(Vector2(_cursor + e.x, row))
+			enemy = knight
+		else:
+			enemy = Enemy.new()
 		enemy.tile_x = _cursor + e.x
 		enemy.row = row
 		enemy_parent.add_child(enemy)
 		enemies.append(enemy)
 		section["enemies"].append(enemy)
 		section["ids"].append(enemy.get_instance_id())
-		last_row = enemy.row
 	sections.append(section)
 	var last: Vector2 = shape.back()
 	_cursor += last.x + Patterns.BREAK

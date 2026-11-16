@@ -21,6 +21,11 @@ const BOLT_SHEETS := [
 	preload("res://assets/vfx/lightning_5.png"), preload("res://assets/vfx/lightning_6.png"),
 ]
 const BOLT_FRAMES := [4, 4, 5, 5, 4, 8]
+# The knight's lightning: the same strikes and sparks, green.
+const BOLT_SHEETS_GREEN := {
+	Bolt.STRIKE: preload("res://assets/vfx/lightning_3_green.png"),
+	Bolt.SPARKS: preload("res://assets/vfx/lightning_6_green.png"),
+}
 const SPARK_FRAMES := [0, 1, 2, 3, 4, 5]   # the small bolts in SPARKS with something in them
 const BOLT_LENGTH := 211.0   # pixels the THIN / THICK bolts span across their frame
 
@@ -36,8 +41,8 @@ var bolt_alpha := 1.0   # lightning fades with her as she dissolves
 ## Plays one lightning animation once, on real time (it keeps going through
 ## the kill pause and slow motion). `pos` is the frame's centre.
 ## `first`: start at this frame (to play only the end of an animation).
-func bolt(kind: int, pos: Vector2, angle := 0.0, size := Vector2.ONE, fps := 20.0, first := 0) -> void:
-	var s := _bolt_sprite(kind, pos, angle, size)
+func bolt(kind: int, pos: Vector2, angle := 0.0, size := Vector2.ONE, fps := 20.0, first := 0, green := false) -> void:
+	var s := _bolt_sprite(kind, pos, angle, size, green)
 	s.frame = first
 	_items.append({"kind": "anim", "t": 0.0, "node": s, "fps": fps, "first": first,
 		"frames": BOLT_FRAMES[kind] - first})
@@ -49,9 +54,22 @@ func bolt_between(kind: int, a: Vector2, b: Vector2, thickness := 1.2, fps := 20
 	bolt(kind, (a + b) * 0.5, d.angle(), Vector2(d.length() / BOLT_LENGTH, thickness), fps)
 
 
-func _bolt_sprite(kind: int, pos: Vector2, angle: float, size: Vector2) -> Sprite2D:
+## A strike from `a` that bursts at `b` (the teleport look).
+func strike(a: Vector2, b: Vector2, green := false) -> void:
+	var d := b - a
+	var sy := maxf(d.length(), 40.0) / 200.0
+	# The strike runs down its frame with the burst near the bottom: turn the
+	# frame's "down" to point along the line and put the burst on b.
+	var centre := b - d.normalized() * (STRIKE_BURST_Y - 128.0) * sy
+	bolt(Bolt.STRIKE, centre, d.angle() - PI / 2.0, Vector2(1.0, sy), 18.0, 0, green)
+
+
+const STRIKE_BURST_Y := 215.0   # pixels down the STRIKE frame where its burst is
+
+
+func _bolt_sprite(kind: int, pos: Vector2, angle: float, size: Vector2, green := false) -> Sprite2D:
 	var s := Sprite2D.new()
-	s.texture = BOLT_SHEETS[kind]
+	s.texture = BOLT_SHEETS_GREEN[kind] if green and BOLT_SHEETS_GREEN.has(kind) else BOLT_SHEETS[kind]
 	s.hframes = BOLT_FRAMES[kind]
 	s.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	s.position = pos

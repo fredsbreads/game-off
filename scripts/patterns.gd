@@ -50,6 +50,17 @@ const GENERATED_STEPS := ["F", "V", "D"]
 const NEW_PATTERN_WEIGHT := 2.0
 const OLD_PATTERN_WEIGHT := 1.0
 
+# Knights (see knight.gd). Level 9 opens with one alone, and every chain in
+# it ends with one, so the level-up into 10 is always on a knight. From level
+# 10 any enemy in a chain can be a knight: KNIGHT_CHANCE, plus
+# KNIGHT_CHANCE_STEP for every level after that.
+const KNIGHT_DEBUT_LEVEL := 9
+const KNIGHT_CHANCE := 0.05
+const KNIGHT_CHANCE_STEP := 0.03
+# A knight's blinks: to any of her three landing spots (across and back is
+# fine: the spot he left is empty).
+const KNIGHT_STEPS := ["F", "V", "D"]
+
 # "Maybe" for later: off-beat patterns (with a visual cue). Not spawned.
 const MAYBE_BEATS := [
 	{"name": "forward_beat", "steps": "F+"},
@@ -135,41 +146,105 @@ static func average_chain_length(level: int) -> float:
 	return total / weights if weights > 0.0 else 2.0
 
 
+## The chance that an enemy in a generated chain at `level` is a knight.
+static func knight_chance(level: int) -> float:
+	if level <= KNIGHT_DEBUT_LEVEL:
+		return 0.0
+	return KNIGHT_CHANCE + KNIGHT_CHANCE_STEP * (level - KNIGHT_DEBUT_LEVEL - 1)
+
+
 ## A random chain for a generated level: a length from chain_length_range,
-## each step F, V or D with equal odds, never V right after V (that would
-## put two enemies on the same spot).
-## Chainable by construction: every step puts the next enemy exactly under a
-## marker, and parse() rejects two enemies on one spot. (The full solver
-## check is too slow for long chains to run during play; the validator runs
-## it on samples instead.)
+## each step F, V or D with equal odds. Knights (see knight_chance; in level
+## 9 the last enemy always is one) take KNIGHT_HITS_MIN-MAX spots: where he
+## starts, then one blink per hit to a random landing spot.
+## Returns {enemies, knights, steps, name}: `knights` has one entry per spot,
+## -1 for a plain enemy or the knight's number (his spots are consecutive).
+## Chainable by construction: every step puts the next spot exactly under a
+## marker, and no two things can be in one spot at the same time (see
+## _overlaps). The validator runs the full solver check on samples.
 static func generate(level: int, rng: RandomNumberGenerator) -> Dictionary:
 	var lengths := chain_length_range(level)
-	for _attempt in 20:
+	var chance := knight_chance(level)
+	for _attempt in 40:
 		var n := rng.randi_range(lengths.x, lengths.y)
-		var tokens: PackedStringArray = []
-		var prev := ""
-		for i in n - 1:
-			var token: String = GENERATED_STEPS[rng.randi_range(0, GENERATED_STEPS.size() - 1)]
-			while token == "V" and prev == "V":
-				token = GENERATED_STEPS[rng.randi_range(0, GENERATED_STEPS.size() - 1)]
-			tokens.append(token)
-			prev = token
-		var steps := " ".join(tokens)
-		var parsed := parse(steps)
-		if parsed["errors"].is_empty():
-			parsed["name"] = "generated L%d: %s" % [level, steps]
-			parsed["steps"] = steps
-			return parsed
+		var is_knight: Array[bool] = []
+		for i in n:
+			is_knight.append(rng.randf() < chance or (level == KNIGHT_DEBUT_LEVEL and i == n - 1))
+		var built := _build(is_knight, rng)
+		if not built.is_empty():
+			built["name"] = "generated L%d: %s" % [level, built["steps"]]
+			return built
 	push_error("couldn't generate a chainable chain for level %d" % level)
 	var fallback := parse("F")
 	fallback["name"] = "fallback"
 	fallback["steps"] = "F"
+	fallback["knights"] = [-1, -1]
 	return fallback
+
+
+## A lone knight (the start of level 9).
+static func knight_alone(rng: RandomNumberGenerator) -> Dictionary:
+	for _attempt in 40:
+		var built := _build([true], rng)
+		if not built.is_empty():
+			built["name"] = "knight alone: %s" % built["steps"]
+			return built
+	return {}
+
+
+## Lays out one chain: `is_knight` says which enemies are knights. Returns {}
+## if the random steps put two things in one spot.
+static func _build(is_knight: Array[bool], rng: RandomNumberGenerator) -> Dictionary:
+	var enemies: Array[Vector2] = []
+	var knights: Array[int] = []
+	var tokens: PackedStringArray = []
+	var group := 0
+	for i in is_knight.size():
+		if i > 0:
+			var token: String = GENERATED_STEPS[rng.randi_range(0, GENERATED_STEPS.size() - 1)]
+			enemies.append(_apply(enemies.back(), token))
+			tokens.append(token)
+		else:
+			enemies.append(Vector2(0, 0))
+		if not is_knight[i]:
+			knights.append(-1)
+			continue
+		knights.append(group)
+		tokens.append("K(")
+		var hits := rng.randi_range(Rules.KNIGHT_HITS_MIN, Rules.KNIGHT_HITS_MAX)
+		for h in hits - 1:
+			var blink: String = KNIGHT_STEPS[rng.randi_range(0, KNIGHT_STEPS.size() - 1)]
+			enemies.append(_apply(enemies.back(), blink))
+			knights.append(group)
+			tokens.append(blink.to_lower())
+		tokens.append(")")
+		group += 1
+	if _overlaps(enemies, knights):
+		return {}
+	return {"enemies": enemies, "knights": knights, "steps": " ".join(tokens)}
+
+
+static func _apply(prev: Vector2, token: String) -> Vector2:
+	var shape := step_shape(token)
+	var row := (1 - int(prev.y)) if shape[1] else int(prev.y)
+	return Vector2(prev.x + float(shape[0]), row)
+
+
+## True if two things would be in one spot at the same time. A knight's later
+## spots only exist after everything before him is dead, so they may reuse
+## those spots (and his own earlier ones); nothing else may share a spot.
+static func _overlaps(enemies: Array[Vector2], knights: Array[int]) -> bool:
+	for j in enemies.size():
+		var later_knight_spot := knights[j] >= 0 and j > 0 and knights[j - 1] == knights[j]
+		for i in j:
+			if enemies[i] == enemies[j] and not later_knight_spot:
+				return true
+	return false
 
 
 ## True if every enemy in the chain can be killed, arriving with BREAK tiles
 ## of run-up in either row (the worse case: the row the entry isn't in).
-static func is_chainable(shape: Array) -> bool:
+static func is_chainable(shape: Array, knights: Array = []) -> bool:
 	for entry_row in [Rules.Row.FLOOR, Rules.Row.CEILING]:
 		var enemies: Array[Vector2] = []
 		for rel in shape:
@@ -179,7 +254,7 @@ static func is_chainable(shape: Array) -> bool:
 		var length: float = enemies.back().x + BREAK
 		var all_killed := (1 << enemies.size()) - 1
 		var start := [0.0, 1 - entry_row, Rules.cooldown_frames()]
-		var result := ChunkSolver.search(enemies, start, length, length, Rules.RUN_SPEED, 3000, all_killed)
+		var result := ChunkSolver.search(enemies, start, length, length, Rules.RUN_SPEED, 3000, all_killed, knights)
 		if not result["ok"]:
 			return false
 	return true

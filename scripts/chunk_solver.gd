@@ -14,6 +14,13 @@ extends RefCounted
 ##
 ## Enemies are Vector2(x, row). States are [x, row, cooldown, killed_mask].
 ##
+## Knights (optional `knights`, one entry per enemy: -1, or the knight's
+## number) are listed as one entry per spot he'll be in, in order. A spot
+## only exists once the one before it (same knight) is hit. And:
+##   5. a knight still standing behind you, out of reach, teleports to you
+##   6. a knight you've hit is within a teleport of you while you run: same
+## (both checked after running, so chaining on from a kill never triggers it).
+##
 ## Used by tools/validate_patterns.gd to prove patterns chain, and by the
 ## debug bot to play the game for soak tests and screenshots.
 
@@ -25,7 +32,7 @@ const DEDUP_PER_TILE := 20.0    # positions within 0.05 tiles count as the same
 ## limit_x: teleports may not land at or past this (level not built there).
 ## required_kills: bitmask of enemies that must all be killed (0 = survive).
 ## Returns {"ok": bool, "actions": Array (one Move per frame)}.
-static func search(enemies: Array[Vector2], start: Array, goal_x: float, limit_x: float, speed: float, max_frames: int = 3000, required_kills: int = 0) -> Dictionary:
+static func search(enemies: Array[Vector2], start: Array, goal_x: float, limit_x: float, speed: float, max_frames: int = 3000, required_kills: int = 0, knights: Array = []) -> Dictionary:
 	# Each history entry: [x, row, cooldown, killed_mask, parent_index, action]
 	var first: Array = start.duplicate()
 	first.append(0)
@@ -40,10 +47,10 @@ static func search(enemies: Array[Vector2], start: Array, goal_x: float, limit_x
 		for index in frontier:
 			var state: Array = history[index]
 			for action in ACTIONS:
-				var result := step(enemies, state, action, speed, limit_x)
+				var result := step(enemies, state, action, speed, limit_x, knights)
 				if result.is_empty():
 					continue
-				if required_kills != 0 and _left_required_behind(enemies, result, required_kills):
+				if required_kills != 0 and _left_required_behind(enemies, result, required_kills, knights):
 					continue   # passed a required enemy alive: can't go back for it
 				result.append(index)
 				result.append(action)
@@ -72,7 +79,7 @@ static func search(enemies: Array[Vector2], start: Array, goal_x: float, limit_x
 
 ## One frame of the game rules. Returns [x, row, cooldown, killed_mask], or
 ## an empty array if the player dies or the action isn't allowed.
-static func step(enemies: Array[Vector2], state: Array, move: int, speed: float, limit_x: float = INF) -> Array:
+static func step(enemies: Array[Vector2], state: Array, move: int, speed: float, limit_x: float = INF, knights: Array = []) -> Array:
 	var x: float = state[0]
 	var row: int = state[1]
 	var cooldown: int = state[2]
@@ -91,7 +98,7 @@ static func step(enemies: Array[Vector2], state: Array, move: int, speed: float,
 		for i in enemies.size():
 			var bit := 1 << i
 			var e := enemies[i]
-			if (mask & bit) == 0 and int(e.y) == row and Rules.in_kill_zone(move, e.x, x):
+			if (mask & bit) == 0 and exists(i, mask, knights) and int(e.y) == row and Rules.in_kill_zone(move, e.x, x):
 				if not killed or absf(e.x - x) < absf(snap_to - x):
 					snap_to = e.x
 				mask |= bit
@@ -101,7 +108,7 @@ static func step(enemies: Array[Vector2], state: Array, move: int, speed: float,
 			# an across teleport never pulls you back unless that lets you
 			# chain on (same rule as main.gd _teleport).
 			snap_to -= Rules.STRIKE_OFFSET
-			if move == Rules.Move.VERTICAL and snap_to < x and not _can_chain(enemies, mask, snap_to, row):
+			if move == Rules.Move.VERTICAL and snap_to < x and not _can_chain(enemies, mask, snap_to, row, knights):
 				snap_to = x
 			return [snap_to, row, 0, mask]
 		cooldown = Rules.cooldown_frames()
@@ -109,34 +116,61 @@ static func step(enemies: Array[Vector2], state: Array, move: int, speed: float,
 	x += speed / Rules.PHYSICS_FPS
 	for i in enemies.size():
 		var e := enemies[i]
-		if (mask & (1 << i)) == 0 and int(e.y) == row and absf(e.x - x) < Rules.HIT_RADIUS:
+		if (mask & (1 << i)) == 0 and exists(i, mask, knights) and int(e.y) == row and absf(e.x - x) < Rules.HIT_RADIUS:
 			return []
+	if knight_pounces(enemies, mask, x, knights) >= 0:
+		return []
 	cooldown = maxi(cooldown - 1, 0)
 	return [x, row, cooldown, mask]
 
 
 ## True if any live enemy is under one of the markers at (x, row).
-static func _can_chain(enemies: Array[Vector2], mask: int, x: float, row: int) -> bool:
+static func _can_chain(enemies: Array[Vector2], mask: int, x: float, row: int, knights: Array = []) -> bool:
 	for move in [Rules.Move.FORWARD, Rules.Move.VERTICAL, Rules.Move.DIAGONAL]:
 		var tx: float = x + Rules.move_dx(move)
 		var trow: int = (1 - row) if Rules.move_flips_row(move) else row
 		for i in enemies.size():
 			var e := enemies[i]
-			if (mask & (1 << i)) == 0 and int(e.y) == trow and Rules.in_kill_zone(move, e.x, tx):
+			if (mask & (1 << i)) == 0 and exists(i, mask, knights) and int(e.y) == trow and Rules.in_kill_zone(move, e.x, tx):
 				return true
 	return false
 
 
 ## True if a required enemy is too far behind to ever be killed (teleports
 ## only go forward or straight across).
-static func _left_required_behind(enemies: Array[Vector2], state: Array, required_kills: int) -> bool:
+static func _left_required_behind(enemies: Array[Vector2], state: Array, required_kills: int, knights: Array = []) -> bool:
 	var x: float = state[0]
 	var mask: int = state[3]
 	for i in enemies.size():
 		var bit := 1 << i
-		if (required_kills & bit) != 0 and (mask & bit) == 0 and enemies[i].x < x - Rules.kill_zone(Rules.Move.FORWARD).x:
+		if (required_kills & bit) != 0 and (mask & bit) == 0 and exists(i, mask, knights) and enemies[i].x < x - Rules.kill_zone(Rules.Move.FORWARD).x:
 			return true
 	return false
+
+
+## True if spot i is there right now: a plain enemy always is; a knight's spot
+## once the spot before it (same knight) has been hit.
+static func exists(i: int, mask: int, knights: Array) -> bool:
+	if knights.is_empty() or int(knights[i]) < 0 or i == 0 or int(knights[i - 1]) != int(knights[i]):
+		return true
+	return (mask & (1 << (i - 1))) != 0
+
+
+## The index of a knight that teleports to her at x (running), or -1: one
+## still standing that she's left behind out of reach, or one she's hit
+## that's within a teleport of her. Same rule as main.gd.
+static func knight_pounces(enemies: Array[Vector2], mask: int, x: float, knights: Array) -> int:
+	if knights.is_empty():
+		return -1
+	for i in enemies.size():
+		var g := int(knights[i])
+		if g < 0 or (mask & (1 << i)) != 0 or not exists(i, mask, knights):
+			continue
+		var dx := enemies[i].x - x
+		var engaged := i > 0 and int(knights[i - 1]) == g
+		if Rules.knight_passed(dx) or (engaged and absf(dx) <= Rules.FORWARD):
+			return i
+	return -1
 
 
 static func _path(history: Array, index: int) -> Array:

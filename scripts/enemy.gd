@@ -28,6 +28,9 @@ const GLINT_RATE := 12.0    # how fast the red outline fades in/out
 var tile_x := 0.0
 var row := Rules.Row.FLOOR
 var alive := true
+## Set once he's behind her and out of reach while alive: he got away
+## (that ends her sweep, see main.gd).
+var escaped := false
 ## True while a teleport would slash him (main.gd sets it every frame): he
 ## gets a thin red outline.
 var targeted := false

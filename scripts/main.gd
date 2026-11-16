@@ -69,6 +69,7 @@ var _level_up_sound: AudioStreamPlayer
 var _perfect_sound: AudioStreamPlayer
 var _dropped_sound: AudioStreamPlayer
 var _teleport_sound: AudioStreamPlayer
+var _clash_sound: AudioStreamPlayer
 var _cut_pending := false
 var _pause_length := KILL_PAUSE   # this freeze's full length (for the marker fill)
 # Kill blood starts this far (seconds) into its flight, so it's already
@@ -81,7 +82,12 @@ var state := State.READY
 var distance := 0.0
 var kills := 0
 var kill_score := 0
-var chain := 0                  # kills in the current chain
+var chain := 0                  # kills in the current chain (each hit on a knight counts)
+var chain_points := 0           # what the chain is worth on the bar (knight hits count double)
+# Sweep: kills in a row without letting a single enemy get away (one left
+# behind alive, out of reach). The longest is on the game-over screen.
+var sweep := 0
+var best_sweep := 0
 var best_chain := 0             # longest chain this run
 var perfect_chains := 0         # PERFECT chains this run (on the game-over screen)
 var progression := Progression.new()
@@ -147,6 +153,10 @@ func _ready() -> void:
 	# chain is a run of cracks rather than a wash.
 	_teleport_sound = AudioStreamPlayer.new()
 	add_child(_teleport_sound)
+	_clash_sound = AudioStreamPlayer.new()
+	_clash_sound.stream = preload("res://assets/sounds/clash.ogg")
+	_clash_sound.volume_db = KILL_CUT_DB
+	add_child(_clash_sound)
 	if not OS.get_cmdline_user_args().is_empty():
 		debug = DebugTools.new()
 		debug.main = self
@@ -450,7 +460,7 @@ func _physics_process(delta: float) -> void:
 	level.set_view(minf(cam.left(), cam.position.x), cam.shown_world_size())
 	hud.set_stats(score(), distance, kills, chain, 0.0)
 	var to_screen := get_viewport_rect().size.x / (CameraRig.VIEW_TILES * Rules.TILE)
-	hud.set_progress(progression.level, progression.bar, progression.bar_size(), chain,
+	hud.set_progress(progression.level, progression.bar, progression.bar_size(), chain_points,
 		(Rules.CEILING_Y - cam.top()) * to_screen)
 
 
@@ -549,7 +559,17 @@ func _step() -> void:
 			_die("hit", touching[0])
 			return
 
-	# 4. timers
+	# 4. a knight she's left behind, or one she's fighting that's within a
+	# teleport of her, teleports to her (same rule as ChunkSolver).
+	var pouncer := _pouncing_knight()
+	if pouncer:
+		var from := pouncer.pounce(player.x, player.row)
+		fx.strike(from, Vector2(pouncer.tile_x * Rules.TILE, Rules.body_center_y(pouncer.row)), true)
+		_die("knight", pouncer)
+		return
+	_note_escapes()
+
+	# 5. timers
 	if player.cooldown > 0:
 		player.cooldown -= 1
 
@@ -625,6 +645,25 @@ func _teleport(move: int) -> void:
 			_end_chain("SINGLE" if chain == 1 else ("PERFECT" if whole else "CLEAN"))
 
 
+func _pouncing_knight() -> Knight:
+	for e in level.enemies:
+		var k := e as Knight
+		if k == null or not k.alive:
+			continue
+		var dx := k.tile_x - player.x
+		if Rules.knight_passed(dx) or (k.engaged and absf(dx) <= Rules.FORWARD):
+			return k
+	return null
+
+
+## An enemy left behind alive, out of reach, got away: the sweep is over.
+func _note_escapes() -> void:
+	for e in level.enemies:
+		if e.alive and not e.escaped and Rules.knight_passed(e.tile_x - player.x):
+			e.escaped = true
+			sweep = 0
+
+
 ## Live enemies under any marker at this spot, i.e. what one more press
 ## right now could chain onto.
 func _chain_targets(x: float, row: int) -> Array[Enemy]:
@@ -643,6 +682,16 @@ func _chain_targets(x: float, row: int) -> Array[Enemy]:
 func _bot_acts_in_pause() -> void:
 	if not (debug and debug.bot) or not _pause_is_chain or _pressed_during_pause:
 		return
+	# A knight she's fighting first (leaving him means he comes for her).
+	for move in [Rules.Move.FORWARD, Rules.Move.VERTICAL, Rules.Move.DIAGONAL]:
+		var tx: float = player.x + Rules.move_dx(move)
+		var trow: int = (1 - player.row) if Rules.move_flips_row(move) else player.row
+		for e in level.enemies_hit_by(move, tx, trow):
+			if e is Knight and (e as Knight).engaged:
+				debug.force_move(move)
+				_pressed_during_pause = true
+				_hitstop = minf(_hitstop, maxf(KILL_PAUSE_MIN - _pause_elapsed, 0.0))
+				return
 	for move in [Rules.Move.FORWARD, Rules.Move.VERTICAL, Rules.Move.DIAGONAL]:
 		var tx: float = player.x + Rules.move_dx(move)
 		var trow: int = (1 - player.row) if Rules.move_flips_row(move) else player.row
@@ -680,27 +729,26 @@ func _play_strike(kills: bool) -> void:
 ## The teleport's lightning, the same for every direction: a strike along the
 ## throw that bursts where she lands.
 func _teleport_lightning(_move: int, from: Vector2, to: Vector2, _kills: bool) -> void:
-	var d := to - from
-	var sy := d.length() / 200.0
-	# The strike runs down its frame with the burst near the bottom: turn the
-	# frame's "down" to point along the throw and put the burst on her.
-	var centre := to - d.normalized() * (STRIKE_BURST_Y - 128.0) * sy
-	fx.bolt(Fx.Bolt.STRIKE, centre, d.angle() - PI / 2.0, Vector2(1.0, sy), 18.0)
-
-
-const STRIKE_BURST_Y := 215.0   # pixels down the STRIKE frame where its burst is
+	fx.strike(from, to)
 
 
 func _kill(e: Enemy) -> void:
-	e.die()
-	level.enemies.erase(e)   # out of the game now; the body stays (level.corpses)
-	level.corpses.append(e)
-	kills += 1
+	var knight := e as Knight
 	chain += 1
+	chain_points += Rules.KNIGHT_POINTS if knight else 1
 	best_chain = maxi(best_chain, chain)
 	_chain_killed.append(e.get_instance_id())
 	var points := Rules.KILL_POINTS * chain
 	kill_score += points
+	if knight and knight.hits_left() > 1:
+		_clash(knight)
+		return
+	e.die()
+	level.enemies.erase(e)   # out of the game now; the body stays (level.corpses)
+	level.corpses.append(e)
+	kills += 1
+	sweep += 1
+	best_sweep = maxi(best_sweep, sweep)
 
 	var c := mini(chain, 6)
 	var pos := Vector2(e.tile_x * Rules.TILE, Rules.body_center_y(e.row))
@@ -717,6 +765,17 @@ func _kill(e: Enemy) -> void:
 	if Hud.SHOW_SCORE_UI:
 		fx.text(pos - Vector2(0, 60), "+%d" % points, 22 + 2 * c, Color(1, 0.95, 0.8))
 
+
+
+## A hit on a knight that doesn't finish him: swords clash, he flashes and
+## blinks (green lightning) to his next spot, under one of her markers.
+func _clash(knight: Knight) -> void:
+	var from := knight.blink()
+	fx.strike(from, Vector2(knight.tile_x * Rules.TILE, Rules.body_center_y(knight.row)), true)
+	fx.zap(from, 0, Vector2.ZERO, Vector2(10, 20), 6)
+	_clash_sound.pitch_scale = _jitter()
+	_clash_sound.play()
+	cam.shake(0.08, 7.0)
 
 
 func _play_jingle(sound: AudioStreamPlayer) -> void:
@@ -748,10 +807,10 @@ func _end_chain(grade: String, word: String = "") -> void:
 		var old_bar := progression.bar
 		var old_size := progression.bar_size()
 		var old_level := progression.level
-		var levelled := progression.add_chain(chain, grade)
+		var levelled := progression.add_chain(chain_points, grade)
 		if grade == "PERFECT":
 			perfect_chains += 1
-		hud.show_chain_result(grade, chain, old_bar, old_size, old_level)
+		hud.show_chain_result(grade, chain_points, old_bar, old_size, old_level)
 		# One sound: a level-up outranks the PERFECT that earned it, and
 		# either replaces the last kill's saber cut.
 		if levelled:
@@ -779,6 +838,7 @@ func _end_chain(grade: String, word: String = "") -> void:
 			if debug:
 				debug.on_level_up(progression.level)
 	chain = 0
+	chain_points = 0
 	_chain_awaiting = false
 	_pressed_during_pause = false
 	_chain_killed.clear()
@@ -799,7 +859,7 @@ func _die(kind: String, killer: Enemy = null) -> void:
 	_death_focus = body
 	if killer:
 		_death_focus = (body + Vector2(killer.tile_x * Rules.TILE, Rules.body_center_y(killer.row))) * 0.5
-	if kind == "hit":   # cut down from the front: blood sprays back, already bursting out
+	if kind == "hit" or kind == "knight":   # cut down from the front: blood sprays back, already bursting out
 		blood_fx.blood(body, -1.0, 50, 0.25, 1.0 if player.row == Rules.Row.CEILING else -1.0)
 	cam.hold_zoom(_death_focus, DEATH_ZOOM, DEATH_ZOOM_RATE, DEATH_FOCUS_X)
 	cam.shake(0.2, 18.0)
@@ -847,7 +907,7 @@ func _game_over() -> void:
 		best_score = final_score
 		_save_best(best_score)
 	hud.show_game_over({
-		"distance": distance, "kills": kills, "best_chain": best_chain, "perfect_chains": perfect_chains, "level": progression.level,
+		"distance": distance, "kills": kills, "best_chain": best_chain, "perfect_chains": perfect_chains, "best_sweep": best_sweep, "level": progression.level,
 		"score": final_score, "best": best_score, "new_best": new_best,
 	})
 

@@ -58,8 +58,19 @@ run upside down.
   In the "your move" pause the red drains toward the tip as the time to act
   runs out.
 - Run speed is a constant 6 tiles/s.
+- **The knight** (from level 9, `scripts/knight.gd`) takes 3-4 hits. Each hit
+  (swords clash) he blinks, with green lightning, to one of your three
+  landing spots, picked when his chain was generated, so it's always
+  catchable, and you chase him down. Each hit counts double on the bar.
+  He can't be crossed: once he's behind you and out of reach while still
+  standing, or a freeze ends with him hit but not finished and within a
+  teleport (6 tiles) of you, he teleports to you and cuts you down.
+  Level 9 opens with a knight alone and every chain in it ends with one, so
+  the level-up into 10 is always on a knight. From level 10 any enemy in a
+  chain is a knight with a 5% chance, +3% per level.
 - Score, distance and the kill counter are tracked but **not shown** for now
-  (kills, level reached and perfect combos are on the game-over screen).
+  (kills, level reached and the longest sweep, the most kills in a row
+  without letting an enemy get away, are on the game-over screen).
   Toggle with `SHOW_KILLS_UI` / `SHOW_SCORE_UI` / `SHOW_DISTANCE_UI` at the top of `scripts/hud.gd`.
 
 ## Progression
@@ -92,6 +103,8 @@ A bar above the ceiling row fills as you chain kills; filling it levels you up.
 ## Art and sound
 
 - Enemy: "Martial Hero 3" asset pack (CC0, see `assets/sprites/martial_hero/License.txt`).
+- Knight: "Hero Knight" asset pack (CC0, see `assets/sprites/hero_knight/License.txt`); his lightning is the Frostwindz pack recoloured green.
+- Clash sound: "Heavy sword smashes metal" from Mixkit (same licence as the other Mixkit sounds), the crash only, in `assets/sounds/clash.ogg`.
 - Lightning effects: "Pixel Art Skill Animations - Lightning" by Frostwindz (https://frostwindz.itch.io/), recoloured red, in `assets/vfx`.
 - Kill sound: "Quick saber cut" from Mixkit (Mixkit free sound effects licence), trimmed to `assets/sounds/saber_cut.ogg`.
 - Death sound: "Sword slash swoosh" from Mixkit (same licence), slowed down with echoes and a reverb tail, with the hit of "Big cinematic impact" under it, in `assets/sounds/death_slash.ogg`.
@@ -122,6 +135,7 @@ scripts/
   level.gd              endless level built from the level's patterns, grey-box drawing
   player.gd             player + landing markers (drawing only; main.gd moves it)
   enemy.gd              enemy sprite (idle, death animation)
+  knight.gd             the knight: several hits, blinks between landing spots
   camera_rig.gd         follow with fast catch-up after teleports, screen shake
   fx.gd                 trails, rings, slashes, particles, floating text
   hud.gd                progression bar, messages, rotate-device overlay, flash

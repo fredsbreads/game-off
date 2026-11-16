@@ -50,6 +50,12 @@ const STRIKE_OFFSET := 0.7
 # Run speed in tiles per second. Constant for now.
 const RUN_SPEED := 6.0
 
+# The knight (see knight.gd): each hit on him counts this many kills toward
+# the progression bar, since you can't see where he'll blink ahead of time.
+const KNIGHT_POINTS := 2
+const KNIGHT_HITS_MIN := 3
+const KNIGHT_HITS_MAX := 4
+
 # Scoring.
 const KILL_POINTS := 100        # multiplied by the chain count
 
@@ -77,6 +83,12 @@ static func in_kill_zone(move: int, enemy_x: float, landing_x: float) -> bool:
 	var zone := kill_zone(move)
 	var d := enemy_x - landing_x
 	return d > -zone.x and d < zone.y
+
+
+## A knight dx tiles ahead of her (negative = behind) that she's gone past
+## for good: behind her and out of reach of every teleport.
+static func knight_passed(dx: float) -> bool:
+	return dx < -kill_zone(Move.VERTICAL).x
 
 
 static func move_dx(move: int) -> float:
