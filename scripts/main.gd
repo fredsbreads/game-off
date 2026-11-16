@@ -66,6 +66,7 @@ const SAVE_PATH := "user://save.cfg"
 # Blood gets its own effects node on the enemy layer, so it stays red during
 # the grey "your move" freeze.
 var blood_fx: Fx
+var text_fx: Fx
 var _kill_sound: AudioStreamPlayer
 var _death_sound: AudioStreamPlayer
 var _level_up_sound: AudioStreamPlayer
@@ -179,6 +180,15 @@ func _ready() -> void:
 	level.enemy_parent = $EnemyLayer
 	blood_fx = Fx.new()
 	$EnemyLayer.add_child(blood_fx)
+	# Floating words (PERFECT, TOO SLOW, MISSED...) on their own layer, above
+	# her, the enemies and every slash and bolt.
+	var text_layer := CanvasLayer.new()
+	text_layer.layer = 7
+	text_layer.follow_viewport_enabled = true
+	text_layer.process_mode = Node.PROCESS_MODE_PAUSABLE
+	add_child(text_layer)
+	text_fx = Fx.new()
+	text_layer.add_child(text_fx)
 	# Her effects too sit above the grey freeze filter, so they stay red in
 	# the "your move" pause instead of turning grey.
 	fx.reparent($EnemyLayer)
@@ -489,6 +499,7 @@ func _update_pause_visuals() -> void:
 	freeze_effect.set_state(1.0 if flashing else 0.0, 1.0 if chain_pause and not flashing else 0.0)
 	fx.frozen = paused and _pause_elapsed >= FX_FREEZE_AFTER
 	blood_fx.frozen = fx.frozen
+	text_fx.frozen = fx.frozen
 	# Lit markers drain during the "your move" freeze as the time runs out.
 	player.marker_fill = clampf(_hitstop / _pause_length, 0.0, 1.0) if chain_pause else 1.0
 	player.freeze_ring = chain_pause   # her lightning circles her for the whole freeze
@@ -838,7 +849,7 @@ func _kill(e: Enemy) -> void:
 	blood_fx.blood(pos, 1.0, 22 + 3 * c, BLOOD_BURST,
 		1.0 if e.row == Rules.Row.CEILING else -1.0)   # flung the way she was going
 	if Hud.SHOW_SCORE_UI:
-		fx.text(pos - Vector2(0, 60), "+%d" % points, 22 + 2 * c, Color(1, 0.95, 0.8))
+		text_fx.text(pos - Vector2(0, 60), "+%d" % points, 22 + 2 * c, Color(1, 0.95, 0.8))
 
 
 
@@ -905,7 +916,7 @@ func _end_chain(grade: String, word: String = "") -> void:
 			var above := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row) - Rules.TILE * 1.4)
 			if player.row == Rules.Row.CEILING:
 				above.y += Rules.TILE * 2.8
-			fx.text(above, word if word != "" else grade, 30, GRADE_COLORS[grade], Rules.RUN_SPEED * Rules.TILE, GRADE_TEXT_LIFE,
+			text_fx.text(above, word if word != "" else grade, 30, GRADE_COLORS[grade], Rules.RUN_SPEED * Rules.TILE, GRADE_TEXT_LIFE,
 					-1.0 if player.row == Rules.Row.CEILING else 1.0)   # drift away from her row
 		if levelled:
 			level.level = progression.level
@@ -965,9 +976,11 @@ func _update_death_visuals() -> void:
 	player.frozen = frozen
 	fx.frozen = frozen
 	blood_fx.frozen = frozen
+	text_fx.frozen = frozen
 	player.zap_fx.frozen = frozen
 	fx.time_scale = speed
 	blood_fx.time_scale = speed
+	text_fx.time_scale = speed
 	player.zap_fx.time_scale = speed
 	if is_instance_valid(_killer):
 		_killer.set_anim_speed(speed)
