@@ -26,6 +26,7 @@ const K_ATTACK_START := 2
 const KILL_SLASH_FRAME := 3         # "Attack2"'s big arc: held in the death freeze
 const KILL_DISTANCE := 2.6          # tiles ahead of her he swings his killing blow from
 const CLASH_FRAMES := [2, 3, 4, 5, 6]   # "Attack1" from the swing on
+const CLASH_HOLD_FRAME := 3        # his arc at its biggest: held through the clash beat
 const CLASH_TIME := 0.32            # seconds his clash swing (left where he was) plays
 const SLASH_OUTLINE := Color(0.35, 1.0, 0.45, 1.0)   # green outline while he swings
 
@@ -108,9 +109,15 @@ func _build_knight_frames() -> SpriteFrames:
 
 ## Hit but not finished: leaves a white flash where he was and blinks to his
 ## next spot. Returns the spot he left (pixels, body centre).
-func blink() -> Vector2:
+## `beat`: seconds his swing holds where he was before he reappears.
+func blink(beat := 0.0) -> Vector2:
 	var from := Vector2(tile_x * Rules.TILE, Rules.body_center_y(row))
-	_leave_ghost()
+	_leave_ghost(beat)
+	if beat > 0.0:
+		visible = false
+		get_tree().create_timer(beat).timeout.connect(func() -> void:
+			if is_instance_valid(self):
+				visible = true)
 	engaged = true
 	step_index += 1
 	tile_x = path[step_index].x
@@ -124,7 +131,7 @@ func blink() -> Vector2:
 
 ## His clash swing, left where he was as he blinks away: "Attack1" from the
 ## swing on, with a green outline, then fading.
-func _leave_ghost() -> void:
+func _leave_ghost(beat := 0.0) -> void:
 	if get_parent() == null or _sprite == null:
 		return
 	var ghost := Node2D.new()
@@ -148,9 +155,14 @@ func _leave_ghost() -> void:
 		ghost.add_child(s)
 	get_parent().add_child(ghost)
 	var tween := ghost.create_tween()
-	tween.tween_method(func(f: float) -> void:
+	# The swing up to its biggest arc, held through the beat, then the rest.
+	var held := CLASH_FRAMES.find(CLASH_HOLD_FRAME)
+	var show := func(f: float) -> void:
 		var i := clampi(int(f), 0, CLASH_FRAMES.size() - 1)
-		tex.region = Rect2(Vector2(CLASH_FRAMES[i] * K_FRAME.x, 0), Vector2(K_FRAME)), 0.0, float(CLASH_FRAMES.size()), CLASH_TIME)
+		tex.region = Rect2(Vector2(CLASH_FRAMES[i] * K_FRAME.x, 0), Vector2(K_FRAME))
+	tween.tween_method(show, 0.0, float(held), CLASH_TIME * 0.4)
+	tween.tween_interval(maxf(beat - CLASH_TIME * 0.4, 0.0))
+	tween.tween_method(show, float(held), float(CLASH_FRAMES.size()), CLASH_TIME * 0.6)
 	tween.tween_property(ghost, "modulate:a", 0.0, 0.15)
 	tween.tween_callback(ghost.queue_free)
 

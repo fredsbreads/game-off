@@ -79,6 +79,11 @@ const KILL_STRIKE_FPS := 5.0         # his teleport onto her lingers (normal: 18
 const WARN_PEAK := 0.33              # seconds into it where the swish peaks
 var _clashed := false                # this teleport hit a knight who blinked away
 const CLASH_PAUSE_FACTOR := 2.0      # the freeze after a clash is this much longer
+# A clash gets its moment: both hold still mid-swing for this long (a press
+# can't skip it), with a zoom and a shake, before he blinks away.
+const CLASH_BEAT := 0.35
+const CLASH_ZOOM := 0.18
+var _pause_min := KILL_PAUSE_MIN
 var _drop_pounce := false            # a chain just dropped: check for a knight across
 var _cut_pending := false
 var _pause_length := KILL_PAUSE   # this freeze's full length (for the marker fill)
@@ -265,7 +270,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			# Skip the rest of the kill pause.
 			if _hitstop > 0.0:
 				_pressed_during_pause = true
-			_hitstop = minf(_hitstop, maxf(KILL_PAUSE_MIN - _pause_elapsed, 0.0))
+			_hitstop = minf(_hitstop, maxf(_pause_min - _pause_elapsed, 0.0))
 		State.OVER:
 			if _state_time >= RETRY_DELAY:
 				get_tree().reload_current_scene()
@@ -674,8 +679,11 @@ func _teleport(move: int) -> void:
 		var targets := _chain_targets(to_x, to_row)
 		_pause_is_chain = not targets.is_empty()
 		_pause_length = maxf(KILL_PAUSE - KILL_PAUSE_STEP * (chain - 1), KILL_PAUSE_FLOOR)
+		_pause_min = KILL_PAUSE_MIN
 		if _clashed:
-			_pause_length *= CLASH_PAUSE_FACTOR   # you can't see where he'll blink to
+			# You can't see where he'll blink to; and the clash itself plays first.
+			_pause_length = _pause_length * CLASH_PAUSE_FACTOR + CLASH_BEAT
+			_pause_min = CLASH_BEAT
 		_hitstop = _pause_length if _pause_is_chain else KILL_HIT
 		_pause_elapsed = 0.0
 		if _pause_is_chain:
@@ -781,7 +789,7 @@ func _bot_acts_in_pause() -> void:
 			if e is Knight and (e as Knight).engaged:
 				debug.force_move(move)
 				_pressed_during_pause = true
-				_hitstop = minf(_hitstop, maxf(KILL_PAUSE_MIN - _pause_elapsed, 0.0))
+				_hitstop = minf(_hitstop, maxf(_pause_min - _pause_elapsed, 0.0))
 				return
 	for move in [Rules.Move.FORWARD, Rules.Move.VERTICAL, Rules.Move.DIAGONAL]:
 		var tx: float = player.x + Rules.move_dx(move)
@@ -789,7 +797,7 @@ func _bot_acts_in_pause() -> void:
 		if not level.enemies_hit_by(move, tx, trow).is_empty():
 			debug.force_move(move)
 			_pressed_during_pause = true
-			_hitstop = minf(_hitstop, maxf(KILL_PAUSE_MIN - _pause_elapsed, 0.0))
+			_hitstop = minf(_hitstop, maxf(_pause_min - _pause_elapsed, 0.0))
 			return
 
 
@@ -862,12 +870,17 @@ func _kill(e: Enemy) -> void:
 ## blinks (green lightning) to his next spot, under one of her markers.
 func _clash(knight: Knight) -> void:
 	_clashed = true
-	var from := knight.blink()
-	fx.strike(from, Vector2(knight.tile_x * Rules.TILE, Rules.body_center_y(knight.row)), true)
+	var from := knight.blink(CLASH_BEAT)
 	fx.zap(from, 0, Vector2.ZERO, Vector2(10, 20), 6)
 	_clash_sound.pitch_scale = _jitter()
 	_clash_sound.play()
-	cam.shake(0.08, 7.0)
+	cam.shake(0.22, 12.0)
+	cam.punch((from + Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row))) * 0.5, CLASH_ZOOM, CLASH_BEAT + 0.2)
+	# Then he blinks away (green lightning to where he reappears).
+	var to := Vector2(knight.tile_x * Rules.TILE, Rules.body_center_y(knight.row))
+	get_tree().create_timer(CLASH_BEAT).timeout.connect(func() -> void:
+		if is_instance_valid(knight) and state == State.PLAYING:
+			fx.strike(from, to, true))
 
 
 func _play_jingle(sound: AudioStreamPlayer) -> void:

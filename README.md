@@ -63,6 +63,8 @@ run upside down.
   landing spots, picked when his chain was generated, so it's always
   catchable, and you chase him down. Each hit counts double on the bar, and
   the freeze after a clash is twice as long (you can't see where he'll go).
+  Each clash first holds for a beat (both mid-swing, a zoom and a shake;
+  pressing can't skip it) before he blinks away.
   You can teleport past him, but not run past him across the rows: while
   you're straight across from him (your across teleport would hit him) he
   raises his sword and a swish starts; run on out of reach, or let a chain

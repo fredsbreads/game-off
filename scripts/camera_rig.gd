@@ -21,6 +21,8 @@ var _left := 0.0
 var _shake_time := 0.0
 var _shake_strength := 0.0
 var _punch_time := -1.0         # < 0 = no punch running
+var _punch_zoom := PUNCH_ZOOM
+var _punch_out := PUNCH_OUT
 var _punch_focus := Vector2.ZERO
 # A held zoom (the death moment): eases toward _hold_target around _hold_focus.
 var _hold := 0.0
@@ -71,14 +73,17 @@ func follow(player_x: float, run_px_per_s: float, delta: float) -> void:
 	_pan += (_pan_target - _pan) * (1.0 - exp(-_hold_rate * delta))
 	if _punch_time >= 0.0:
 		_punch_time += delta
-		if _punch_time > PUNCH_IN + PUNCH_OUT:
+		if _punch_time > PUNCH_IN + _punch_out:
 			_punch_time = -1.0
 	_apply()
 
 
-func punch(focus_world: Vector2) -> void:
+## `amount`: how much closer at the peak; `out`: seconds to ease back out.
+func punch(focus_world: Vector2, amount := PUNCH_ZOOM, out := PUNCH_OUT) -> void:
 	_punch_focus = focus_world
 	_punch_time = 0.0
+	_punch_zoom = amount
+	_punch_out = out
 
 
 ## Zoom by `amount` around a world point and hold it (0.45 = 45 % closer,
@@ -103,8 +108,8 @@ func _punch_amount() -> float:
 	if _punch_time < 0.0:
 		return 0.0
 	if _punch_time < PUNCH_IN:
-		return PUNCH_ZOOM * ease(_punch_time / PUNCH_IN, 0.5)
-	return PUNCH_ZOOM * (1.0 - ease((_punch_time - PUNCH_IN) / PUNCH_OUT, 2.0))
+		return _punch_zoom * ease(_punch_time / PUNCH_IN, 0.5)
+	return _punch_zoom * (1.0 - ease(minf((_punch_time - PUNCH_IN) / _punch_out, 1.0), 2.0))
 
 
 func _target(player_x: float) -> float:
