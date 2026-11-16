@@ -652,22 +652,26 @@ func _bot_acts_in_pause() -> void:
 			return
 
 
-# Every move crackles: a lightning strike (one of three, at random). A move
-# that kills gets only its first crack, quieter, under the saber cut, which
-# carries the hit.
-const STRIKES := [preload("res://assets/sounds/strike_13.ogg"),
-	preload("res://assets/sounds/strike_16.ogg"), preload("res://assets/sounds/strike_26.ogg")]
-const STRIKES_SHORT := [preload("res://assets/sounds/strike_13_short.ogg"),
-	preload("res://assets/sounds/strike_16_short.ogg"), preload("res://assets/sounds/strike_26_short.ogg")]
+# Every move crackles: strike 16 for a move that hits nothing; strike 13's
+# first crack, quieter, under the saber cut on a kill (the cut carries the hit).
+const STRIKE_MOVE := preload("res://assets/sounds/strike_16.ogg")
+const STRIKE_KILL := preload("res://assets/sounds/strike_13_short.ogg")
 const STRIKE_DB := 0.0
 const STRIKE_UNDER_CUT_DB := -5.0
+# Every sound that repeats a lot gets a small random pitch offset, so repeats
+# don't sound identical. PERFECT and level-up sit a step above the plain cut.
+const PITCH_JITTER := 0.04
+const JINGLE_PITCH := 1.1
+
+
+func _jitter() -> float:
+	return randf_range(1.0 - PITCH_JITTER, 1.0 + PITCH_JITTER)
 
 
 func _play_strike(kills: bool) -> void:
-	var i := randi() % STRIKES.size()
-	_teleport_sound.stream = STRIKES_SHORT[i] if kills else STRIKES[i]
+	_teleport_sound.stream = STRIKE_KILL if kills else STRIKE_MOVE
 	_teleport_sound.volume_db = STRIKE_UNDER_CUT_DB if kills else STRIKE_DB
-	_teleport_sound.pitch_scale = randf_range(0.95, 1.05)
+	_teleport_sound.pitch_scale = _jitter()
 	_teleport_sound.play()
 
 
@@ -701,10 +705,9 @@ func _kill(e: Enemy) -> void:
 
 	var c := mini(chain, 6)
 	var pos := Vector2(e.tile_x * Rules.TILE, Rules.body_center_y(e.row))
-	# Saber cut, a little higher with each kill in the chain. Played at the
-	# end of the frame: if this kill ends the chain as a PERFECT or a level-up,
-	# that sound plays instead.
-	_kill_sound.pitch_scale = (1.0 + 0.05 * (c - 1)) * randf_range(0.96, 1.04)
+	# Saber cut, played at the end of the frame: if this kill ends the chain
+	# as a PERFECT or a level-up, that sound plays instead.
+	_kill_sound.pitch_scale = _jitter()
 	if not _cut_pending:
 		_cut_pending = true
 		_play_pending_cut.call_deferred()
@@ -753,13 +756,12 @@ func _end_chain(grade: String, word: String = "") -> void:
 		# One sound: a level-up outranks the PERFECT that earned it, and
 		# either replaces the last kill's saber cut.
 		if levelled:
-			# The PERFECT sound with an impact under it, pitched like the cut
-			# it replaces (as PERFECT is), so it never sounds duller than one.
-			_level_up_sound.pitch_scale = _kill_sound.pitch_scale
+			# The PERFECT sound with an impact under it.
+			_level_up_sound.pitch_scale = JINGLE_PITCH * _jitter()
 			_play_jingle(_level_up_sound)
 		elif grade == "PERFECT":
-			# The saber cut with a shimmer: pitched like the cut it replaces.
-			_perfect_sound.pitch_scale = _kill_sound.pitch_scale
+			# The saber cut with a shimmer.
+			_perfect_sound.pitch_scale = JINGLE_PITCH * _jitter()
 			_play_jingle(_perfect_sound)
 		elif grade == "DROPPED" and word == "TOO SLOW":
 			_dropped_sound.play()   # a muted thud: the chance passed
