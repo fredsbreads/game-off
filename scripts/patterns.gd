@@ -57,8 +57,8 @@ const OLD_PATTERN_WEIGHT := 1.0
 const KNIGHT_DEBUT_LEVEL := 9
 const KNIGHT_CHANCE := 0.05
 const KNIGHT_CHANCE_STEP := 0.03
-# A knight's blinks: to any of her three landing spots (across and back is
-# fine: the spot he left is empty).
+# A knight's blinks: to any of her three landing spots, but never back to a
+# spot he's been on (so never across twice in a row, see _overlaps).
 const KNIGHT_STEPS := ["F", "V", "D"]
 
 # "Maybe" for later: off-beat patterns (with a visual cue). Not spawned.
@@ -216,7 +216,7 @@ static func _build(hits: Array[int], rng: RandomNumberGenerator) -> Dictionary:
 	var group := 0
 	for i in hits.size():
 		if i > 0:
-			var token: String = GENERATED_STEPS[rng.randi_range(0, GENERATED_STEPS.size() - 1)]
+			var token := _free_step(GENERATED_STEPS, enemies, rng)
 			enemies.append(_apply(enemies.back(), token))
 			tokens.append(token)
 		else:
@@ -227,7 +227,7 @@ static func _build(hits: Array[int], rng: RandomNumberGenerator) -> Dictionary:
 		knights.append(group)
 		tokens.append("K(")
 		for h in hits[i] - 1:
-			var blink: String = KNIGHT_STEPS[rng.randi_range(0, KNIGHT_STEPS.size() - 1)]
+			var blink := _free_step(KNIGHT_STEPS, enemies, rng)
 			enemies.append(_apply(enemies.back(), blink))
 			knights.append(group)
 			tokens.append(blink.to_lower())
@@ -238,20 +238,33 @@ static func _build(hits: Array[int], rng: RandomNumberGenerator) -> Dictionary:
 	return {"enemies": enemies, "knights": knights, "steps": " ".join(tokens)}
 
 
+## A random step from `steps` that lands on a spot not used yet in the chain
+## (in practice: no across right after an across). F and D always move on,
+## so there's always one.
+static func _free_step(steps: Array, used: Array[Vector2], rng: RandomNumberGenerator) -> String:
+	var free: Array = []
+	for token in steps:
+		if not used.has(_apply(used.back(), token)):
+			free.append(token)
+	if free.is_empty():
+		return steps[rng.randi_range(0, steps.size() - 1)]
+	return free[rng.randi_range(0, free.size() - 1)]
+
+
 static func _apply(prev: Vector2, token: String) -> Vector2:
 	var shape := step_shape(token)
 	var row := (1 - int(prev.y)) if shape[1] else int(prev.y)
 	return Vector2(prev.x + float(shape[0]), row)
 
 
-## True if two things could be in one spot at the same time. A knight may
-## blink back to a spot he's left, but never onto anyone else's: she can skip
-## the enemies before him (e.g. go straight for him), so they may still be
-## there when he blinks.
-static func _overlaps(enemies: Array[Vector2], knights: Array[int]) -> bool:
+## True if any two spots in the chain are the same. Every spot is used once:
+## a knight never blinks onto anyone else's spot (she can skip the enemies
+## before him, so they may still be there), nor back to one he's been on
+## (so no across-and-back).
+static func _overlaps(enemies: Array[Vector2], _knights: Array[int]) -> bool:
 	for j in enemies.size():
 		for i in j:
-			if enemies[i] == enemies[j] and not (knights[j] >= 0 and knights[i] == knights[j]):
+			if enemies[i] == enemies[j]:
 				return true
 	return false
 

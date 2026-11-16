@@ -74,14 +74,15 @@ var _perfect_sound: AudioStreamPlayer
 var _dropped_sound: AudioStreamPlayer
 var _teleport_sound: AudioStreamPlayer
 var _clash_sound: AudioStreamPlayer
+var _knight_kill_sound: AudioStreamPlayer   # the sword impact when a knight goes down
 var _warn_sound: AudioStreamPlayer   # a knight winding up to strike
 const KILL_STRIKE_FPS := 5.0         # his teleport onto her lingers (normal: 18)
 const WARN_PEAK := 0.33              # seconds into it where the swish peaks
 var _clashed := false                # this teleport hit a knight who blinked away
-const CLASH_PAUSE_FACTOR := 2.0     # the freeze after a clash is this much longer
+const CLASH_PAUSE_FACTOR := 1.5    # the freeze after a clash is this much longer
 # A clash gets its moment: both hold still mid-swing for this long (a press
 # can't skip it), with a zoom and a shake, before he blinks away.
-const CLASH_BEAT := 0.2
+const CLASH_BEAT := 0.12
 const CLASH_ZOOM := 0.32
 const CLASH_FLASH := Color(1, 1, 1, 0.22)
 const CLASH_STRIKE_FPS := 36.0   # his blink lightning: quick, so he's seen at once
@@ -170,6 +171,10 @@ func _ready() -> void:
 	# chain is a run of cracks rather than a wash.
 	_teleport_sound = AudioStreamPlayer.new()
 	add_child(_teleport_sound)
+	_knight_kill_sound = AudioStreamPlayer.new()
+	_knight_kill_sound.stream = preload("res://assets/sounds/knight_kill.ogg")
+	_knight_kill_sound.volume_db = KILL_CUT_DB
+	add_child(_knight_kill_sound)
 	_clash_sound = AudioStreamPlayer.new()
 	_clash_sound.stream = preload("res://assets/sounds/clash.ogg")
 	_clash_sound.volume_db = KILL_CUT_DB
@@ -888,6 +893,9 @@ func _kill(e: Enemy) -> void:
 	if not _cut_pending:
 		_cut_pending = true
 		_play_pending_cut.call_deferred()
+	if knight:
+		_knight_kill_sound.pitch_scale = _jitter()
+		_knight_kill_sound.play()
 	cam.shake(0.06, 4.0 + 1.5 * c)   # only during the flash, so the freeze reads as still
 	fx.kill_burst(pos, chain)
 	blood_fx.blood(pos, 1.0, 22 + 3 * c, BLOOD_BURST,

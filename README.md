@@ -119,6 +119,7 @@ A bar above the ceiling row fills as you chain kills; filling it levels you up.
 - Enemy: "Martial Hero 3" asset pack (CC0, see `assets/sprites/martial_hero/License.txt`).
 - Knight: "Hero Knight" asset pack (CC0, see `assets/sprites/hero_knight/License.txt`); his lightning is the Frostwindz pack recoloured green.
 - Knight wind-up sound: "Sword blade swish" from Mixkit (same licence), in `assets/sounds/knight_warn.ogg`.
+- Knight kill sound: "Samurai sword impact" from Mixkit (same licence), the impact only (the build-up cut off), in `assets/sounds/knight_kill.ogg`.
 - Clash sound: "Heavy sword smashes metal" from Mixkit (same licence as the other Mixkit sounds), the crash only, in `assets/sounds/clash.ogg`.
 - Lightning effects: "Pixel Art Skill Animations - Lightning" by Frostwindz (https://frostwindz.itch.io/), recoloured red, in `assets/vfx`.
 - Kill sound: "Quick saber cut" from Mixkit (Mixkit free sound effects licence), trimmed to `assets/sounds/saber_cut.ogg`.

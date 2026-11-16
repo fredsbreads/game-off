@@ -45,7 +45,7 @@ const CLASH_BY_POSE := [
 ]
 const KILL_DISTANCE := 2.6          # tiles ahead of her he swings his killing blow from
 const AFTERIMAGE_FADE := 0.35       # seconds his clash swing lingers after he blinks away
-const CLASH_TIME := 0.32            # seconds his clash swing (left where he was) plays
+const CLASH_TIME := 0.25           # seconds his clash swing (left where he was) plays
 const SLASH_OUTLINE := Color(0.35, 1.0, 0.45, 1.0)   # green outline while he swings
 
 ## Every spot he'll be in, in order: Vector2(tile x, row). path[0] is where
