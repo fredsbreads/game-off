@@ -134,6 +134,13 @@ var frozen := false      # kill pause: hold the current animation frame
 var facing := 1.0
 ## The level-10 finisher is playing: no markers.
 var cinematic := false
+## The auto-chain power-up: charged (ready) / playing. Either way she
+## crackles with lightning and glows.
+var charged := false
+var auto_chain := false
+const CHARGE_CRACKLE_EVERY := 0.07   # seconds between crackles while charged
+const CHARGE_GLOW := Color(1.15, 1.25, 1.6)
+var _charge_timer := 0.0
 
 var _striking := false    # showing a strike pose
 var _strike_time := 0.0
@@ -559,9 +566,27 @@ func _process(delta: float) -> void:
 				_play(want)
 	_sprite.speed_scale = 0.0 if frozen else 1.0
 
+	_update_charge_look(delta)
 	_update_markers(delta)
 	queue_redraw()
 	_hitbox.queue_redraw()
+
+
+## Charged / auto-chaining: lightning crackles over her and her sword, and she
+## flickers with a cold glow (stronger while the auto-chain plays).
+func _update_charge_look(delta: float) -> void:
+	var on := alive and (charged or auto_chain)
+	if not on:
+		_sprite.self_modulate = Color.WHITE
+		return
+	_charge_timer -= delta
+	if _charge_timer > 0.0:
+		return
+	_charge_timer = CHARGE_CRACKLE_EVERY
+	var vel := Vector2(Rules.RUN_SPEED * Rules.TILE, 0) if running and not frozen else Vector2.ZERO
+	zap_fx.zap(to_global(BODY_CENTRE), 3 if auto_chain else 2, vel, Vector2(20, 34), 1)
+	var k := randf()
+	_sprite.self_modulate = Color.WHITE.lerp(CHARGE_GLOW, (0.6 + 0.4 * k) if auto_chain else (0.3 + 0.5 * k))
 
 
 func _draw() -> void:

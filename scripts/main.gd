@@ -78,6 +78,8 @@ var _clash_sound: AudioStreamPlayer
 var _knight_kill_sound: AudioStreamPlayer   # the sword impact when a knight goes down
 var _pink_shift_sound: AudioStreamPlayer   # her colour sweeping from red to pink
 var _lose_colour_sound: AudioStreamPlayer  # the streak breaks: back to red
+var _charge_sound: AudioStreamPlayer       # the power-up meter is full
+var _auto_finale_sound: AudioStreamPlayer  # thunder at the end of an auto-chain
 var _warn_sound: AudioStreamPlayer   # a knight winding up to strike
 const KILL_STRIKE_FPS := 5.0         # the knight's teleport onto the player lingers (normal: 18)
 const WARN_PEAK := 0.33              # seconds into it where the swish peaks
@@ -105,6 +107,18 @@ const FINISHER_HOLD := 0.8         # after the level-up, the freeze frame holds 
 # The reward: a flawless streak (kills in a row, no enemy let go, no chain
 # dropped) this long; the next chain that ends on a kill plays the finisher.
 const STREAK_REWARD := 50
+# The auto-chain power-up: a meter filled by finished chains (CLEAN 1,
+# PERFECT 2, CHARGE_FULL to fill). Full = she's charged; her next kill that
+# has a chain after it sets it off: the rest of that chain plays itself,
+# perfectly and fast, then a lightning finale and a breather before the
+# next chain.
+const CHARGE_FULL := 10
+const CHARGE_GAIN := {"PERFECT": 2, "CLEAN": 1}
+const AUTO_STEP := 0.1          # seconds between her auto-chain hops
+const AUTO_GAP_TILES := 12.0    # extra empty run after an auto-chain
+var charge := 0                 # the meter (0..CHARGE_FULL)
+var _charged := false           # full: the next chainable kill sets it off
+var _auto := false              # an auto-chain is playing
 const LOSE_COLOUR_TIME := 0.3     # back to red when the streak breaks
 const FINISHER_ZOOM := 0.35
 const FINISHER_SIDE := 2.2          # tiles either side of the enemy she strikes from
@@ -205,6 +219,14 @@ func _ready() -> void:
 	_knight_kill_sound.stream = preload("res://assets/sounds/knight_kill.ogg")
 	_knight_kill_sound.volume_db = KILL_CUT_DB
 	add_child(_knight_kill_sound)
+	_charge_sound = AudioStreamPlayer.new()
+	_charge_sound.stream = preload("res://assets/sounds/charge_ready.ogg")
+	_charge_sound.volume_db = 2.0
+	add_child(_charge_sound)
+	_auto_finale_sound = AudioStreamPlayer.new()
+	_auto_finale_sound.stream = preload("res://assets/sounds/auto_finale.ogg")
+	_auto_finale_sound.volume_db = -2.0
+	add_child(_auto_finale_sound)
 	_lose_colour_sound = AudioStreamPlayer.new()
 	_lose_colour_sound.stream = preload("res://assets/sounds/streak_break.ogg")
 	_lose_colour_sound.volume_db = -4.0
@@ -331,6 +353,8 @@ func _unhandled_input(event: InputEvent) -> void:
 				_request_fullscreen()
 				begin()
 		State.PLAYING:
+			if _auto:
+				return   # the auto-chain plays itself
 			if player.cooldown > 0 and ((button == Rules.Move.FORWARD and _last_forward) or (button == Rules.Move.VERTICAL and _last_vertical)):
 				return   # same button again right after a teleport: ignored
 			if not _pending_forward and not _pending_vertical:
@@ -544,6 +568,9 @@ func _physics_process(delta: float) -> void:
 				_bot_acts_in_pause()
 				_hitstop -= delta
 				_pause_elapsed += delta
+				if _auto and not _finishing and _pause_elapsed >= AUTO_STEP:
+					_auto_hop()
+					return
 				if _hitstop <= 0.0 and _pause_is_chain and _chain_awaiting \
 						and not _pressed_during_pause and not _pending_forward and not _pending_vertical:
 					_end_chain("DROPPED", "TOO SLOW")   # waited too long in the "your move" freeze
@@ -570,6 +597,7 @@ func _physics_process(delta: float) -> void:
 	level.set_view(minf(cam.left(), cam.position.x), cam.shown_world_size())
 	hud.set_stats(score(), distance, kills, chain, 0.0)
 	hud.set_streak(sweep)   # the flawless streak so far
+	hud.set_charge(charge, CHARGE_FULL, _charged)
 	var to_screen := get_viewport_rect().size.x / (CameraRig.VIEW_TILES * Rules.TILE)
 	hud.set_progress(progression.level, progression.bar, progression.bar_size(), chain_points,
 		(Rules.CEILING_Y - cam.top()) * to_screen)
@@ -776,6 +804,8 @@ func _teleport(move: int) -> void:
 			_pause_min = maxf(KILL_PAUSE_MIN, CLASH_REAPPEAR)   # the player can go as soon as the knight shows where she went
 		_hitstop = _pause_length if _pause_is_chain else KILL_HIT
 		_pause_elapsed = 0.0
+		if _pause_is_chain and _charged and not _auto:
+			_start_auto()
 		if _pause_is_chain:
 			if not _clashed and not _knight_felled:   # those have their own, bigger zoom
 				cam.punch(to)
@@ -793,7 +823,9 @@ func _teleport(move: int) -> void:
 			var grade := "SINGLE" if chain == 1 else ("PERFECT" if whole else "CLEAN")
 			# The reward: a flawless streak of STREAK_REWARD, and this chain ends on
 			# a kill (whoever it is): the triple slash, and she takes on her colour.
-			if sweep >= STREAK_REWARD and Palette.pink <= 0.0 and is_instance_valid(_last_felled):
+			if _auto:
+				_auto_finale(grade)   # (never the streak finisher: only her own chains earn that)
+			elif sweep >= STREAK_REWARD and Palette.pink <= 0.0 and is_instance_valid(_last_felled):
 				_finisher(_last_felled, grade)
 			else:
 				_end_chain(grade)
@@ -917,6 +949,87 @@ func _cycle_colour() -> void:
 	if player.row == Rules.Row.CEILING:
 		above.y += Rules.TILE * 3.6
 	text_fx.text(above, name.replace("_", " ").to_upper(), 26, Color.WHITE, Rules.RUN_SPEED * Rules.TILE if state == State.PLAYING else 0.0, 1.2)
+
+
+## The power-up meter: CLEAN / PERFECT chains add to it; full = charged.
+func _add_charge(n: int) -> void:
+	if n <= 0 or _charged:
+		return
+	charge = mini(charge + n, CHARGE_FULL)
+	if charge >= CHARGE_FULL:
+		_charged = true
+		player.charged = true
+		_charge_sound.play()
+		var body := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row))
+		player.zap_fx.zap(body, 6, Vector2.ZERO, Vector2(26, 40), 6)
+		hud.flash(Color(0.75, 0.9, 1.0, 0.25), 0.25)
+
+
+## A charged kill with a chain after it: the rest of the chain plays itself.
+func _start_auto() -> void:
+	_auto = true
+	_charged = false
+	charge = 0
+	player.charged = false
+	player.auto_chain = true
+	_clear_pending()
+	hud.flash(Color(0.8, 0.95, 1.0, 0.35), 0.15)
+	cam.shake(0.2, 10.0)
+
+
+## One hop of the auto-chain: onto the nearest enemy under a marker (the next
+## one in the chain: chains never go backwards), a knight she's fighting first.
+func _auto_hop() -> void:
+	var best_move := Rules.Move.NONE
+	var best_x := INF
+	var best_knight := false
+	for move in [Rules.Move.VERTICAL, Rules.Move.FORWARD, Rules.Move.DIAGONAL]:
+		var tx: float = player.x + Rules.move_dx(move)
+		var trow: int = (1 - player.row) if Rules.move_flips_row(move) else player.row
+		for e in level.enemies_hit_by(move, tx, trow):
+			var engaged := e is Knight and (e as Knight).engaged
+			if (engaged and not best_knight) or (engaged == best_knight and e.tile_x < best_x - 0.01):
+				best_move = move
+				best_x = e.tile_x
+				best_knight = engaged
+	if best_move == Rules.Move.NONE:
+		_auto = false
+		player.auto_chain = false
+		return
+	_hitstop = 0.0
+	_pressed_during_pause = true
+	_clear_pending()
+	player.cooldown = 0
+	_teleport(best_move)
+	# Every hop crackles.
+	var body := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row))
+	player.zap_fx.zap(body, 3, Vector2.ZERO, Vector2(20, 34), 3)
+	hud.flash(Color(0.85, 0.95, 1.0, 0.12), 0.08)
+
+
+## The auto-chain's end: a big strike of lightning onto her and thunder, the
+## chain counts (as she'd have played it), then a breather before the next.
+func _auto_finale(grade: String) -> void:
+	_auto = false
+	player.auto_chain = false
+	var feet := Vector2(player.x * Rules.TILE, Rules.surface_y(player.row))
+	var up := -1.0 if player.row == Rules.Row.FLOOR else 1.0
+	fx.bolt(Fx.Bolt.BIG_STRIKE, feet + Vector2(0, up * (BIG_STRIKE_BURST_Y - 128.0) * 2.0), 0.0 if player.row == Rules.Row.FLOOR else PI, Vector2(1.8, 2.0), 7.0)
+	var body := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row))
+	fx.bolt(Fx.Bolt.RING, body, randf() * TAU, Vector2.ONE * 2.6, 12.0)
+	player.zap_fx.zap(body, 8, Vector2.ZERO, Vector2(30, 46), 8)
+	hud.flash(Color(0.9, 0.97, 1.0, 0.5), 0.35)
+	cam.shake(0.35, 18.0)
+	_auto_finale_sound.play()
+	_end_chain(grade)
+	# A breather: chains ahead are cleared (under the flash and the lightning)
+	# and nothing new comes until well past the screen's right edge.
+	for e in level.enemies:
+		if e.alive and e.tile_x > player.x + 1.0:
+			fx.zap(Vector2(e.tile_x * Rules.TILE, Rules.body_center_y(e.row)), 2, Vector2.ZERO, Vector2(14, 26), 3)
+	level.rebuild_ahead(player.x + 1.0)
+	level.push_cursor(cam.left() / Rules.TILE + CameraRig.VIEW_TILES + AUTO_GAP_TILES)
+	level.ensure_generated(player.x)
 
 
 ## The flawless streak is over (an enemy got away, or a chain was dropped):
@@ -1065,7 +1178,7 @@ func _chain_targets(x: float, row: int) -> Array[Enemy]:
 ## The bot (debug only) can't press during the freeze through think(), so
 ## here it chains onto whatever is under a marker, like a player would.
 func _bot_acts_in_pause() -> void:
-	if not (debug and debug.bot) or not _pause_is_chain or _pressed_during_pause:
+	if not (debug and debug.bot) or not _pause_is_chain or _pressed_during_pause or _auto:
 		return
 	# A knight the player is fighting first (leaving the knight means she comes for the player).
 	for move in [Rules.Move.FORWARD, Rules.Move.VERTICAL, Rules.Move.DIAGONAL]:
@@ -1242,6 +1355,8 @@ func _end_chain(grade: String, word: String = "") -> void:
 			_drop_pounce = true
 		if grade == "DROPPED":
 			_break_streak()   # a dropped chain ends the flawless streak
+		if not _auto:
+			_add_charge(int(CHARGE_GAIN.get(grade, 0)))
 		if grade != "SINGLE":
 			var above := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row) - Rules.TILE * 1.4)
 			if player.row == Rules.Row.CEILING:

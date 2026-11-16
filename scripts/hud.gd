@@ -80,6 +80,12 @@ var _progress_level: Label
 # The current flawless streak (kills in a row without letting one get away),
 # right of the bar.
 var _streak: Label
+# The auto-chain power-up meter: a thin bar under the level bar.
+var _charge_bar: Control
+var _c_value := 0.0
+var _c_charged := false
+const CHARGE_BAR_H := 5.0
+const CHARGE_COLOR := Color(0.55, 0.85, 1.0)
 var _p_bar := 0.0
 var _p_size := 1.0
 var _p_pending := 0.0
@@ -120,6 +126,12 @@ func _ready() -> void:
 	_progress_level = _label(20, Vector2.ZERO)
 	_progress_level.reparent(_progress)
 	_progress_level.add_theme_color_override("font_color", Color(1, 1, 1, 0.75))
+	_charge_bar = Control.new()
+	_charge_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_charge_bar.position = Vector2(0, PROGRESS_SIZE.y + 7.0)
+	_charge_bar.size = Vector2(PROGRESS_SIZE.x, CHARGE_BAR_H)
+	_charge_bar.draw.connect(_draw_charge)
+	_progress.add_child(_charge_bar)
 	_streak = _label(20, Vector2.ZERO)
 	_streak.reparent(_progress)
 	_streak.add_theme_color_override("font_color", Color(1, 1, 1, 0.75))
@@ -271,6 +283,25 @@ func set_progress(level: int, bar: float, bar_size: float, pending: int, ceiling
 	_progress_level.text = "LV %d" % level
 	_progress_level.position = Vector2(-_progress_level.get_minimum_size().x - 12.0, (PROGRESS_SIZE.y - _progress_level.get_minimum_size().y) / 2.0)
 	_progress.queue_redraw()
+
+
+## The power-up meter: value out of full; charged = full and ready.
+func set_charge(value: int, full: int, charged: bool) -> void:
+	_c_value = clampf(float(value) / float(full), 0.0, 1.0)
+	_c_charged = charged
+	_charge_bar.queue_redraw()
+
+
+func _draw_charge() -> void:
+	var s := _charge_bar.size
+	_charge_bar.draw_rect(Rect2(Vector2.ZERO, s), Color(1, 1, 1, 0.12))
+	if _c_charged:
+		# Full: the whole bar crackles bright.
+		var pulse := 0.6 + 0.4 * sin(Time.get_ticks_msec() * 0.02)
+		_charge_bar.draw_rect(Rect2(Vector2.ZERO, s), Color(CHARGE_COLOR.lightened(0.4), pulse))
+		_charge_bar.draw_rect(Rect2(Vector2.ZERO, s).grow(2.0), Color(CHARGE_COLOR, 0.5 * pulse), false, 1.5)
+	elif _c_value > 0.0:
+		_charge_bar.draw_rect(Rect2(Vector2.ZERO, Vector2(s.x * _c_value, s.y)), Color(CHARGE_COLOR, 0.85))
 
 
 ## The current flawless streak, shown right of the bar.

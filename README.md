@@ -102,6 +102,16 @@ run upside down.
   back to red with a crack (`streak_break.ogg`). `FINISHER_*` in
   `scripts/main.gd`; colours in `scripts/palette.gd` and
   `shaders/accent.gdshaderinc`.
+- **The auto-chain power-up**: a thin meter under the level bar fills as
+  chains end (CLEAN +1, PERFECT +2; full at 10; dropped and one-kill chains
+  add nothing, and nothing drains it). Full = she's charged: she crackles
+  with lightning and glows, the meter flashes. Her next kill that has a chain
+  after it sets it off: the rest of that chain plays itself, perfectly and
+  fast (`AUTO_STEP` between hops), then a big lightning strike and thunder,
+  the chain ahead is cleared and the next one comes in past the screen's
+  edge (`AUTO_GAP_TILES`). Its kills count for the bar and the streak, but
+  the streak finisher only plays at the end of a chain she played herself.
+  `CHARGE_*`, `_auto_*` in `scripts/main.gd`.
 - **Her reward colour** is one setting: `COLOUR` at the top of
   `scripts/palette.gd` (default `"yellow"`; every name is in `COLOURS`
   there). The pause screen's **Colour** button steps through them (saved);

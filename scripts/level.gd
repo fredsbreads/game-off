@@ -154,6 +154,11 @@ func _append_pattern(pattern: Dictionary) -> void:
 	_cursor_row = last_row
 
 
+## No chain starts before x (tiles): a breather (after an auto-chain).
+func push_cursor(x: float) -> void:
+	_cursor = maxf(_cursor, x)
+
+
 ## Switches enemies off (removes every one) or back on (enemies spawn again
 ## from from_x, e.g. just off the right edge of the screen).
 func set_enemies_off(off: bool, from_x: float) -> void:
