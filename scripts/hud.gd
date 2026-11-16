@@ -71,8 +71,6 @@ var _p_size := 1.0
 var _p_pending := 0.0
 var _p_pulse := 0.0
 var _p_tween: Tween
-var _banner: Label
-var _banner_tween: Tween
 
 const PAUSE_BUTTON_SIZE := 64.0
 const PAUSE_BUTTON_MARGIN := 14.0
@@ -103,12 +101,6 @@ func _ready() -> void:
 	_progress_level = _label(20, Vector2.ZERO)
 	_progress_level.reparent(_progress)
 	_progress_level.add_theme_color_override("font_color", Color(1, 1, 1, 0.75))
-
-	_banner = _label(64, Vector2.ZERO)
-	_banner.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_banner.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_banner.modulate.a = 0.0
 
 	# Pause button, top-right. Drawn only; main.gd hit-tests taps against it
 	# (touch doesn't emulate mouse in this project, so Buttons won't see taps).
@@ -272,17 +264,6 @@ func pulse_progress() -> void:
 	_p_tween.tween_method(func(v: float) -> void:
 		_p_pulse = v
 		_progress.queue_redraw(), 1.0, 0.0, 0.35)
-
-
-func show_level_up(level: int) -> void:
-	_banner.text = "LEVEL %d" % level
-	if _banner_tween:
-		_banner_tween.kill()
-	_banner.modulate.a = 1.0
-	_banner.scale = Vector2.ONE
-	_banner_tween = create_tween()
-	_banner_tween.tween_interval(0.6)
-	_banner_tween.tween_property(_banner, "modulate:a", 0.0, 0.5)
 
 
 func _draw_progress() -> void:

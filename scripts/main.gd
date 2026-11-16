@@ -776,7 +776,6 @@ func _end_chain(grade: String, word: String = "") -> void:
 			# beyond its spot, so one just off screen could already show).
 			level.rebuild_ahead(cam.left() / Rules.TILE + CameraRig.VIEW_TILES + 3.0)
 			level.ensure_generated(player.x)
-			hud.show_level_up(progression.level)
 			if debug:
 				debug.on_level_up(progression.level)
 	chain = 0
