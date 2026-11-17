@@ -68,6 +68,7 @@ const THREAD_JAG := 9.0           # pixels it wavers from the straight line (mos
 const THREAD_POINTS := 28
 const THREAD_FADE_IN := 0.12      # seconds
 const THREAD_PULSE_SPEED := 1.8   # pulses along it per second
+const THREAD_TRAIL_ALPHA := 0.5   # the line of the jump she just made: this much dimmer
 const SLASH_ARC_TINT := 0.12
 
 ## Her look, as data, so another teleporter (the ninja) can use all of her
@@ -114,6 +115,7 @@ var _next: Sprite2D = null   # her next spot's silhouette (see _update_next)
 var thread := false
 var _thread: Node2D = null
 var _thread_points := PackedVector2Array()
+var _trail_points := PackedVector2Array()   # the jump she just made (from her last spot)
 var _thread_time := 0.0
 var _thread_fade := 0.0
 var _thread_seed := randf() * TAU
@@ -444,7 +446,9 @@ func _update_next() -> void:
 func _update_thread(delta: float) -> void:
 	if _thread == null:
 		return
-	var show := thread and alive and not _slashing and step_index + 1 < path.size()
+	var has_next := step_index + 1 < path.size()
+	var has_prev := step_index > 0
+	var show := thread and alive and not _slashing and (has_next or has_prev)
 	if not show:
 		_thread.visible = false
 		_thread_fade = 0.0
@@ -452,25 +456,41 @@ func _update_thread(delta: float) -> void:
 	_thread.visible = true
 	_thread_fade = minf(_thread_fade + delta / THREAD_FADE_IN, 1.0)
 	_thread_time += delta
-	var a := Vector2(tile_x * Rules.TILE, Rules.body_center_y(row))
-	var spot: Vector2 = path[step_index + 1]
-	var b := Vector2(spot.x * Rules.TILE, Rules.body_center_y(int(spot.y)))
-	var normal := (b - a).orthogonal().normalized()
-	var n := THREAD_POINTS
+	var here := Vector2(tile_x * Rules.TILE, Rules.body_center_y(row))
 	_thread_points = PackedVector2Array()
-	for i in n + 1:
-		var t := float(i) / float(n)
-		# A smooth waver (two slow waves), pinned at both ends.
-		var w := sin(t * 17.0 + _thread_time * 11.0 + _thread_seed) * 0.6 + sin(t * 41.0 - _thread_time * 19.0) * 0.4
-		_thread_points.append(a.lerp(b, t) + normal * w * THREAD_JAG * sin(t * PI))
+	if has_next:
+		var spot: Vector2 = path[step_index + 1]
+		_thread_points = _waver(here, Vector2(spot.x * Rules.TILE, Rules.body_center_y(int(spot.y))), _thread_seed)
+	# The jump she just made, lingering (dimmer, no pulse).
+	_trail_points = PackedVector2Array()
+	if has_prev:
+		var was: Vector2 = path[step_index - 1]
+		_trail_points = _waver(Vector2(was.x * Rules.TILE, Rules.body_center_y(int(was.y))), here, _thread_seed + 2.0)
 	_thread.queue_redraw()
 
 
+## A wavering line from a to b (two slow waves, pinned at both ends).
+func _waver(a: Vector2, b: Vector2, seed: float) -> PackedVector2Array:
+	var normal := (b - a).orthogonal().normalized()
+	var n := THREAD_POINTS
+	var pts := PackedVector2Array()
+	for i in n + 1:
+		var t := float(i) / float(n)
+		var w := sin(t * 17.0 + _thread_time * 11.0 + seed) * 0.6 + sin(t * 41.0 - _thread_time * 19.0) * 0.4
+		pts.append(a.lerp(b, t) + normal * w * THREAD_JAG * sin(t * PI))
+	return pts
+
+
 func _draw_thread() -> void:
-	if _thread_points.size() < 2:
-		return
 	var c: Color = art["outline"]
 	var f := _thread_fade
+	if _trail_points.size() >= 2:
+		var tf := f * THREAD_TRAIL_ALPHA
+		_thread.draw_polyline(_trail_points, Color(c.r, c.g, c.b, 0.10 * tf), THREAD_WIDTH * 3.0, true)
+		_thread.draw_polyline(_trail_points, Color(c.r, c.g, c.b, 0.8 * tf), THREAD_WIDTH * 0.8, true)
+		_thread.draw_polyline(_trail_points, Color(1, 1, 1, 0.5 * tf), 1.0, true)
+	if _thread_points.size() < 2:
+		return
 	# Glow, then the colour, then a white-hot core.
 	_thread.draw_polyline(_thread_points, Color(c.r, c.g, c.b, 0.10 * f), THREAD_WIDTH * 4.0, true)
 	_thread.draw_polyline(_thread_points, Color(c.r, c.g, c.b, 0.22 * f), THREAD_WIDTH * 2.2, true)
