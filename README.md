@@ -100,8 +100,8 @@ run upside down.
   line of energy in her colour, with a pulse running along it, runs from her
   to where she'll blink next (`THREAD_*` in
   `scripts/knight.gd`; a silhouette there instead, `SHOW_NEXT`, is off: it
-  read as a target). Her swings have a thick outline and their white arc tinted in her
-  colour (`SLASH_OUTLINE_PX`, `SLASH_ARC_TINT`).
+  read as a target). Her swings' arcs stay white with a 2-pixel outline in her colour
+  (`SLASH_OUTLINE_PX`, `SLASH_ARC_TINT`).
   You may leave a duel early (chain onto another enemy instead of her), so a
   chain never ends within reach of a knight unless it ends on her: after each
   knight, it goes on more than a forward teleport past her furthest spot

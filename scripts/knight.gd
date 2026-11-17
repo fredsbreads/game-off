@@ -53,9 +53,10 @@ const KILL_DISTANCE := 2.6          # tiles ahead of the player the knight swing
 const AFTERIMAGE_FADE := 0.35       # seconds her clash swing lingers after she blinks away
 const CLASH_TIME := 0.25           # seconds her clash swing (left where she was) plays
 const SLASH_OUTLINE := Color(0.35, 1.0, 0.45, 1.0)   # green outline while she swings
-# Her swings (the clash and the killing blow) in her colour: the outline this
-# thick (art pixels, up to 3) and the white arc tinted toward it this much.
-const SLASH_OUTLINE_PX := 3
+# Her swings' arcs (the clash and the killing blow): outlined this thick in her
+# colour (art pixels, up to 3; her body keeps 1) and the white tinted toward
+# it just a little (SLASH_ARC_TINT).
+const SLASH_OUTLINE_PX := 2
 # Where she'll blink to next: a faint silhouette in her colour at that spot.
 const NEXT_SHADER := preload("res://shaders/silhouette.gdshader")
 const NEXT_ALPHA := 0.28
@@ -67,7 +68,7 @@ const THREAD_JAG := 9.0           # pixels it wavers from the straight line (mos
 const THREAD_POINTS := 28
 const THREAD_FADE_IN := 0.12      # seconds
 const THREAD_PULSE_SPEED := 1.8   # pulses along it per second
-const SLASH_ARC_TINT := 0.5
+const SLASH_ARC_TINT := 0.12
 
 ## Her look, as data, so another teleporter (the ninja) can use all of her
 ## behaviour with his own art: the sheets, frame size, where the feet are, the
@@ -315,8 +316,9 @@ func _leave_ghost(beat := 0.0, her_pose := 0) -> void:
 		var mat := _part_material(part)
 		mat.set_shader_parameter("outline_color", art["outline"])
 		mat.set_shader_parameter("glint", 1.0)
-		mat.set_shader_parameter("outline_px", SLASH_OUTLINE_PX)
-		mat.set_shader_parameter("arc_tint", SLASH_ARC_TINT)
+		if part == 2:   # (her body keeps the thin outline)
+			mat.set_shader_parameter("outline_px", SLASH_OUTLINE_PX)
+			mat.set_shader_parameter("arc_tint", SLASH_ARC_TINT)
 		s.material = mat
 		holder.add_child(s)
 		var parent: Node = front_parent if part == 1 and front_parent else get_parent()
@@ -400,8 +402,9 @@ func slash(her_x: float, side := 1.0) -> void:
 		for m in [_material, _arc.material]:
 			m.set_shader_parameter("outline_color", art["outline"])
 			m.set_shader_parameter("glint", 1.0)
-			m.set_shader_parameter("outline_px", SLASH_OUTLINE_PX)
-			m.set_shader_parameter("arc_tint", SLASH_ARC_TINT)
+		# Only the arc gets the thicker outline and the tint (her body keeps the thin one).
+		_arc.material.set_shader_parameter("outline_px", SLASH_OUTLINE_PX)
+		_arc.material.set_shader_parameter("arc_tint", SLASH_ARC_TINT)
 		# Her body over the player (and the player's effects) for the killing blow; the arc
 		# stays behind.
 		if front_parent and _sprite.get_parent() == self:
