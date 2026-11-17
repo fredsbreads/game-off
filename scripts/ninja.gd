@@ -26,7 +26,7 @@ const NINJA_ART := {
 	"frame": Vector2i(200, 200), "feet": Vector2(100, 128), "scale": 2.1,
 	"anims": [["idle", N_IDLE, 5.0, true], ["death", N_DEATH, 12.0, false],
 		["attack", N_ATTACK, 14.0, false], ["kill", N_ATTACK2, 14.0, false],
-		["hit", N_TAKE_HIT, 12.0, false, 3],
+		["hit", N_TAKE_HIT, 12.0, false, 1],   # only the recoil (frames 1-2 are him standing again), held while struck
 		["stance", N_STANCE, 1.0, false, 1]],
 	"kill_frame": 2, "kill_body_from": {},
 	"swings": [
