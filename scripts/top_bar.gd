@@ -17,8 +17,9 @@ const FONT := preload("res://assets/fonts/RussoOne-Regular.ttf")
 
 # The blade.
 const BLADE := Vector2(345, 18)
-const TIP := 46.0            # pixels at the end that taper to the point
-const SORI := 6.0            # the blade's upward curve, pixels at the tip
+const TIP := 30.0            # the point (kissaki): pixels at the end where the edge sweeps up to the spine
+const SORI := 14.0           # the blade's curve: how far the tip rises (pixels), bending evenly from the guard
+const TAPER := 0.25          # the blade narrows this much (of its width) from the guard to the point
 const STEEL := Color(0.92, 0.94, 1.0, 0.95)       # counted
 const PENDING := Color(0.6, 0.62, 0.68, 0.8)      # this chain's kills, not yet counted
 const EMPTY := Color(0.55, 0.6, 0.7, 0.16)
@@ -250,19 +251,31 @@ func _growing_edge() -> float:
 
 # --- the blade ---------------------------------------------------------------
 
+## A katana, as drawn here: the grip level, the blade curving evenly up from
+## the guard (sori), the spine (top, the inside of the curve) running
+## straight on into the point, the cutting edge (bottom, the outside) sweeping
+## up to meet it there, and the blade narrowing a little toward the point.
+func _spine(x: float) -> float:
+	return -SORI * pow(x / BLADE.x, 2.0)
+
+
+func _width(x: float) -> float:
+	return BLADE.y * (1.0 - TAPER * x / BLADE.x)
+
+
 func _top(x: float) -> float:
-	var y := -SORI * pow(x / BLADE.x, 2.0)
+	var y := _spine(x)
 	var u := (x - (BLADE.x - TIP)) / TIP
 	if u > 0.0:
-		y += BLADE.y * 0.42 * u * u   # the back curves down to the point
+		y += _width(x) * 0.12 * u * u   # the spine dips just a touch into the point
 	return y
 
 
 func _bottom(x: float) -> float:
-	var y := BLADE.y - SORI * pow(x / BLADE.x, 2.0)
+	var y := _spine(x) + _width(x)
 	var u := (x - (BLADE.x - TIP)) / TIP
 	if u > 0.0:
-		y -= BLADE.y * 0.58 * pow(u, 0.7)   # the edge sweeps up to it
+		y -= _width(x) * 0.88 * (1.0 - sqrt(maxf(1.0 - u * u, 0.0)))   # the edge curves up to the point
 	return y
 
 
