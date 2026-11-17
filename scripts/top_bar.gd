@@ -682,7 +682,7 @@ func _streak_colour(n: int) -> Color:
 
 ## Where the number's centre goes under "FLAWLESS" (x: the caption's left):
 ## streak_align 0 = left-aligned with it, 1 = right-aligned, 2 = centred.
-static var streak_align := 0
+static var streak_align := 2   # (centred)
 func _streak_number_x(x: float, w: float) -> float:
 	var cw := FONT.get_string_size("FLAWLESS", HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x
 	match streak_align:
