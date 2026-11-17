@@ -99,6 +99,11 @@ func _ready() -> void:
 	_chain_bar_bg.size = Vector2(180, 6)
 	_chain_bar = _rect(Color(1, 1, 1, 0.9))
 	_chain_bar.size = _chain_bar_bg.size
+	# Hidden until there's a chain to show (else it flashes up for a frame
+	# at the top left when the scene starts: a new start level reloads it).
+	_chain.visible = false
+	_chain_bar_bg.visible = false
+	_chain_bar.visible = false
 
 	_top = TopBar.new()
 	_top.visible = false
