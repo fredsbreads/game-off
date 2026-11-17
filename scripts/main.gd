@@ -22,7 +22,7 @@ const START_LEVELS := [1, 5, 10, 15]
 static var _session_start_level := 1
 ## The tutorial (see _start_tutorial), once per session: no enemies until she has
 ## done each move once (Tap Left, Tap Right, Tap Both); then the first enemy
-## comes in as at the start of a run (Level.RUNWAY_TILES ahead of her).
+## comes in twice as far off as at the start of a run (2 x Level.RUNWAY_TILES ahead of her).
 var _tutorial := false
 var _tutorial_moves := {}
 static var _tutorial_seen := false   # done this session (not saved: a new visit shows it again)
@@ -425,7 +425,7 @@ func _tutorial_move(move: int) -> void:
 	# The game starts: the first enemy a little past the right edge.
 	level.spawn_hold = false
 	# (From her, not the camera: right after a teleport it hasn't caught up.)
-	level.push_cursor(player.x + Level.RUNWAY_TILES)   # (the same run-up as the start of a run)
+	level.push_cursor(player.x + Level.RUNWAY_TILES * 2.0)   # (twice the run-up at the start of a run: a breather after it)
 	level.ensure_generated(player.x)
 
 
@@ -1103,7 +1103,7 @@ func _teleport(move: int) -> void:
 ## until the streak breaks (_break_streak).
 func _finisher(k: Enemy, grade: String) -> void:
 	# The whole thing the first time in a run; after that, the quick one. With
-	# Red (No Shift) picked, always the quick one (no colour changes to show).
+	# Red (Hair) picked, always the quick one (no colour changes to show).
 	var quick := _finished_before or Palette.keeps_red()
 	_finished_before = true
 	_fin_hop = FINISHER_QUICK_HOP if quick else FINISHER_HOP

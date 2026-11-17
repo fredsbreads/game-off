@@ -39,21 +39,21 @@ const COLOURS := {
 
 ## The game's second colour (the first is her red): the colour picked in
 ## Options, at full strength whatever the level (the HUD, the PERFECT text,
-## the katana's grip...). Red (No Shift): her red.
+## the katana's grip...). Red (Hair): her red.
 static func secondary() -> Color:
 	if float(_hsv[0]) < 0.0:
 		return Color(0.95, 0.15, 0.2)
 	return Color.from_hsv(float(_hsv[0]), minf(1.0, 0.82 * float(_hsv[1])), minf(1.0, 1.0 * float(_hsv[2])))
 
 
-## True with Red (No Shift) picked: her colour never changes.
+## True with Red (Hair) picked: her colour never changes.
 static func keeps_red() -> bool:
 	return float(_hsv[0]) < 0.0
 
 
 ## How a colour's name is shown (the Options screen, the C key).
 static func display_name(name: String) -> String:
-	return "Red (No Shift)" if name == "red" else name.capitalize()
+	return "Red (Hair)" if name == "red" else name.capitalize()
 
 const SHADER := preload("res://shaders/accent_sprite.gdshader")
 
