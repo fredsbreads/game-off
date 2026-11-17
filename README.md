@@ -164,7 +164,8 @@ run upside down.
   level 20 the three are equally common (the 30% cap still holds).
 - **The top bar** (`scripts/top_bar.gd`), centred above the ceiling: the
   power-up meter as a lightning bolt that fills from the bottom and crackles
-  once it's full (while she's golden, PERFECT chains charge double: the bolt
+  once it's full, stays full while the power-up plays, and empties with a
+  white flash at its finale's strike (while she's golden, PERFECT chains charge double: the bolt
   glows gold with a gold rim, gold sparks rise off it, an "x2" badge sits on
   it, and each gain pops bigger with a gold ring); the level; the level bar as a katana (her own: a yellow grip
   with three black squares, a black guard) whose blade fills from the guard

@@ -90,6 +90,7 @@ var _charge_pop := 0.0
 ## (main.gd CHARGE_GOLDEN_PERFECT). The bolt shows it: gold glow and rim,
 ## gold sparks rising, an "x2" badge, and a bigger pop with a ring per gain.
 var _boosted := false
+var _discharge := 0.0   # 1 as a full bolt empties (the power-up used), fading
 var _boost_ring := 0.0
 var _sparks: Array = []   # [position, velocity, life]
 var _spark_timer := 0.0
@@ -140,6 +141,7 @@ func _process(delta: float) -> void:
 	_pop = maxf(_pop - delta / POP_TIME, 0.0)
 	_charge_pop = maxf(_charge_pop - delta / 0.2, 0.0)
 	_boost_ring = maxf(_boost_ring - delta / 0.45, 0.0)
+	_discharge = maxf(_discharge - delta / 0.4, 0.0)
 	_update_sparks(delta)
 	if _break_t >= 0.0:
 		_break_t += delta
@@ -175,6 +177,8 @@ func set_charge(value: int, full: int, charged: bool, boosted := false) -> void:
 		_charge_pop = 1.0
 		if boosted:
 			_boost_ring = 1.0
+	if _charged and not charged:
+		_discharge = 1.0
 	_charge = v
 	_charged = charged
 	_boosted = boosted
@@ -504,6 +508,9 @@ func _draw_bolt() -> void:
 		draw_polyline(closed, Color(1, 1, 1, 0.9) if _charged else Color(col.lightened(0.3), 0.75), 1.5, true)
 	if _boosted:
 		_draw_boost_front(o)
+	if _discharge > 0.0:   # used: a white flash bursting out as it empties
+		draw_colored_polygon(_bolt_poly(o, 1.0 + 0.8 * (1.0 - _discharge)), Color(1, 1, 1, 0.55 * _discharge))
+		draw_arc(o + BOLT_SIZE / 2.0, 14.0 + 34.0 * (1.0 - _discharge), 0.0, TAU, 36, Color(Palette.tint(CHARGE_COLOR).lightened(0.4), _discharge), 2.5, true)
 
 
 func poly_top(poly: PackedVector2Array) -> float:

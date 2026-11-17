@@ -729,7 +729,11 @@ func _physics_process(delta: float) -> void:
 	level.set_view(minf(cam.left(), cam.position.x), cam.shown_world_size())
 	hud.set_stats(score(), distance, kills, chain, 0.0)
 	hud.set_streak(sweep)   # the flawless streak so far
-	hud.set_charge(charge, CHARGE_FULL, _charged, Palette.pink >= 1.0)   # (golden: PERFECT charges double)
+	if _auto or _finale_hold:
+		# The power-up playing: its bolt stays full until the finale's strike.
+		hud.set_charge(CHARGE_FULL, CHARGE_FULL, true, Palette.pink >= 1.0)
+	else:
+		hud.set_charge(charge, CHARGE_FULL, _charged, Palette.pink >= 1.0)   # (golden: PERFECT charges double)
 	var to_screen := get_viewport_rect().size.x / (CameraRig.VIEW_TILES * Rules.TILE)
 	hud.set_progress(progression.level, progression.bar, progression.bar_size(), chain_points,
 		(Rules.CEILING_Y - cam.top()) * to_screen)
