@@ -16,7 +16,7 @@ extends Control
 const FONT := preload("res://assets/fonts/RussoOne-Regular.ttf")
 
 # The blade.
-const BLADE := Vector2(420, 18)
+const BLADE := Vector2(345, 18)
 const TIP := 46.0            # pixels at the end that taper to the point
 const SORI := 6.0            # the blade's upward curve, pixels at the tip
 const STEEL := Color(0.92, 0.94, 1.0, 0.95)       # counted
@@ -31,14 +31,25 @@ const CRUMBLE_FALL := 20.0
 const RESULT_ACT := 0.35
 const RESULT_HOLD := 0.2
 
-# The hilt, left of the blade: her own katana's (see her sprites): a thin
-# black guard, a yellow band with black squares, then the black grip.
-const TSUBA := Vector2(6, 34)
-const TSUKA := 92.0
-const YELLOW_PART := 0.45     # of the grip, from the guard
+# The hilt, left of the blade, as on her own katana (her sprites): a black
+# guard, then the grip, all yellow, with three black squares evenly spaced
+# along its middle. About a third of the blade's length, like hers.
+const TSUBA := Vector2(7, 34)
+const TSUKA := 115.0
 const HILT_YELLOW := Color(1.0, 0.9, 0.15)
 const HILT_BLACK := Color(0.03, 0.03, 0.04)
-const CHECK := 4.0            # the black squares' size (pixels)
+const HILT_SQUARES := 3
+const SQUARE := 8.0           # the black squares' size (pixels)
+
+# Juice: a shine sweeping the blade when a chain is added; sparks off the
+# fill's leading edge while it grows; a shimmer in her colour once it's
+# nearly full (NEAR_FULL); and a level-up: the katana flashes white and
+# swells, sparks burst off the blade, the level pops in gold, then the blade
+# drains back to the new level's start.
+const GLEAM_TIME := 0.35
+const NEAR_FULL := 0.8
+const LEVEL_UP_TIME := 1.0
+const LEVEL_UP_FLASH := 0.45   # seconds the whole blade stays lit before draining
 
 # The power-up bolt, left of the level.
 const BOLT_SIZE := Vector2(36, 54)
@@ -65,6 +76,12 @@ var _pulse := 0.0
 var _pulse_tween: Tween
 var _result := {}
 var _result_t := 0.0
+var _gleam := -1.0          # 0..1 while the shine sweeps the blade
+var _shown_level := -1
+var _latest_level := 1      # the real level (shown once a chain's result is done)
+var _level_up := -1.0       # seconds into the level-up (-1 = none)
+var _bits: Array = []       # [pos, vel, life, max_life, colour]: sparks off the blade
+var _edge_timer := 0.0
 
 var _charge := 0.0
 var _charged := false
@@ -98,9 +115,28 @@ func _process(delta: float) -> void:
 		return
 	if not _result.is_empty():
 		_result_t += delta
+		if _result_t < RESULT_ACT and _result["grade"] != "DROPPED":
+			_edge_timer -= delta
+			if _edge_timer <= 0.0:
+				_edge_timer = 0.025
+				_edge_sparks()
 		if _result_t >= RESULT_ACT + RESULT_HOLD:
 			_result = {}
 			pulse()
+			_show_level(_latest_level)   # (at once: no frame of the old level over the new bar)
+	if _gleam >= 0.0:
+		_gleam += delta / GLEAM_TIME
+		if _gleam > 1.0:
+			_gleam = -1.0
+	if _level_up >= 0.0:
+		_level_up += delta
+		if _level_up > LEVEL_UP_TIME:
+			_level_up = -1.0
+	for b in _bits:
+		b[0] += b[1] * delta
+		b[1].y += 260.0 * delta   # they fall
+		b[2] -= delta
+	_bits = _bits.filter(func(b: Array) -> bool: return b[2] > 0.0)
 	_pop = maxf(_pop - delta / POP_TIME, 0.0)
 	_charge_pop = maxf(_charge_pop - delta / 0.2, 0.0)
 	_boost_ring = maxf(_boost_ring - delta / 0.45, 0.0)
@@ -122,7 +158,15 @@ func set_progress(lv: int, bar: float, bar_size: float, pending: int) -> void:
 	_bar = bar
 	_size = maxf(bar_size, 0.001)
 	_pending = pending
-	level = _result["level"] if not _result.is_empty() else lv
+	_latest_level = lv
+	_show_level(_result["level"] if not _result.is_empty() else lv)
+
+
+func _show_level(lv: int) -> void:
+	level = lv
+	if _shown_level >= 0 and level > _shown_level:
+		_start_level_up()
+	_shown_level = level
 
 
 func set_charge(value: int, full: int, charged: bool, boosted := false) -> void:
@@ -160,7 +204,45 @@ func pulse() -> void:
 	_pulse = 1.0
 	_pulse_tween = create_tween()
 	_pulse_tween.tween_property(self, "_pulse", 0.0, 0.35)
+	_gleam = 0.0
 
+
+func _start_level_up() -> void:
+	_level_up = 0.0
+	for i in 40:   # sparks bursting off the whole blade
+		var x := _rng.randf_range(0.0, BLADE.x)
+		var up := _rng.randf() < 0.5
+		var p := Vector2(x, _top(x) if up else _bottom(x))
+		var v := Vector2(_rng.randf_range(-60.0, 60.0), _rng.randf_range(-220.0, -90.0) if up else _rng.randf_range(20.0, 120.0))
+		var life := _rng.randf_range(0.4, 0.8)
+		_bits.append([p, v, life, life, Color(1, 0.95, 0.7) if i % 3 == 0 else Color.WHITE])
+
+
+## Sparks off the leading edge of the fill while a chain's kills count.
+func _edge_sparks() -> void:
+	var x := _growing_edge()
+	if x < 0.0:
+		return
+	for i in 2:
+		var p := Vector2(x, _rng.randf_range(_top(x), _bottom(x)))
+		var v := Vector2(_rng.randf_range(20.0, 90.0), _rng.randf_range(-120.0, -30.0))
+		var life := _rng.randf_range(0.25, 0.45)
+		_bits.append([p, v, life, life, BONUS if _result["grade"] == "PERFECT" else Color.WHITE])
+
+
+## Where the fill's growing edge is right now (pixels along the blade), or -1.
+func _growing_edge() -> float:
+	if _result.is_empty():
+		return -1.0
+	var w := BLADE.x
+	var px := w / float(_result["size"])
+	var base := minf(float(_result["base"]) * px, w)
+	var kills := minf(float(_result["kills"]) * px, w - base)
+	var gain := minf(float(_result["gain"]) * px, w - base)
+	var p := ease(clampf(_result_t / RESULT_ACT, 0.0, 1.0), 0.4)
+	if _result["grade"] == "PERFECT":
+		return base + kills + maxf(gain - kills, 0.0) * p
+	return base + kills * p
 
 # --- the blade ---------------------------------------------------------------
 
@@ -210,11 +292,29 @@ func _draw_blade() -> void:
 		_draw_result()
 	else:
 		var filled := w * clampf(_bar / _size, 0.0, 1.0)
+		if _level_up >= 0.0:
+			# Levelled up: the whole blade lit, then draining back to the new level's start.
+			var k := clampf((_level_up - LEVEL_UP_FLASH) / (LEVEL_UP_TIME - LEVEL_UP_FLASH), 0.0, 1.0)
+			filled = lerpf(w, filled, ease(k, 0.5))
 		var pending := minf(w * _pending / _size, w - filled)
 		if pending > 0.0:
 			_fill(filled, filled + pending, PENDING)
 		if filled > 0.0:
 			_fill(0.0, filled, STEEL)
+			if _level_up < 0.0 and filled / w >= NEAR_FULL:
+				# Nearly there: a shimmer in her colour runs along the steel.
+				var col := Palette.tint(CHARGE_COLOR)
+				var beat := 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.008)
+				_fill(0.0, filled, Color(col, 0.18 + 0.17 * beat))
+				var g := fmod(Time.get_ticks_msec() * 0.0009, 1.0) * (filled + 60.0) - 30.0
+				_fill(g - 18.0, g + 18.0, Color(1, 1, 1, 0.45))
+		if _gleam >= 0.0 and filled > 0.0:
+			# A shine sweeping out along what's filled.
+			var gx := lerpf(-20.0, filled + 20.0, ease(_gleam, 0.6))
+			_fill(maxf(gx - 22.0, 0.0), minf(gx + 22.0, filled), Color(1, 1, 1, 0.7 * (1.0 - _gleam * 0.5)))
+		if _level_up >= 0.0 and _level_up < LEVEL_UP_FLASH + 0.15:
+			var flash := 1.0 - clampf(_level_up / (LEVEL_UP_FLASH + 0.15), 0.0, 1.0)
+			_fill(0.0, w, Color(1, 1, 1, 0.85 * flash))
 	# The edge (bottom) catches the light; the back stays dark; the outline flares on a pulse.
 	var edge := PackedVector2Array()
 	var back := PackedVector2Array()
@@ -224,6 +324,9 @@ func _draw_blade() -> void:
 		back.append(Vector2(x, _top(x)))
 	var outline := _slice(0.0, w)
 	outline.append(outline[0])
+	if _level_up >= 0.0:
+		var glow := 1.0 - clampf(_level_up / LEVEL_UP_TIME, 0.0, 1.0)
+		draw_polyline(outline, Color(Palette.tint(CHARGE_COLOR), 0.5 * glow), 10.0 * glow + 2.0, true)
 	if _pulse > 0.0:
 		draw_polyline(outline, Color(1, 1, 1, 0.35 * _pulse), 6.0 * _pulse + 2.0, true)
 	draw_polyline(outline, Color(1, 1, 1, 0.4 + 0.6 * _pulse), 1.5, true)
@@ -266,21 +369,14 @@ func _draw_result() -> void:
 func _draw_hilt() -> void:
 	var mid := BLADE.y / 2.0
 	var tsuba := Rect2(-TSUBA.x, mid - TSUBA.y / 2.0, TSUBA.x, TSUBA.y)
-	var h := BLADE.y
+	var h := BLADE.y + 2.0
 	var grip := Rect2(tsuba.position.x - TSUKA, mid - h / 2.0, TSUKA, h)
-	draw_rect(grip, HILT_BLACK)
-	# The yellow band by the guard, with black squares in a checker.
-	var yellow := Rect2(grip.end.x - TSUKA * YELLOW_PART, grip.position.y, TSUKA * YELLOW_PART, h)
-	draw_rect(yellow, HILT_YELLOW)
-	var row := 0
-	var y := yellow.position.y + 2.0
-	while y + CHECK <= yellow.end.y - 1.0:
-		var x := yellow.position.x + 3.0 + (CHECK * 1.5 if row % 2 == 1 else 0.0)
-		while x + CHECK <= yellow.end.x - 2.0:
-			draw_rect(Rect2(x, y, CHECK, CHECK), HILT_BLACK)
-			x += CHECK * 3.0
-		y += CHECK + 1.5
-		row += 1
+	draw_rect(grip, HILT_YELLOW)
+	# Three black squares, evenly spaced along the middle of the grip.
+	var gap := (TSUKA - HILT_SQUARES * SQUARE) / float(HILT_SQUARES + 1)
+	for i in HILT_SQUARES:
+		var x := grip.position.x + gap * (i + 1) + SQUARE * i
+		draw_rect(Rect2(x, mid - SQUARE / 2.0, SQUARE, SQUARE), HILT_BLACK)
 	draw_rect(tsuba, HILT_BLACK)
 
 
@@ -479,9 +575,23 @@ func _level_text() -> String:
 
 func _draw() -> void:
 	_draw_bolt()
+	# A level-up swells the level and the whole katana for a moment.
+	var swell := 0.0
+	if _level_up >= 0.0:
+		swell = sin(clampf(_level_up / 0.35, 0.0, 1.0) * PI)
 	var lv := _level_text()
 	var lv_w := FONT.get_string_size(lv, HORIZONTAL_ALIGNMENT_LEFT, -1, LEVEL_SIZE).x
-	draw_string(FONT, Vector2(_hilt_left() - GAP_LEVEL - lv_w, BLADE.y / 2.0 + LEVEL_SIZE * 0.36), lv, HORIZONTAL_ALIGNMENT_LEFT, -1, LEVEL_SIZE, Color(1, 1, 1, 0.85))
+	var lv_at := Vector2(_hilt_left() - GAP_LEVEL - lv_w / 2.0, BLADE.y / 2.0)
+	draw_set_transform(lv_at, 0.0, Vector2.ONE * (1.0 + 0.45 * swell))
+	var lv_col := Color(1, 1, 1, 0.85).lerp(STREAK_GOLD, clampf(1.0 - _level_up / LEVEL_UP_TIME, 0.0, 1.0) if _level_up >= 0.0 else 0.0)
+	draw_string(FONT, Vector2(-lv_w / 2.0, LEVEL_SIZE * 0.36), lv, HORIZONTAL_ALIGNMENT_LEFT, -1, LEVEL_SIZE, lv_col)
+	var c := Vector2((_hilt_left() + BLADE.x) / 2.0, BLADE.y / 2.0)
+	var sc := 1.0 + 0.08 * swell
+	draw_set_transform(c * (1.0 - sc), 0.0, Vector2.ONE * sc)
 	_draw_hilt()
 	_draw_blade()
+	draw_set_transform(Vector2.ZERO)
+	for b in _bits:
+		var a: float = b[2] / b[3]
+		draw_rect(Rect2(b[0] - Vector2(1.5, 1.5), Vector2(3, 3)), Color(b[4], a))
 	_draw_streak()

@@ -166,9 +166,13 @@ run upside down.
   power-up meter as a lightning bolt that fills from the bottom and crackles
   once it's full (while she's golden, PERFECT chains charge double: the bolt
   glows gold with a gold rim, gold sparks rise off it, an "x2" badge sits on
-  it, and each gain pops bigger with a gold ring); the level; the level bar as a katana whose blade fills from
-  the guard to the tip (grey: this chain's kills so far; gold: PERFECT's
-  bonus growing in; grey pieces breaking off: a dropped chain's lost half);
+  it, and each gain pops bigger with a gold ring); the level; the level bar as a katana (her own: a yellow grip
+  with three black squares, a black guard) whose blade fills from the guard
+  to the tip (grey: this chain's kills so far; gold: PERFECT's bonus growing
+  in, sparks off its edge; grey pieces breaking off: a dropped chain's lost
+  half; a shine sweeps it as a chain is added; it shimmers in her colour
+  once 80% full; a level-up flashes it white, swells it, bursts sparks off it
+  and pops the level in gold before the blade drains to the new level);
   and the Flawless Streak, which pops with every kill (bigger, with a ring, at
   10, 25, 50 and every 25 after), turns gold at 50 and shatters in red when
   it breaks.
