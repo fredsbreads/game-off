@@ -105,6 +105,20 @@ const BIG_STRIKE_FULL_FRAME := 2     # its frame with the whole bolt and the spa
 const FINISHER_SWEEP_AFTER := 0.3  # on the last pose, this long before the colour sweeps
 const FINISHER_SWEEP_TIME := 1.1   # her new colour sweeps across the screen, right to left, over this long
 const FINISHER_HOLD := 0.8         # after the level-up, the freeze frame holds this long
+# Every finisher after the first in a run is the quick one: the same three
+# slashes and colour change, at about the power-up finish's pace.
+const FINISHER_QUICK_HOP := 0.2
+const FINISHER_QUICK_BOLT_FPS := 12.0
+const FINISHER_QUICK_AFTER := 0.1
+const FINISHER_QUICK_SWEEP := 0.35
+const FINISHER_QUICK_HOLD := 0.2
+var _finished_before := false   # the whole finisher has played once this run
+var _fin_hop := FINISHER_HOP
+var _fin_strike_fps := FINISHER_STRIKE_FPS
+var _fin_bolt_fps := FINISHER_BOLT_FPS
+var _fin_after := FINISHER_SWEEP_AFTER
+var _fin_sweep := FINISHER_SWEEP_TIME
+var _fin_hold := FINISHER_HOLD
 # The reward: a flawless streak (kills in a row, no enemy let go, no chain
 # dropped) this long; the next chain that ends on a kill plays the finisher.
 const STREAK_REWARD := 50
@@ -121,7 +135,7 @@ const AUTO_GAP_TILES := 12.0    # extra empty run after an auto-chain
 const AUTO_FINALE_FREEZE := 0.3  # (no last enemy to slash: the last kill holds this long, crackling, before the big strike)
 const AUTO_FINALE_CRACKLE := 0.05 # ...a crackle of lightning on her this often while it holds
 const AUTO_SLASH_HOP := 0.2      # the finish's three slashes (the streak finisher's, at full speed): seconds between them
-const AUTO_SLASH_TO_BANG := 0.16 # ...and from the third to the big strike
+const AUTO_SLASH_TO_BANG := 0.2  # ...and from the third to the big strike
 const AUTO_FINALE_IMPACT := 0.14  # the big strike lands on a frozen, white-hot frame this long
 const AUTO_FINALE_DUCK_DB := -22.0 # the music drops by this through the hold (silence before the bang)
 const AUTO_FINALE_DB := 1.0       # the thunder (the loudest thing in the game)
@@ -873,6 +887,15 @@ func _teleport(move: int) -> void:
 ## ends. The enemy stays standing until it's over, then falls. She keeps the colour
 ## until the streak breaks (_break_streak).
 func _finisher(k: Enemy, grade: String) -> void:
+	# The whole thing the first time in a run; after that, the quick one.
+	var quick := _finished_before
+	_finished_before = true
+	_fin_hop = FINISHER_QUICK_HOP if quick else FINISHER_HOP
+	_fin_strike_fps = 18.0 if quick else FINISHER_STRIKE_FPS
+	_fin_bolt_fps = FINISHER_QUICK_BOLT_FPS if quick else FINISHER_BOLT_FPS
+	_fin_after = FINISHER_QUICK_AFTER if quick else FINISHER_SWEEP_AFTER
+	_fin_sweep = FINISHER_QUICK_SWEEP if quick else FINISHER_SWEEP_TIME
+	_fin_hold = FINISHER_QUICK_HOLD if quick else FINISHER_HOLD
 	_finishing = true
 	player.cinematic = true
 	_hitstop = 999.0   # held until _finisher_done; a press can't cut it short
@@ -887,7 +910,7 @@ func _finisher(k: Enemy, grade: String) -> void:
 	# to the enemy); on this same frame she's put back to where the others are.
 	player.x = left_x
 	player.strike(player.last_pose())
-	player.hold_slash(FINISHER_HOP)
+	player.hold_slash(_fin_hop)
 	_finisher_bolt()
 	var poses: Array = []
 	for p in Player.ATTACK_COUNT:
@@ -896,21 +919,21 @@ func _finisher(k: Enemy, grade: String) -> void:
 	var focus := Vector2(k.tile_x * Rules.TILE, Rules.body_center_y(k.row))
 	cam.hold_zoom(focus, FINISHER_ZOOM, 10.0, 0.5)   # centred on the enemy
 	var t := create_tween()
-	t.tween_interval(FINISHER_HOP)
+	t.tween_interval(_fin_hop)
 	t.tween_callback(_finisher_strike.bind(k, right_x, -1.0, poses[0], ""))
-	t.tween_interval(FINISHER_HOP)
+	t.tween_interval(_fin_hop)
 	t.tween_callback(_finisher_strike.bind(k, left_x, 1.0, poses[1], grade))
 	# The freeze frame: pink sweeps across her, then the level-up.
-	t.tween_interval(FINISHER_SWEEP_AFTER)
+	t.tween_interval(_fin_after)
 	# A wave across the whole screen, right to left.
 	var sweep := func(at: float) -> void:
 		var x := lerpf(1.03, -0.03, at)
 		Palette.sweep_to(x)
 		hud.show_sweep(x, Palette.flash_colour())
 	t.tween_callback(_pink_shift_sound.play)
-	t.tween_method(sweep, 0.0, 1.0, FINISHER_SWEEP_TIME)
+	t.tween_method(sweep, 0.0, 1.0, _fin_sweep)
 	t.tween_callback(_finisher_level_up.bind(grade))
-	t.tween_interval(FINISHER_HOLD)
+	t.tween_interval(_fin_hold)
 	t.tween_callback(_finisher_done.bind(k, focus))
 
 
@@ -924,14 +947,14 @@ func _finisher_strike(k: Enemy, to_x: float, face: float, pose: int, grade: Stri
 	var dir := signf(to_x - player.x)
 	player.x = to_x
 	player.facing = face
-	fx.strike(from, Vector2(to_x * Rules.TILE, Rules.body_center_y(player.row)), false, FINISHER_STRIKE_FPS)
+	fx.strike(from, Vector2(to_x * Rules.TILE, Rules.body_center_y(player.row)), false, _fin_strike_fps)
 	player.strike_from(from_feet)
 	player.strike(pose)
 	# Her slash stays up until the next strike (the last one: through the sweep).
-	player.hold_slash(FINISHER_HOP if grade == "" else FINISHER_SWEEP_AFTER + FINISHER_SWEEP_TIME + FINISHER_HOLD)
+	player.hold_slash(_fin_hop if grade == "" else _fin_after + _fin_sweep + _fin_hold)
 	_play_strike(true)
 	# The last pose's bolt stays up until she's finished turning pink.
-	_finisher_bolt(0.0 if grade == "" else FINISHER_SWEEP_AFTER + FINISHER_SWEEP_TIME)
+	_finisher_bolt(0.0 if grade == "" else _fin_after + _fin_sweep)
 	hud.flash(FINISHER_STRIKE_FLASH, 0.15)
 	var pos := Vector2(k.tile_x * Rules.TILE, Rules.body_center_y(k.row))
 	blood_fx.blood(pos, dir, 30, BLOOD_BURST, 1.0 if k.row == Rules.Row.CEILING else -1.0)
@@ -957,7 +980,7 @@ func _finisher_bolt(hold := 0.0) -> void:
 	var feet := Vector2(player.x * Rules.TILE, Rules.surface_y(player.row))
 	var up := -1.0 if player.row == Rules.Row.FLOOR else 1.0   # toward the other row
 	var centre := feet + Vector2(0, up * (BIG_STRIKE_BURST_Y - 128.0) * FINISHER_BOLT_SIZE.y)
-	fx.bolt(Fx.Bolt.BIG_STRIKE, centre, 0.0 if player.row == Rules.Row.FLOOR else PI, FINISHER_BOLT_SIZE, FINISHER_BOLT_FPS,
+	fx.bolt(Fx.Bolt.BIG_STRIKE, centre, 0.0 if player.row == Rules.Row.FLOOR else PI, FINISHER_BOLT_SIZE, _fin_bolt_fps,
 		0, false, BIG_STRIKE_FULL_FRAME if hold > 0.0 else -1, hold)
 
 
@@ -1019,10 +1042,11 @@ func _start_auto() -> void:
 
 ## One hop of the auto-chain: onto the nearest enemy under a marker, so none
 ## is ever left behind (a knight she's fighting waits her turn); one straight
-## across from her goes first.
+## across from her goes first, and a plain enemy before a knight level with him.
 func _auto_hop() -> void:
 	var best_move := Rules.Move.NONE
 	var best_x := INF
+	var best_enemy: Enemy = null
 	for move in [Rules.Move.VERTICAL, Rules.Move.FORWARD, Rules.Move.DIAGONAL]:   # (ties: across first)
 		var tx: float = player.x + Rules.move_dx(move)
 		var trow: int = (1 - player.row) if Rules.move_flips_row(move) else player.row
@@ -1032,6 +1056,25 @@ func _auto_hop() -> void:
 			if e.tile_x < best_x - 0.01:
 				best_move = move
 				best_x = e.tile_x
+				best_enemy = e
+	# A knight ahead and a plain enemy in the other row about level with her
+	# (one by FORWARD, one by DIAGONAL): the plain one first, if the knight is
+	# still straight across from where that lands (nothing skipped), so the
+	# knight's hits then come one after another.
+	if best_enemy is Knight and best_move != Rules.Move.VERTICAL:
+		for move in [Rules.Move.FORWARD, Rules.Move.DIAGONAL]:
+			if move == best_move:
+				continue
+			var tx: float = player.x + Rules.move_dx(move)
+			var trow: int = (1 - player.row) if Rules.move_flips_row(move) else player.row
+			for e in level.enemies_hit_by(move, tx, trow):
+				if e is Knight:
+					continue
+				if Rules.in_kill_zone(Rules.Move.VERTICAL, best_enemy.tile_x, e.tile_x - Rules.STRIKE_OFFSET):
+					best_move = move
+					best_x = e.tile_x
+					best_enemy = e
+					break
 	if best_move == Rules.Move.NONE:
 		_auto = false
 		player.auto_chain = false

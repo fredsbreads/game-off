@@ -102,7 +102,9 @@ run upside down.
   screen turning her colour from red to her reward colour: hair, lightning,
   slashes, afterimages, markers, the target glint, and blood
   (`BLOOD_FOLLOWS_COLOUR`). She keeps it until the streak breaks, then snaps
-  back to red with a crack (`streak_break.ogg`). `FINISHER_*` in
+  back to red with a crack (`streak_break.ogg`). Only the first finisher in
+  a run plays in full; every later one is the quick one, the same slashes and
+  colour change at about the power-up finish's pace (`FINISHER_QUICK_*`). `FINISHER_*` in
   `scripts/main.gd`; colours in `scripts/palette.gd` and
   `shaders/accent.gdshaderinc`.
 - **The auto-chain power-up**: a thin meter under the level bar fills as
@@ -112,7 +114,9 @@ run upside down.
   instead), the meter flashes. The meter is her red (her colour once she has
   it). Her next kill that has a chain
   after it sets it off: the rest of that chain plays itself, perfectly and
-  fast (`AUTO_STEP` between hops); its last kill gets the streak
+  fast (`AUTO_STEP` between hops; the nearest enemy each time, one straight
+  across first, and a plain enemy before a knight level with him so her hits
+  come one after another); its last kill gets the streak
   finisher's three slashes at full speed (`AUTO_SLASH_HOP`, `AUTO_SLASH_TO_BANG`),
   zoomed in
   (`AUTO_FINALE_FREEZE`, `AUTO_FINALE_ZOOM`, `AUTO_FINALE_CRACKLE`; the music
