@@ -113,10 +113,10 @@ run upside down.
   it). Her next kill that has a chain
   after it sets it off: the rest of that chain plays itself, perfectly and
   fast (`AUTO_STEP` between hops); its last kill holds, zoomed in
-  (`AUTO_FINALE_FREEZE`, `AUTO_FINALE_ZOOM`), then a big lightning strike, a
-  full-screen flash and thunder,
-  the chain ahead is cleared and the next one comes in past the screen's
-  edge (`AUTO_GAP_TILES`). The meter starts again from empty (the auto-chain
+  (`AUTO_FINALE_FREEZE`, `AUTO_FINALE_ZOOM`, `AUTO_FINALE_CRACKLE`), then a big lightning strike, a
+  full-screen flash and thunder (the hold is grey and crackling, like a
+  freeze frame). No new chain is laid while it plays, so nothing pops in or
+  out; the next one comes in past the screen's edge (`AUTO_GAP_TILES`). The meter starts again from empty (the auto-chain
   adds nothing to it). Its kills count for the bar and the streak, but
   the streak finisher only plays at the end of a chain she played herself.
   `CHARGE_*`, `_auto_*` in `scripts/main.gd`.

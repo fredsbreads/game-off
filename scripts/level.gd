@@ -47,6 +47,10 @@ var _knight_intro_done := false   # the debut level opens with a knight alone, o
 ## Her debut waits while this is on (main.gd: while the power-up is charged
 ## or playing), so it never plays through her; knight-free chains come instead.
 var debut_wait := false
+## No new chains are laid while this is on (main.gd: during the auto-chain),
+## so nothing new comes on screen mid-chain; when it's off again the next one
+## starts past the screen's right edge.
+var spawn_hold := false
 var _started := false
 var _cursor := RUNWAY_TILES        # where the next chain's first enemy goes
 var _cursor_row := Rules.Row.FLOOR # ...and its row (the row the last one ended in)
@@ -65,7 +69,7 @@ func set_seed(value: int) -> void:
 
 func ensure_generated(player_x: float) -> void:
 	while _cursor < player_x + AHEAD_TILES:
-		if _could_level_up(player_x):
+		if spawn_hold or _could_level_up(player_x):
 			_held = true
 			break
 		if _held:

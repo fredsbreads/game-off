@@ -117,12 +117,14 @@ const CHARGE_GAIN := {"PERFECT": 2, "CLEAN": 1}
 const AUTO_STEP := 0.1          # seconds between her auto-chain hops
 const AUTO_DUEL_STEP := 0.32    # ...after a clash or a knight's last hit: the duel gets its weight
 const AUTO_GAP_TILES := 12.0    # extra empty run after an auto-chain
-const AUTO_FINALE_FREEZE := 0.45 # its last kill holds this long (zoomed in) before the big strike
+const AUTO_FINALE_FREEZE := 0.3  # its last kill holds this long (zoomed in, grey, crackling) before the big strike
+const AUTO_FINALE_CRACKLE := 0.05 # ...a crackle of lightning on her this often while it holds
 const AUTO_FINALE_ZOOM := 0.25   # how much closer that hold is (0.25 = 25 %)
 var charge := 0                 # the meter (0..CHARGE_FULL)
 var _charged := false           # full: the next chainable kill sets it off
 var _auto := false              # an auto-chain is playing
 var _finale_hold := false       # its last kill's freeze, before the big strike
+var _finale_crackle := 0.0
 var _auto_ending := false       # the auto-chain's own result is being counted (adds no charge)
 const LOSE_COLOUR_TIME := 0.3     # back to red when the streak breaks
 const FINISHER_ZOOM := 0.35
@@ -616,14 +618,20 @@ func _update_pause_visuals() -> void:
 		return
 	var paused := state == State.PLAYING and _hitstop > 0.0
 	var flashing := paused and INVERT_FLASH and _pause_elapsed < INVERT_TIME
-	var chain_pause := paused and (_pause_is_chain or _finishing)   # the finisher too
+	var chain_pause := paused and (_pause_is_chain or _finishing or _finale_hold)   # the finishers too
 	freeze_effect.set_state(1.0 if flashing else 0.0, 1.0 if chain_pause and not flashing else 0.0)
 	fx.frozen = paused and _pause_elapsed >= FX_FREEZE_AFTER
 	blood_fx.frozen = fx.frozen
 	text_fx.frozen = fx.frozen
 	# Lit markers drain during the "your move" freeze as the time runs out.
 	player.marker_fill = clampf(_hitstop / _pause_length, 0.0, 1.0) if chain_pause else 1.0
-	player.freeze_ring = chain_pause and not _finishing   # her lightning circles her for the whole freeze (not the finisher)
+	if _finale_hold:
+		_finale_crackle -= get_physics_process_delta_time()
+		if _finale_crackle <= 0.0:
+			_finale_crackle = AUTO_FINALE_CRACKLE
+			var body := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row))
+			player.zap_fx.zap(body, 2, Vector2.ZERO, Vector2(24, 38), 3)
+	player.freeze_ring = chain_pause and not _finishing and not _finale_hold   # her lightning circles her for the whole freeze (not the finisher)
 	player.target_x = [_slash_target_x(Rules.Move.FORWARD), _slash_target_x(Rules.Move.VERTICAL),
 		_slash_target_x(Rules.Move.DIAGONAL)]
 	# Every enemy a teleport would slash right now gets a red glint.
@@ -977,6 +985,9 @@ func _add_charge(n: int) -> void:
 func _start_auto() -> void:
 	_auto = true
 	_charged = false
+	# Nothing new is laid until it's over (chains not on screen yet go too).
+	level.spawn_hold = true
+	level.rebuild_ahead(cam.left() / Rules.TILE + CameraRig.VIEW_TILES + 3.0)
 	_sync_debut_wait()
 	charge = 0
 	player.charged = false
@@ -1006,6 +1017,7 @@ func _auto_hop() -> void:
 	if best_move == Rules.Move.NONE:
 		_auto = false
 		player.auto_chain = false
+		level.spawn_hold = false
 		_sync_debut_wait()
 		return
 	_hitstop = 0.0
@@ -1025,6 +1037,7 @@ func _auto_hop() -> void:
 func _auto_finale(grade: String) -> void:
 	_auto = false
 	_finale_hold = true
+	_finale_crackle = 0.0
 	_hitstop = AUTO_FINALE_FREEZE + 1.0   # (ended by the strike)
 	_pause_min = 999.0
 	_pause_is_chain = false
@@ -1058,12 +1071,9 @@ func _auto_finale_strike(grade: String) -> void:
 	_auto_ending = true
 	_end_chain(grade)   # (adds no charge: the meter starts again from empty)
 	_auto_ending = false
-	# A breather: chains ahead are cleared (under the flash and the lightning)
-	# and nothing new comes until well past the screen's right edge.
-	for e in level.enemies:
-		if e.alive and e.tile_x > player.x + 1.0:
-			fx.zap(Vector2(e.tile_x * Rules.TILE, Rules.body_center_y(e.row)), 2, Vector2.ZERO, Vector2(14, 26), 3)
-	level.rebuild_ahead(player.x + 1.0)
+	# A breather: nothing was laid during the auto-chain, and the next chain
+	# comes in well past the screen's right edge.
+	level.spawn_hold = false
 	level.push_cursor(cam.left() / Rules.TILE + CameraRig.VIEW_TILES + AUTO_GAP_TILES)
 	_sync_debut_wait()
 	level.ensure_generated(player.x)
@@ -1071,15 +1081,18 @@ func _auto_finale_strike(grade: String) -> void:
 
 ## The first time a shader (or a kind of draw with it) is used, the browser
 ## compiles it, which made the first kill hitch. So on the start screen every
-## effect is drawn once, near-invisibly (2 % alpha), then thrown away.
+## effect is drawn once into an off-screen picture that's never shown, then
+## thrown away.
 func _prewarm() -> void:
-	var holder := Node2D.new()
-	holder.modulate = Color(1, 1, 1, 0.02)
-	$EnemyLayer.add_child(holder)
-	var at := Vector2(player.x * Rules.TILE + 200.0, Rules.body_center_y(Rules.Row.FLOOR))
+	var view := SubViewport.new()
+	view.size = Vector2i(256, 256)
+	view.transparent_bg = true
+	view.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	add_child(view)
+	var at := Vector2(128, 128)
 	var warm := Fx.new()
 	warm.material = Palette.sprite_material()
-	holder.add_child(warm)
+	view.add_child(warm)
 	warm.kill_burst(at, 3)
 	warm.blood(at, 1.0, 8, 0.1)
 	warm.zap(at, 2)
@@ -1090,21 +1103,26 @@ func _prewarm() -> void:
 		warm.bolt(kind, at)
 	warm.bolt(Fx.Bolt.SPARKS, at, 0.0, Vector2.ONE, 20.0, 0, true)
 	warm.text(at, "PERFECT", 30, Color.WHITE)
-	var plain := Fx.new()   # blood / text without her colour material
-	holder.add_child(plain)
+	var plain := Fx.new()   # blood / sparks without her colour material
+	view.add_child(plain)
 	plain.blood(at, 1.0, 8, 0.1)
 	plain.kill_burst(at, 1)
 	for shader in [Player.ARC_SHADER, Player.GHOST_SHADER, Player.MARKER_SHADER, Player.DISSOLVE_SHADER,
-			Enemy.OUTLINE_SHADER, FreezeEffect.SHADER, Palette.SHADER]:
+			Enemy.OUTLINE_SHADER, Palette.SHADER]:
 		var m := ShaderMaterial.new()
 		m.shader = shader
 		var spr := Sprite2D.new()
 		spr.texture = Fx.BOLT_SHEETS[0]
 		spr.material = m
 		spr.position = at
-		holder.add_child(spr)
-	freeze_effect.prewarm(0.5)
-	get_tree().create_timer(0.5).timeout.connect(holder.queue_free)
+		view.add_child(spr)
+	var grey := ColorRect.new()   # the "your move" filter (it reads the screen)
+	grey.size = Vector2(256, 256)
+	grey.material = ShaderMaterial.new()
+	grey.material.shader = FreezeEffect.SHADER
+	view.add_child(grey)
+	freeze_effect.prewarm(0.5)   # (that one reads the real screen, so it warms up there, at 0.2 %: unseen)
+	get_tree().create_timer(0.5).timeout.connect(view.queue_free)
 
 
 ## Her knight debut waits while the power-up is charged or playing (so it
