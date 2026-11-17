@@ -65,6 +65,7 @@ const KNIGHT_ART := {
 	"kill_frame": KILL_SLASH_FRAME, "kill_body_from": KILL_BODY_FROM,
 	"swings": CLASH_SWINGS, "by_pose": CLASH_BY_POSE,
 	"windup_anim": "attack", "windup_frame": WINDUP_FRAME,
+	"engaged_anim": "attack", "engaged_frame": WINDUP_FRAME,   # her pose waiting at her next spot after a clash
 	"attack_start": K_ATTACK_START,
 	"lightning": "green", "outline": SLASH_OUTLINE,
 }
@@ -210,8 +211,10 @@ func blink(beat := 0.0, her_pose := 0, reappear := -1.0) -> Vector2:
 	_place()
 	threat = false
 	if _sprite:
-		# Engaged now: she waits at her new spot in her wind-up pose, not idle.
-		_hold_windup()
+		# Engaged now: she waits at her new spot in her duel pose, not idle.
+		_sprite.play(art["engaged_anim"])
+		_sprite.frame = art["engaged_frame"]
+		_sprite.pause()
 	return from
 
 

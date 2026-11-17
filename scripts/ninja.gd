@@ -39,6 +39,7 @@ const NINJA_ART := {
 		{"swing": 0, "gap": 1.9},
 	],
 	"windup_anim": "stance", "windup_frame": 0,
+	"engaged_anim": "attack", "engaged_frame": 3,   # after a clash: the end of "Attack1"
 	"attack_start": 1,
 	"lightning": "cyan", "outline": Color(0.35, 0.9, 1.0, 1.0),
 }
