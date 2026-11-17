@@ -78,7 +78,9 @@ run upside down.
   ends with her hit but not finished and within a teleport (6 tiles) of you.
   Two teleporters side by side in a chain sometimes interleave their duels
   (`PAIR_CHANCE` in `scripts/patterns.gd`): her spots and his alternate, so
-  while one blinks away the other's standing there to hit.
+  while one blinks away the other's standing there to hit. Each one's every
+  blink is still one move from where you hit her, so you never need one to
+  reach the other's next spot.
   A teleporter that strikes comes from the side she's on: in front (ahead,
   or straight across), or from behind once the player's past her. If two
   would strike at once (a freeze running out, running on or past, or running

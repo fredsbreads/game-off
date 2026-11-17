@@ -79,7 +79,8 @@ const MASTER_FULL_LEVEL := 20
 const NINJA_GROUP := 1000
 const MASTER_GROUP := 2000
 # Two teleporters side by side in a chain: this often their duels interleave
-# (see _build).
+# (see _build): you fight both at once, but each one's every blink is one move
+# from where you hit her, so neither needs the other to reach her next spot.
 const PAIR_CHANCE := 0.5
 # A knight's blinks: to any of her three landing spots, but never back to a
 # spot she's been on (so never across twice in a row, see _overlaps).
@@ -319,14 +320,22 @@ static func _build(hits: Array[int], rng: RandomNumberGenerator, pair_chance := 
 			tokens.append(token.to_lower())
 			var left := [int(a["count"]) - 1, int(b["count"]) - 1]
 			var groups := [a["group"], b["group"]]
+			# Where each was hit last: every blink is one move from her own last
+			# spot (follow her straight from where you hit her) as well as from
+			# the spot before it in the chain (so the chain still runs on).
+			var last := [enemies[enemies.size() - 2], enemies.back()]
 			var turn := 0
 			while left[0] > 0 or left[1] > 0:
 				if left[turn] == 0:
 					turn = 1 - turn
-				var blink := _free_step(KNIGHT_STEPS, enemies, rng)
-				enemies.append(_apply(enemies.back(), blink))
+				var blink := _shared_step(enemies, last[turn], rng)
+				if blink == "":
+					return {}   # no spot one move from both: try another layout
+				var spot := _apply(enemies.back(), blink)
+				enemies.append(spot)
 				knights.append(groups[turn])
 				tokens.append(blink.to_lower())
+				last[turn] = spot
 				left[turn] -= 1
 				turn = 1 - turn
 			tokens.append(")")
@@ -343,6 +352,24 @@ static func _build(hits: Array[int], rng: RandomNumberGenerator, pair_chance := 
 	if _overlaps(enemies, knights) or _strands_by_knight(enemies, knights):
 		return {}
 	return {"enemies": enemies, "knights": knights, "steps": " ".join(tokens)}
+
+
+## A blink one move from the chain's last spot that's also one move from
+## `own` (where that teleporter was last hit), on a spot not used yet; "" if
+## there's none.
+static func _shared_step(used: Array[Vector2], own: Vector2, rng: RandomNumberGenerator) -> String:
+	var ok: Array = []
+	for token in KNIGHT_STEPS:
+		var spot := _apply(used.back(), token)
+		if used.has(spot):
+			continue
+		for t in KNIGHT_STEPS:
+			if _apply(own, t) == spot:
+				ok.append(token)
+				break
+	if ok.is_empty():
+		return ""
+	return ok[rng.randi_range(0, ok.size() - 1)]
 
 
 ## A teleporter from its `hits` entry (a knight's hits, minus a ninja's,
