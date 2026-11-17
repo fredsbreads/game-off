@@ -1040,10 +1040,8 @@ func _start_auto() -> void:
 	cam.shake(0.2, 10.0)
 
 
-## One hop of the auto-chain: onto the nearest enemy under a marker, so none
-## is ever left behind (a knight she's fighting waits her turn); one straight
-## across from her goes first, and a plain enemy before a knight level with him.
-func _auto_hop() -> void:
+## The auto-chain's next move (also the bot's in the freeze): see _auto_hop.
+func _auto_pick(skip_debut := true) -> int:
 	var best_move := Rules.Move.NONE
 	var best_x := INF
 	var best_enemy: Enemy = null
@@ -1051,7 +1049,7 @@ func _auto_hop() -> void:
 		var tx: float = player.x + Rules.move_dx(move)
 		var trow: int = (1 - player.row) if Rules.move_flips_row(move) else player.row
 		for e in level.enemies_hit_by(move, tx, trow):
-			if e is Knight and (e as Knight).debut:
+			if skip_debut and e is Knight and (e as Knight).debut:
 				continue   # her debut: the auto-chain stops short of her
 			if e.tile_x < best_x - 0.01:
 				best_move = move
@@ -1075,6 +1073,14 @@ func _auto_hop() -> void:
 					best_x = e.tile_x
 					best_enemy = e
 					break
+	return best_move
+
+
+## One hop of the auto-chain: onto the nearest enemy under a marker, so none
+## is ever left behind (a knight she's fighting waits her turn); one straight
+## across from her goes first, and a plain enemy before a knight level with him.
+func _auto_hop() -> void:
+	var best_move := _auto_pick()
 	if best_move == Rules.Move.NONE:
 		_auto = false
 		player.auto_chain = false
@@ -1444,24 +1450,14 @@ func _chain_targets(x: float, row: int) -> Array[Enemy]:
 func _bot_acts_in_pause() -> void:
 	if not (debug and debug.bot) or not _pause_is_chain or _pressed_during_pause or _auto:
 		return
-	# A knight the player is fighting first (leaving the knight means she comes for the player).
-	for move in [Rules.Move.FORWARD, Rules.Move.VERTICAL, Rules.Move.DIAGONAL]:
-		var tx: float = player.x + Rules.move_dx(move)
-		var trow: int = (1 - player.row) if Rules.move_flips_row(move) else player.row
-		for e in level.enemies_hit_by(move, tx, trow):
-			if e is Knight and (e as Knight).engaged:
-				debug.force_move(move)
-				_pressed_during_pause = true
-				_hitstop = minf(_hitstop, maxf(_pause_min - _pause_elapsed, 0.0))
-				return
-	for move in [Rules.Move.FORWARD, Rules.Move.VERTICAL, Rules.Move.DIAGONAL]:
-		var tx: float = player.x + Rules.move_dx(move)
-		var trow: int = (1 - player.row) if Rules.move_flips_row(move) else player.row
-		if not level.enemies_hit_by(move, tx, trow).is_empty():
-			debug.force_move(move)
-			_pressed_during_pause = true
-			_hitstop = minf(_hitstop, maxf(_pause_min - _pause_elapsed, 0.0))
-			return
+	# The same pick as the auto-chain (nearest first, across first, a plain
+	# enemy before a knight level with him), so nothing is let go.
+	var move := _auto_pick(false)
+	if move == Rules.Move.NONE:
+		return
+	debug.force_move(move)
+	_pressed_during_pause = true
+	_hitstop = minf(_hitstop, maxf(_pause_min - _pause_elapsed, 0.0))
 
 
 # Every move crackles: strike 16 for a move that hits nothing; strike 13's
