@@ -12,7 +12,7 @@ static var colour := "default"
 ## Volumes, 0 (off) to 1 (as mixed).
 static var music := 1.0
 static var sfx := 1.0
-## Screen shake and the camera's zooms in (the "Shake & Zoom" option), 0 (none) to 1 (as tuned).
+## Screen shake and the camera's zooms in (the "Camera Shake & Zoom" option), 0 (none) to 1 (as tuned).
 static var shake := 1.0
 ## Full-screen flashes: 1 = as tuned, FLASH_SOFT = gentler, 0 = none.
 static var flashes := 1.0

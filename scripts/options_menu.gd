@@ -30,7 +30,7 @@ const ROWS := [
 	{"key": "colour", "label": "Flawless Color"},
 	{"key": "music", "label": "Music"},
 	{"key": "sfx", "label": "Sound Effects"},
-	{"key": "shake", "label": "Shake & Zoom"},   # (screen shake and the camera's zooms in)
+	{"key": "shake", "label": "Camera Shake & Zoom"},   # (screen shake and the camera's zooms in)
 	{"key": "flashes", "label": "Screen Flashes"},
 	{"action": "reset", "label": "Reset To Defaults"},
 	{"action": "back", "label": "Back"},

@@ -82,7 +82,7 @@ func follow(player_x: float, run_px_per_s: float, delta: float) -> void:
 func punch(focus_world: Vector2, amount := PUNCH_ZOOM, out := PUNCH_OUT) -> void:
 	_punch_focus = focus_world
 	_punch_time = 0.0
-	_punch_zoom = amount * Settings.shake   # (the Shake & Zoom option)
+	_punch_zoom = amount * Settings.shake   # (the Camera Shake & Zoom option)
 	_punch_out = out
 
 
@@ -92,7 +92,7 @@ func punch(focus_world: Vector2, amount := PUNCH_ZOOM, out := PUNCH_OUT) -> void
 ## (0.5 = middle); < 0 = no pan.
 func hold_zoom(focus_world: Vector2, amount: float, rate: float = 12.0, screen_frac: float = -1.0) -> void:
 	_hold_focus = focus_world
-	# The Shake & Zoom option scales zooming in; zooming out (the death camera
+	# The Camera Shake & Zoom option scales zooming in; zooming out (the death camera
 	# pulling back to show what happened) is kept as it is.
 	_hold_target = amount * Settings.shake if amount > 0.0 else amount
 	_hold_rate = rate
@@ -108,7 +108,7 @@ const SHAKE_SCALE := 0.5
 
 func shake(duration: float, strength: float) -> void:
 	_shake_time = maxf(_shake_time, duration)
-	_shake_strength = maxf(_shake_strength, strength * SHAKE_SCALE * Settings.shake)   # (the Shake & Zoom option)
+	_shake_strength = maxf(_shake_strength, strength * SHAKE_SCALE * Settings.shake)   # (the Camera Shake & Zoom option)
 
 
 func _punch_amount() -> float:
