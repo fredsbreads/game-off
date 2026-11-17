@@ -123,6 +123,7 @@ var charge := 0                 # the meter (0..CHARGE_FULL)
 var _charged := false           # full: the next chainable kill sets it off
 var _auto := false              # an auto-chain is playing
 var _finale_hold := false       # its last kill's freeze, before the big strike
+var _auto_ending := false       # the auto-chain's own result is being counted (adds no charge)
 const LOSE_COLOUR_TIME := 0.3     # back to red when the streak breaks
 const FINISHER_ZOOM := 0.35
 const FINISHER_SIDE := 2.2          # tiles either side of the enemy she strikes from
@@ -1053,7 +1054,9 @@ func _auto_finale_strike(grade: String) -> void:
 	cam.hold_zoom(body, 0.0, 3.0)
 	cam.shake(0.5, 26.0)
 	_auto_finale_sound.play()
-	_end_chain(grade)
+	_auto_ending = true
+	_end_chain(grade)   # (adds no charge: the meter starts again from empty)
+	_auto_ending = false
 	# A breather: chains ahead are cleared (under the flash and the lightning)
 	# and nothing new comes until well past the screen's right edge.
 	for e in level.enemies:
@@ -1407,7 +1410,7 @@ func _end_chain(grade: String, word: String = "") -> void:
 			_drop_pounce = true
 		if grade == "DROPPED":
 			_break_streak()   # a dropped chain ends the flawless streak
-		if not _auto:
+		if not _auto and not _auto_ending:
 			_add_charge(int(CHARGE_GAIN.get(grade, 0)))
 		if grade != "SINGLE":
 			var above := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row) - Rules.TILE * 1.4)
