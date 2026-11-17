@@ -24,7 +24,7 @@ const BG_BOTTOM := Color(0.02, 0.01, 0.02)
 const BUTTON_SIZE := Vector2(300, 58)
 const BUTTON_GAP := 14.0
 const LABEL_SIZE := 26
-const HINT_TOUCH := "Left: Up/Down    Right: Forward    Both: Diagonal"
+const HINT_TOUCH := "Tap Left: Up/Down    Tap Right: Forward    Both: Diagonal"
 const HINT_KEYS := "Left: Up/Down    Right: Forward    Both: Diagonal"
 
 ## Her: running (the run sheet, as in the game), at a whole-number scale
