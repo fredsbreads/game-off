@@ -403,23 +403,33 @@ func _unhandled_input(event: InputEvent) -> void:
 		hud.open_options(state != State.READY)
 		return
 	if get_tree().paused:
-		# The "Flip screen" button (upright phones) turns the game 180 degrees.
-		var tap: bool = (event is InputEventScreenTouch or event is InputEventMouseButton) and event.pressed
-		if tap and hud.flip_button_contains(_screen_pos(event)):
-			get_viewport().set_input_as_handled()
-			JavaScriptBridge.eval("window.redFlashSetFlip(!window.redFlashFlip)", true)
-			return
-		if tap and hud.pause_menu_button_contains(_screen_pos(event)):
-			# Leave the run for the title screen.
-			get_viewport().set_input_as_handled()
-			get_tree().paused = false
-			get_tree().reload_current_scene.call_deferred()
-			return
-		# Any other key, click or tap resumes (it doesn't also teleport).
-		if _is_press(event):
-			get_viewport().set_input_as_handled()
-			if Time.get_ticks_msec() - _paused_at_msec >= RESUME_GUARD * 1000.0:
-				_set_paused(false)
+		# The pause screen: Resume / Options / (Flip Screen) / Main Menu. Keys:
+		# Up/Down pick, Left/Right (or Enter/Space) press; it opens on Resume,
+		# so pausing then Left or Right plays on at once. P / Esc resume too.
+		# A tap presses the button under it; a tap anywhere else resumes.
+		get_viewport().set_input_as_handled()
+		var pick := ""
+		if event is InputEventKey and event.pressed and not event.echo:
+			match event.physical_keycode:
+				KEY_UP, KEY_W: hud.pause_move(-1)
+				KEY_DOWN, KEY_S: hud.pause_move(1)
+				KEY_LEFT, KEY_RIGHT, KEY_A, KEY_D, KEY_ENTER, KEY_KP_ENTER, KEY_SPACE: pick = hud.pause_selected()
+				KEY_P, KEY_ESCAPE: pick = "resume"
+		elif (event is InputEventScreenTouch or event is InputEventMouseButton) and event.pressed:
+			pick = hud.pause_button_at(_screen_pos(event))
+			if pick == "":
+				pick = "resume"
+		match pick:
+			"resume":
+				if Time.get_ticks_msec() - _paused_at_msec >= RESUME_GUARD * 1000.0:
+					_set_paused(false)
+			"options":
+				hud.open_options(true)
+			"flip":   # (upright phones) turns the game 180 degrees
+				JavaScriptBridge.eval("window.redFlashSetFlip(!window.redFlashFlip)", true)
+			"menu":   # leave the run for the title screen
+				get_tree().paused = false
+				get_tree().reload_current_scene.call_deferred()
 		return
 	if Palette.CYCLE_KEY and event is InputEventKey and event.pressed and event.physical_keycode == KEY_C:
 		get_viewport().set_input_as_handled()

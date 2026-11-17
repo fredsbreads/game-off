@@ -30,8 +30,12 @@ chooser (below), **Options** (`O`); `↑` / `↓` pick a button. After a death,
 any press retries straight into a new run; **Main menu** (`M`) goes back to
 the title screen.
 
-Pause with `P` / `Esc` or the button in the top-right corner; any key or tap resumes.
-The pause screen has **Options** and **Main Menu** (back to the title screen).
+Pause with `P` / `Esc` or the button in the top-right corner. The pause
+screen is a column of **Resume**, **Options**, (**Flip Screen** on upright
+phones,) **Main Menu** (back to the title screen). Keys: `↑` / `↓` pick (it
+opens on Resume), `←` / `→` (or Enter / Space) press, so pausing then `←`
+or `→` plays on at once; `P` / `Esc` resume. A tap presses the button under
+it; a tap anywhere else resumes.
 The game also pauses itself when the window or app loses focus.
 
 Options: the **Options** button on the title screen and the pause screen

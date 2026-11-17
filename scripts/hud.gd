@@ -57,6 +57,12 @@ var options: OptionsMenu
 var _menu_button: Control
 # The pause screen's "Main Menu" button (leaves the run for the title screen).
 var _pause_menu_button: Control
+# ...and "Resume". The pause screen's buttons stand in a column under
+# "PAUSED"; on a keyboard Up/Down pick one (Resume, each time it opens) and
+# Left/Right (or Enter/Space) press it.
+var _resume_button: Control
+var _pause_title: Label
+var _pause_sel := 0
 ## The title screen (main.gd passes it presses while it's open).
 var menu: MainMenu
 ## The power-up's auto-chain on screen (scripts/auto_overlay.gd).
@@ -115,7 +121,7 @@ func _ready() -> void:
 	_flip_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_flip_button.size = FLIP_BUTTON_SIZE
 	_flip_button.visible = false
-	_flip_button.draw.connect(_draw_flip_button)
+	_flip_button.draw.connect(_draw_pause_btn.bind(_flip_button, "Flip Screen"))
 
 	_message = _label(26, Vector2.ZERO)
 	_message.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -127,13 +133,23 @@ func _ready() -> void:
 	_options_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_options_button.size = FLIP_BUTTON_SIZE
 	_options_button.visible = false
-	_options_button.draw.connect(_draw_options_button)
+	_options_button.draw.connect(_draw_pause_btn.bind(_options_button, "Options"))
 	add_child(_options_button)
+	_resume_button = Control.new()
+	_resume_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_resume_button.size = FLIP_BUTTON_SIZE
+	_resume_button.visible = false
+	_resume_button.draw.connect(_draw_pause_btn.bind(_resume_button, "Resume"))
+	add_child(_resume_button)
+	_pause_title = _label(40, Vector2.ZERO)
+	_pause_title.text = "PAUSED"
+	_pause_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_pause_title.visible = false
 	_pause_menu_button = Control.new()
 	_pause_menu_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_pause_menu_button.size = FLIP_BUTTON_SIZE
 	_pause_menu_button.visible = false
-	_pause_menu_button.draw.connect(_draw_pause_menu_button)
+	_pause_menu_button.draw.connect(_draw_pause_btn.bind(_pause_menu_button, "Main Menu"))
 	add_child(_pause_menu_button)
 	_menu_button = Control.new()
 	_menu_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -190,18 +206,16 @@ func _process(delta: float) -> void:
 	_chain_bar_bg.position = Vector2(right - 200, 54)
 	_chain_bar.position = _chain_bar_bg.position
 	_pause_button.position = Vector2(right - PAUSE_BUTTON_SIZE - PAUSE_BUTTON_MARGIN, PAUSE_BUTTON_MARGIN)
-	# The pause screen's buttons, side by side under the message (so they fit
-	# on an upright phone too).
-	var shown: Array[Control] = []
-	for b in [_flip_button, _options_button, _pause_menu_button]:
-		if b.visible and _on_pause_screen:
-			shown.append(b)
-	var gap := 16.0
-	var row := shown.size() * FLIP_BUTTON_SIZE.x + maxf(shown.size() - 1, 0) * gap
-	var x := (view.x - row) / 2.0
+	# The pause screen's buttons: a column under "PAUSED".
+	var shown := pause_buttons()
+	var gap := 12.0
+	var col := shown.size() * FLIP_BUTTON_SIZE.y + maxf(shown.size() - 1, 0) * gap
+	var y := (view.y - col) / 2.0 + 30.0
+	_pause_title.position = Vector2(0, y - 70.0)
+	_pause_title.size.x = view.x
 	for b in shown:
-		b.position = Vector2(x, view.y * 0.5 + 55.0)
-		x += FLIP_BUTTON_SIZE.x + gap
+		b.position = Vector2((view.x - FLIP_BUTTON_SIZE.x) / 2.0, y)
+		y += FLIP_BUTTON_SIZE.y + gap
 	_menu_button.position = Vector2((view.x - FLIP_BUTTON_SIZE.x) / 2.0, view.y - FLIP_BUTTON_SIZE.y - 24.0)
 
 
@@ -228,6 +242,8 @@ func open_options(over_game: bool) -> void:
 		_flip_button.visible = false
 		_options_button.visible = false
 		_pause_menu_button.visible = false
+		_resume_button.visible = false
+		_pause_title.visible = false
 	options.open()
 
 
@@ -361,16 +377,79 @@ func show_paused(paused: bool, can_flip: bool = false) -> void:
 	_pause_can_flip = can_flip
 	_options_button.visible = paused
 	_pause_menu_button.visible = paused
+	_resume_button.visible = paused
+	_pause_title.visible = paused
 	if paused:
 		if not _on_pause_screen:   # (not again on coming back from Options)
 			_message_before_pause = _message.text
 			_message_visible_before_pause = _message.visible
-		_message.text = "PAUSED\n\n" + ("Tap To Resume" if is_touch() else "Press Any Key To Resume")
-		_message.visible = true
+			_pause_sel = 0   # Resume
+		_message.visible = false
 	else:
 		_message.text = _message_before_pause
 		_message.visible = _message_visible_before_pause
 	_on_pause_screen = paused
+	_redraw_pause_buttons()
+
+
+## The pause screen's buttons, top to bottom (those showing).
+func pause_buttons() -> Array[Control]:
+	var out: Array[Control] = []
+	for b in [_resume_button, _options_button, _flip_button, _pause_menu_button]:
+		if b.visible and _on_pause_screen:
+			out.append(b)
+	return out
+
+
+## Up/Down on the pause screen.
+func pause_move(dir: int) -> void:
+	var n := pause_buttons().size()
+	if n > 0:
+		_pause_sel = posmod(_pause_sel + dir, n)
+	_redraw_pause_buttons()
+
+
+## What the picked pause button does: "resume", "options", "flip" or "menu".
+func pause_selected() -> String:
+	var b := pause_buttons()
+	if b.is_empty():
+		return "resume"
+	return _pause_id(b[clampi(_pause_sel, 0, b.size() - 1)])
+
+
+## The pause button at a tap, or "".
+func pause_button_at(pos: Vector2) -> String:
+	if options.visible:
+		return ""
+	for b in pause_buttons():
+		if b.get_rect().grow(10.0).has_point(pos):
+			return _pause_id(b)
+	return ""
+
+
+func _pause_id(b: Control) -> String:
+	if b == _options_button: return "options"
+	if b == _flip_button: return "flip"
+	if b == _pause_menu_button: return "menu"
+	return "resume"
+
+
+func _redraw_pause_buttons() -> void:
+	for b in [_resume_button, _options_button, _flip_button, _pause_menu_button]:
+		b.queue_redraw()
+
+
+func _draw_pause_btn(b: Control, text: String) -> void:
+	var s := FLIP_BUTTON_SIZE
+	var list := pause_buttons()
+	# The keyboard's pick is lit (not on touch screens: there you just tap).
+	var picked := not is_touch() and list.find(b) == clampi(_pause_sel, 0, list.size() - 1)
+	b.draw_rect(Rect2(Vector2.ZERO, s), Color(1, 1, 1, 0.26 if picked else 0.12))
+	b.draw_rect(Rect2(Vector2.ZERO, s), Color(1, 1, 1, 1.0 if picked else 0.6), false, 3.0 if picked else 2.0)
+	var font := ThemeDB.fallback_font
+	var size := 26
+	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+	b.draw_string(font, Vector2((s.x - w) / 2.0, s.y / 2.0 + size * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color.WHITE)
 
 
 func options_button_contains(pos: Vector2) -> bool:
@@ -381,41 +460,8 @@ func pause_menu_button_contains(pos: Vector2) -> bool:
 	return _pause_menu_button.visible and not options.visible and _pause_menu_button.get_rect().grow(10.0).has_point(pos)
 
 
-func _draw_pause_menu_button() -> void:
-	var s := FLIP_BUTTON_SIZE
-	_pause_menu_button.draw_rect(Rect2(Vector2.ZERO, s), Color(1, 1, 1, 0.12))
-	_pause_menu_button.draw_rect(Rect2(Vector2.ZERO, s), Color(1, 1, 1, 0.7), false, 2.0)
-	var font := ThemeDB.fallback_font
-	var text := "Main Menu"
-	var size := 26
-	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
-	_pause_menu_button.draw_string(font, Vector2((s.x - w) / 2.0, s.y / 2.0 + size * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color.WHITE)
-
-
-func _draw_options_button() -> void:
-	var s := FLIP_BUTTON_SIZE
-	_options_button.draw_rect(Rect2(Vector2.ZERO, s), Color(1, 1, 1, 0.12))
-	_options_button.draw_rect(Rect2(Vector2.ZERO, s), Color(1, 1, 1, 0.7), false, 2.0)
-	var font := ThemeDB.fallback_font
-	var text := "Options"
-	var size := 26
-	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
-	_options_button.draw_string(font, Vector2((s.x - w) / 2.0, s.y / 2.0 + size * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color.WHITE)
-
-
 func flip_button_contains(pos: Vector2) -> bool:
 	return _flip_button.visible and _flip_button.get_rect().grow(10.0).has_point(pos)
-
-
-func _draw_flip_button() -> void:
-	var s := FLIP_BUTTON_SIZE
-	_flip_button.draw_rect(Rect2(Vector2.ZERO, s), Color(1, 1, 1, 0.12))
-	_flip_button.draw_rect(Rect2(Vector2.ZERO, s), Color(1, 1, 1, 0.7), false, 2.0)
-	var font := ThemeDB.fallback_font
-	var text := "Flip Screen"
-	var size := 26
-	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
-	_flip_button.draw_string(font, Vector2((s.x - w) / 2.0, s.y / 2.0 + size * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color.WHITE)
 
 
 func _draw_pause_button() -> void:
