@@ -1,52 +1,77 @@
 class_name MainMenu
 extends Control
-## The title screen: "RED FLASH" in red with lightning crackling round it,
-## and its buttons (Play, the level chooser while main.gd LEVEL_CHOICE is on,
-## Options). Drawn in code like the HUD; main.gd passes it every press while
-## it's open (touch doesn't emulate mouse in this project, so it hit-tests
-## taps itself) and acts on what handle() returns.
+## The title screen, on its own dark background (the level isn't shown):
+## "RED FLASH" across the top, her (the browser-tab pose: the first run frame,
+## katana out behind her) large on the left with lightning crackling over her,
+## and the buttons on the right (Play, the level chooser while main.gd
+## LEVEL_CHOICE is on, Options). Drawn in code like the HUD; main.gd passes
+## it every press while it's open (touch doesn't emulate mouse in this
+## project, so it hit-tests taps itself) and acts on what handle() returns.
 ##
 ## Keys: Up/Down pick a button, Enter/Space press it; any teleport key
 ## (Right, Left, K, J, D, A, the Shifts) plays; O opens Options.
 
 const TITLE := "RED FLASH"
-const TITLE_SIZE := 132
-const TITLE_RED := Color(0.95, 0.1, 0.16)
-const TITLE_DARK := Color(0.32, 0.0, 0.03)
-const BUTTON_SIZE := Vector2(320, 58)
-const BUTTON_GAP := 12.0
+## The title's font ("Shojumaru", SIL Open Font License: assets/fonts).
+const TITLE_FONT := preload("res://assets/fonts/Shojumaru-Regular.ttf")
+const TITLE_SIZE := 100
+const TITLE_RED := Color(1.0, 0.22, 0.29)
+const BG_TOP := Color(0.07, 0.04, 0.06)
+const BG_BOTTOM := Color(0.02, 0.01, 0.02)
+const BUTTON_SIZE := Vector2(300, 58)
+const BUTTON_GAP := 14.0
 const LABEL_SIZE := 26
-const HINT := "left tap: shift      right tap: forward      both: shift + forward"
+const HINT := "left tap: shift    right tap: forward    both: shift + forward"
 
-## Small bolts crackling off the title: one every this many seconds (random in range).
-const CRACKLE_EVERY := Vector2(0.03, 0.12)
-const CRACKLE_LIFE := 0.14
-## Now and then a big strike from above onto the title, which flashes white.
-const STRIKE_EVERY := Vector2(1.6, 3.4)
-const STRIKE_LIFE := 0.22
+## Her: the run sheet's first frame, at a whole-number scale (crisp pixels).
+const HER_FRAME := Rect2(0, 0, 96, 96)
+## The part of the frame she fills (frame pixels), and her katana's blade.
+const HER_BODY := Rect2(5, 22, 66, 49)
+const BLADE_FROM := Vector2(5, 37)
+const BLADE_TO := Vector2(24, 37)
+## Her body without the katana (where bolts run across her).
+const HER_TORSO := Rect2(30, 24, 40, 46)
+
+## Bolts crackling over her: one every this many seconds (random in range).
+const HER_CRACKLE_EVERY := Vector2(0.02, 0.07)
+## Small bolts off the title.
+const TITLE_CRACKLE_EVERY := Vector2(0.12, 0.4)
+const CRACKLE_LIFE := 0.13
+## Now and then a big strike from above onto her; she and the title flash.
+const STRIKE_EVERY := Vector2(2.0, 4.0)
+const STRIKE_LIFE := 0.24
 
 var start_level := 1
 var level_choice := false
 var _selected := 0
 var _keyboard := false
-var _font: FontVariation
 var _rng := RandomNumberGenerator.new()
 var _t := 0.0
 var _bolts: Array = []   # [points, forks, life, max_life, width]
-var _next_crackle := 0.0
-var _next_strike := 1.0
-var _flash := 0.0        # the title's white flash after a big strike
+var _next_her := 0.0
+var _next_title := 0.0
+var _next_strike := 1.2
+var _flash := 0.0
+var _glow: GradientTexture2D   # the red glow behind her (smooth, radial)
 
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	visible = false
-	_font = FontVariation.new()
-	_font.base_font = ThemeDB.fallback_font
-	_font.variation_embolden = 1.1
-	_font.variation_transform = Transform2D(Vector2(1, 0), Vector2(-0.22, 1), Vector2.ZERO)   # slanted forward
 	_rng.randomize()
+	var g := Gradient.new()
+	g.set_color(0, Color(TITLE_RED, 0.32))
+	g.set_color(1, Color(TITLE_RED, 0.0))
+	g.add_point(0.45, Color(TITLE_RED, 0.12))
+	_glow = GradientTexture2D.new()
+	_glow.gradient = g
+	_glow.fill = GradientTexture2D.FILL_RADIAL
+	_glow.fill_from = Vector2(0.5, 0.5)
+	_glow.fill_to = Vector2(1.0, 0.5)
+	_glow.width = 256
+	_glow.height = 256
 
 
 func open(level: int, choice: bool) -> void:
@@ -108,18 +133,37 @@ func handle(event: InputEvent, pos: Vector2) -> String:
 # --- layout ----------------------------------------------------------------
 
 func _title_baseline() -> float:
-	return size.y * 0.36
+	return maxf(size.y * 0.2, 96.0)
 
 
 func _title_rect() -> Rect2:
-	var w := _font.get_string_size(TITLE, HORIZONTAL_ALIGNMENT_LEFT, -1, TITLE_SIZE).x
-	var h := TITLE_SIZE * 0.72
+	var w := TITLE_FONT.get_string_size(TITLE, HORIZONTAL_ALIGNMENT_LEFT, -1, TITLE_SIZE).x
+	var h := TITLE_SIZE * 0.78
 	return Rect2(Vector2((size.x - w) / 2.0, _title_baseline() - h), Vector2(w, h))
 
 
+## Her scale: whole pixels, as big as fits the left part under the title.
+func _her_scale() -> float:
+	var room := Vector2(size.x * 0.5, size.y - _title_baseline() - 60.0)
+	return maxf(floorf(minf(room.x / HER_BODY.size.x, room.y / HER_BODY.size.y)), 2.0)
+
+
+## Where her frame's top-left corner goes (her body centred in the left part).
+func _her_origin() -> Vector2:
+	var s := _her_scale()
+	var centre := Vector2(size.x * 0.29, (_title_baseline() + 30.0 + size.y - 40.0) / 2.0)
+	return centre - (HER_BODY.position + HER_BODY.size / 2.0) * s
+
+
+func _her_point(frame_px: Vector2) -> Vector2:
+	return _her_origin() + frame_px * _her_scale()
+
+
 func _button_rect(i: int) -> Rect2:
-	var top := _title_baseline() + 62.0
-	return Rect2(Vector2((size.x - BUTTON_SIZE.x) / 2.0, top + i * (BUTTON_SIZE.y + BUTTON_GAP)), BUTTON_SIZE)
+	var n := _buttons().size()
+	var total := n * BUTTON_SIZE.y + (n - 1) * BUTTON_GAP
+	var top := _her_point(HER_BODY.position + HER_BODY.size / 2.0).y - total / 2.0
+	return Rect2(Vector2(size.x * 0.72 - BUTTON_SIZE.x / 2.0, top + i * (BUTTON_SIZE.y + BUTTON_GAP)), BUTTON_SIZE)
 
 
 # --- the lightning -----------------------------------------------------------
@@ -128,14 +172,18 @@ func _process(delta: float) -> void:
 	if not visible:
 		return
 	_t += delta
-	_flash = maxf(_flash - delta * 3.5, 0.0)
+	_flash = maxf(_flash - delta * 3.0, 0.0)
 	for b in _bolts:
 		b[2] -= delta
 	_bolts = _bolts.filter(func(b: Array) -> bool: return b[2] > 0.0)
-	_next_crackle -= delta
-	if _next_crackle <= 0.0:
-		_next_crackle = _rng.randf_range(CRACKLE_EVERY.x, CRACKLE_EVERY.y)
-		_crackle()
+	_next_her -= delta
+	if _next_her <= 0.0:
+		_next_her = _rng.randf_range(HER_CRACKLE_EVERY.x, HER_CRACKLE_EVERY.y)
+		_crackle_her()
+	_next_title -= delta
+	if _next_title <= 0.0:
+		_next_title = _rng.randf_range(TITLE_CRACKLE_EVERY.x, TITLE_CRACKLE_EVERY.y)
+		_crackle_title()
 	_next_strike -= delta
 	if _next_strike <= 0.0:
 		_next_strike = _rng.randf_range(STRIKE_EVERY.x, STRIKE_EVERY.y)
@@ -143,27 +191,43 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 
-## A short bolt jumping off the edge of the title, outward.
-func _crackle() -> void:
-	var r := _title_rect().grow(6.0)
-	var side := _rng.randi_range(0, 3)
-	var p: Vector2
-	var out: Vector2
-	match side:
-		0: p = Vector2(_rng.randf_range(r.position.x, r.end.x), r.position.y); out = Vector2.UP
-		1: p = Vector2(_rng.randf_range(r.position.x, r.end.x), r.end.y); out = Vector2.DOWN
-		2: p = Vector2(r.position.x, _rng.randf_range(r.position.y, r.end.y)); out = Vector2.LEFT
-		_: p = Vector2(r.end.x, _rng.randf_range(r.position.y, r.end.y)); out = Vector2.RIGHT
-	var to := p + out.rotated(_rng.randf_range(-0.9, 0.9)) * _rng.randf_range(50.0, 150.0)
-	_add_bolt(p, to, 7, 11.0, CRACKLE_LIFE, 1.6, 1)
+## A bolt over her: arcing along her katana, running across her, or jumping
+## off her.
+func _crackle_her() -> void:
+	var s := _her_scale()
+	var roll := _rng.randf()
+	if roll < 0.45:   # across her body
+		var a := Vector2(_rng.randf_range(HER_TORSO.position.x, HER_TORSO.end.x), _rng.randf_range(HER_TORSO.position.y, HER_TORSO.end.y))
+		var b := a + Vector2.RIGHT.rotated(_rng.randf() * TAU) * _rng.randf_range(8.0, 20.0)
+		b = b.clamp(HER_TORSO.position, HER_TORSO.end)
+		_add_bolt(_her_point(a), _her_point(b), 6, s * 1.6, CRACKLE_LIFE, 1.3, 1)
+		return
+	if roll < 0.7:
+		var a := _her_point(BLADE_FROM.lerp(BLADE_TO, _rng.randf_range(0.0, 0.4)))
+		var b := _her_point(BLADE_FROM.lerp(BLADE_TO, _rng.randf_range(0.55, 1.0)))
+		_add_bolt(a, b, 6, s * 2.2, CRACKLE_LIFE, 1.5, 1)
+		return
+	var p := _her_point(Vector2(_rng.randf_range(HER_TORSO.position.x, HER_TORSO.end.x),
+			_rng.randf_range(HER_TORSO.position.y, HER_TORSO.end.y)))
+	var centre := _her_point(HER_BODY.position + HER_BODY.size / 2.0)
+	var out := (p - centre).normalized().rotated(_rng.randf_range(-0.8, 0.8))
+	_add_bolt(p, p + out * _rng.randf_range(s * 6.0, s * 14.0), 6, s * 1.6, CRACKLE_LIFE, 1.6, 1)
 
 
-## A big bolt from the top of the screen down onto the title; it flashes.
+## A short bolt off the title's edge, outward.
+func _crackle_title() -> void:
+	var r := _title_rect().grow(4.0)
+	var up := _rng.randf() < 0.5
+	var p := Vector2(_rng.randf_range(r.position.x, r.end.x), r.position.y if up else r.end.y)
+	var to := p + (Vector2.UP if up else Vector2.DOWN).rotated(_rng.randf_range(-0.9, 0.9)) * _rng.randf_range(30.0, 80.0)
+	_add_bolt(p, to, 6, 9.0, CRACKLE_LIFE, 1.3, 1)
+
+
+## A big bolt from the top of the screen down onto her.
 func _strike() -> void:
-	var r := _title_rect()
-	var hit := Vector2(_rng.randf_range(r.position.x + 40.0, r.end.x - 40.0), r.position.y + 8.0)
-	var from := Vector2(hit.x + _rng.randf_range(-160.0, 160.0), -10.0)
-	_add_bolt(from, hit, 14, 26.0, STRIKE_LIFE, 3.0, 3)
+	var hit := _her_point(Vector2(_rng.randf_range(42.0, 60.0), 24.0))
+	var from := Vector2(hit.x + _rng.randf_range(-120.0, 120.0), -10.0)
+	_add_bolt(from, hit, 16, 24.0, STRIKE_LIFE, 3.0, 3)
 	_flash = 1.0
 
 
@@ -173,7 +237,7 @@ func _add_bolt(a: Vector2, b: Vector2, n: int, jag: float, life: float, width: f
 	for k in forks:
 		var i := _rng.randi_range(1, pts.size() - 2)
 		var dir := (b - a).normalized().rotated(_rng.randf_range(-1.2, 1.2))
-		fork_lines.append(_jagged(pts[i], pts[i] + dir * _rng.randf_range(20.0, 70.0), 4, jag * 0.5))
+		fork_lines.append(_jagged(pts[i], pts[i] + dir * _rng.randf_range(15.0, 55.0), 4, jag * 0.5))
 	_bolts.append([pts, fork_lines, life, life, width])
 
 
@@ -190,10 +254,10 @@ func _jagged(a: Vector2, b: Vector2, n: int, jag: float) -> PackedVector2Array:
 # --- drawing ---------------------------------------------------------------
 
 func _draw() -> void:
-	# The level, dimmed behind it.
-	draw_rect(Rect2(Vector2.ZERO, size), Color(0.02, 0.0, 0.01, 0.62))
-	if _flash > 0.0:
-		draw_rect(Rect2(Vector2.ZERO, size), Color(1.0, 0.85, 0.85, 0.07 * _flash))
+	# Its own background: dark, a little warmer at the top.
+	draw_polygon(PackedVector2Array([Vector2.ZERO, Vector2(size.x, 0), size, Vector2(0, size.y)]),
+			PackedColorArray([BG_TOP, BG_TOP, BG_BOTTOM, BG_BOTTOM]))
+	_draw_her()
 	_draw_title()
 	for b in _bolts:
 		var k: float = b[2] / b[3]
@@ -201,42 +265,37 @@ func _draw() -> void:
 		for line in [b[0]] + b[1]:
 			var main_line: bool = line == b[0]
 			var lw := w * (1.0 if main_line else 0.55)
-			draw_polyline(line, Color(TITLE_RED.r, TITLE_RED.g, TITLE_RED.b, 0.18 * k), lw * 6.0, true)
-			draw_polyline(line, Color(1.0, 0.25, 0.3, 0.95 * k), lw * 1.6, true)
-			draw_polyline(line, Color(1, 0.92, 0.92, k), maxf(lw * 0.6, 1.0), true)
-	# A katana line under the title, with a glint running along it.
-	var tr := _title_rect()
-	var y := tr.end.y + 22.0
-	var x0 := tr.position.x + 20.0
-	var x1 := tr.end.x - 40.0
-	draw_line(Vector2(x0, y), Vector2(x1, y), Color(TITLE_RED, 0.55), 2.0, true)
-	var g := fmod(_t * 0.45, 1.6)
-	if g < 1.0:
-		var gx := lerpf(x0, x1, g)
-		draw_line(Vector2(gx - 40.0, y), Vector2(gx + 40.0, y), Color(1, 0.9, 0.9, 0.7 * sin(g * PI)), 2.0, true)
+			draw_polyline(line, Color(TITLE_RED, 0.2 * k), lw * 6.0, true)
+			draw_polyline(line, Color(1.0, 0.3, 0.35, 0.95 * k), lw * 1.6, true)
+			draw_polyline(line, Color(1, 0.94, 0.94, k), maxf(lw * 0.6, 1.0), true)
 	for i in _buttons().size():
 		_draw_button(i)
 	var f := ThemeDB.fallback_font
 	var hw := f.get_string_size(HINT, HORIZONTAL_ALIGNMENT_LEFT, -1, 18).x
-	draw_string(f, Vector2((size.x - hw) / 2.0, size.y - 26.0), HINT, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color(1, 1, 1, 0.55))
+	draw_string(f, Vector2((size.x - hw) / 2.0, size.y - 20.0), HINT, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color(1, 1, 1, 0.5))
+
+
+func _draw_her() -> void:
+	var s := _her_scale()
+	var centre := _her_point(HER_BODY.position + HER_BODY.size / 2.0)
+	# A red glow behind her, breathing, brighter on a strike.
+	var glow := 0.75 + 0.15 * sin(_t * 2.6) + 0.6 * _flash
+	var r := HER_BODY.size.x * s * 0.75
+	draw_texture_rect(_glow, Rect2(centre - Vector2(r, r), Vector2(r, r) * 2.0), false, Color(1, 1, 1, minf(glow, 1.0)))
+	var rect := Rect2(_her_origin(), HER_FRAME.size * s)
+	draw_texture_rect_region(Player.RUN_SHEET, rect, HER_FRAME)
 
 
 func _draw_title() -> void:
 	var r := _title_rect()
 	var base := Vector2(r.position.x, _title_baseline())
 	var flicker := 0.85 + 0.15 * sin(_t * 23.0) * sin(_t * 7.0)
-	# A soft red glow round it.
-	for i in 12:
-		var o := Vector2.RIGHT.rotated(i * TAU / 12.0) * 7.0
-		draw_string(_font, base + o, TITLE, HORIZONTAL_ALIGNMENT_LEFT, -1, TITLE_SIZE, Color(TITLE_RED, 0.07 * flicker))
-	# A deep shadow, then the dark edge, then the red.
-	draw_string(_font, base + Vector2(6, 7), TITLE, HORIZONTAL_ALIGNMENT_LEFT, -1, TITLE_SIZE, Color(0, 0, 0, 0.7))
-	draw_string_outline(_font, base, TITLE, HORIZONTAL_ALIGNMENT_LEFT, -1, TITLE_SIZE, 8, TITLE_DARK)
-	var fill := TITLE_RED.lerp(Color(1, 0.95, 0.95), _flash * 0.85)
-	draw_string(_font, base, TITLE, HORIZONTAL_ALIGNMENT_LEFT, -1, TITLE_SIZE, fill)
-	# A bright edge along the top of the letters.
-	draw_string(_font, base + Vector2(0, -2), TITLE, HORIZONTAL_ALIGNMENT_LEFT, -1, TITLE_SIZE, Color(1, 0.6, 0.6, 0.25 + 0.3 * _flash))
-	draw_string(_font, base, TITLE, HORIZONTAL_ALIGNMENT_LEFT, -1, TITLE_SIZE, Color(fill, 0.85))
+	for i in 12:   # a soft glow
+		var o := Vector2.RIGHT.rotated(i * TAU / 12.0) * 6.0
+		draw_string(TITLE_FONT, base + o, TITLE, HORIZONTAL_ALIGNMENT_LEFT, -1, TITLE_SIZE, Color(TITLE_RED, 0.06 * flicker))
+	var fill := TITLE_RED.lerp(Color(1, 0.95, 0.95), _flash * 0.8)
+	draw_string(TITLE_FONT, base, TITLE, HORIZONTAL_ALIGNMENT_LEFT, -1, TITLE_SIZE, fill)
+	draw_string(TITLE_FONT, base + Vector2(0, -2), TITLE, HORIZONTAL_ALIGNMENT_LEFT, -1, TITLE_SIZE, Color(1, 0.65, 0.68, 0.3))
 
 
 func _draw_button(i: int) -> void:
@@ -244,12 +303,12 @@ func _draw_button(i: int) -> void:
 	var r := _button_rect(i)
 	var picked := _keyboard and i == _selected
 	var play := id == "play"
-	var fill := Color(TITLE_RED, 0.28) if play else Color(1, 1, 1, 0.08)
+	var fill := Color(TITLE_RED, 0.3) if play else Color(1, 1, 1, 0.07)
 	if picked:
 		fill = Color(fill, fill.a + 0.12)
 	draw_rect(r, fill)
-	var border := Color(1, 0.4, 0.45, 0.95) if play else Color(1, 1, 1, 0.6)
-	draw_rect(r, Color(1, 1, 1, 1) if picked else border, false, 2.0)
+	var border := Color(1, 0.45, 0.5, 0.95) if play else Color(1, 1, 1, 0.55)
+	draw_rect(r, Color.WHITE if picked else border, false, 2.0)
 	var f := ThemeDB.fallback_font
 	var text := _button_text(id)
 	var s := 30 if play else LABEL_SIZE

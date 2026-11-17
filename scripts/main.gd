@@ -346,6 +346,11 @@ func _ready() -> void:
 		begin()   # a retry goes straight into the run
 	else:
 		hud.menu.open(progression.level, LEVEL_CHOICE)
+		if not debug:
+			# The music plays on the title screen too. (In a browser it can't be
+			# heard until the first press: the page's audio wake script then
+			# lets it start.)
+			_start_music()
 
 
 func score() -> int:
