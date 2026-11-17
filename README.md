@@ -168,7 +168,7 @@ run upside down.
   white flash at its finale's strike (while she's golden, PERFECT chains charge double: the bolt
   glows gold with a gold rim, gold sparks rise off it, and each gain pops
   bigger with a gold ring); the level; the level bar as a katana (a straight, level grip: yellow
-  wrap over black, black diamonds between; a black guard edge-on; the blade straight for its first 40%, then curving up toward
+  wrap over black, black diamonds between; a black guard edge-on; the blade straight for its first 20%, then curving up toward
   the tip, a temper line along it; the whole katana pulses with each kill) whose blade fills from the guard
   to the tip (grey: this chain's kills so far; gold: PERFECT's bonus growing
   in, sparks off its edge; grey pieces breaking off: a dropped chain's lost
