@@ -20,7 +20,8 @@ const BLADE := Vector2(330, 16)
 const TIP := 24.0            # the point (kissaki): pixels at the end where the edge sweeps up to the spine
 # The grip is straight and level; the blade leaves the guard level too and
 # curves gently up from there to the tip.
-const SORI := 16.0           # how far the tip rises (pixels)
+const SORI := 20.0           # how far the tip rises (pixels)
+const STRAIGHT := 0.4        # the first part of the blade that stays straight (of its length); it curves after
 const TAPER := 0.15          # the blade narrows this much (of its width) from the guard to the point
 const STEEL := Color(0.92, 0.94, 1.0, 0.95)       # counted
 const PENDING := Color(0.6, 0.62, 0.68, 0.8)      # this chain's kills, not yet counted
@@ -55,8 +56,10 @@ const WRAP_STEP := 15.0       # one diamond's length (pixels)
 # drains back to the new level's start.
 const GLEAM_TIME := 0.35
 const NEAR_FULL := 0.8
-const LEVEL_UP_TIME := 1.0
-const LEVEL_UP_FLASH := 0.45   # seconds the whole blade stays lit before draining
+const LEVEL_UP_TIME := 0.6
+const LEVEL_UP_FLASH := 0.22   # seconds the whole blade stays lit before draining
+const LEVEL_UP_SWELL := 0.2    # seconds the katana swells and settles
+const HIT_PULSE := 0.15        # each kill in a chain: the whole katana pulses this long
 
 # The power-up bolt, left of the level.
 const BOLT_SIZE := Vector2(36, 54)
@@ -92,6 +95,7 @@ var _latest_level := 1      # the real level (shown once a chain's result is don
 var _level_up := -1.0       # seconds into the level-up (-1 = none)
 var _bits: Array = []       # [pos, vel, life, max_life, colour]: sparks off the blade
 var _edge_timer := 0.0
+var _hit := 0.0   # 1 on a kill, easing to 0
 var _blade_arcs: Array[PackedVector2Array] = []   # lightning on the katana (level-up / about to)
 
 var _charge := 0.0
@@ -150,6 +154,7 @@ func _process(delta: float) -> void:
 		b[2] -= delta
 	_bits = _bits.filter(func(b: Array) -> bool: return b[2] > 0.0)
 	_pop = maxf(_pop - delta / POP_TIME, 0.0)
+	_hit = maxf(_hit - delta / HIT_PULSE, 0.0)
 	_charge_pop = maxf(_charge_pop - delta / 0.2, 0.0)
 	_boost_ring = maxf(_boost_ring - delta / 0.45, 0.0)
 	_discharge = maxf(_discharge - delta / 0.4, 0.0)
@@ -171,8 +176,13 @@ func _process(delta: float) -> void:
 func set_progress(lv: int, bar: float, bar_size: float, pending: int) -> void:
 	_bar = bar
 	_size = maxf(bar_size, 0.001)
+	if pending > _pending:
+		_hit = 1.0   # a kill: the whole katana pulses
 	_pending = pending
 	_latest_level = lv
+	if not _result.is_empty() and lv > int(_result["level"]):
+		# This chain levelled up: no result act, the level-up plays at once.
+		_result = {}
 	_show_level(_result["level"] if not _result.is_empty() else lv)
 
 
@@ -246,14 +256,14 @@ func _strike_blade_arcs() -> void:
 	_blade_arcs.clear()
 	var w := BLADE.x
 	if _level_up >= 0.0 and _level_up < LEVEL_UP_TIME * 0.8:
-		for n in 6:
-			var x := _rng.randf_range(0.0, w)
+		for n in 8:   # (the whole katana: grip too)
+			var x := _rng.randf_range(_hilt_left(), w)
 			var up := _rng.randf() < 0.5
 			var a := Vector2(x, _top(x) if up else _bottom(x))
 			var b := a + Vector2(_rng.randf_range(-40.0, 40.0), _rng.randf_range(-34.0, -14.0) if up else _rng.randf_range(14.0, 34.0))
 			_blade_arcs.append(_zigzag(a, b, 6, 7.0))
 		for n in 2:   # and along it
-			var x0 := _rng.randf_range(0.0, w - 80.0)
+			var x0 := _rng.randf_range(_hilt_left(), w - 80.0)
 			_blade_arcs.append(_zigzag(Vector2(x0, _centre(x0)), Vector2(x0 + 80.0, _centre(x0 + 80.0)), 8, 6.0))
 	elif _will_level():
 		for n in 2:
@@ -311,7 +321,10 @@ func _growing_edge() -> float:
 ## the blade narrowing a little toward the point. x: pixels along the blade
 ## (negative: the hilt).
 func _arc(x: float) -> float:
-	return -SORI * pow(maxf(x, 0.0) / BLADE.x, 2.0)   # (0 along the grip: it's level)
+	# Level along the grip and the first STRAIGHT of the blade, then curving
+	# up, more and more toward the tip (it leaves the straight part smoothly).
+	var t := maxf(x / BLADE.x - STRAIGHT, 0.0) / (1.0 - STRAIGHT)
+	return -SORI * t * t
 
 
 func _spine(x: float) -> float:
@@ -504,6 +517,24 @@ func _draw_hilt() -> void:
 	draw_colored_polygon(disc, HILT_BLACK)
 	# The collar, where the blade leaves the guard.
 	draw_colored_polygon(_band(-HABAKI, 0.0, BLADE.y + 2.0), HABAKI_COLOUR)
+
+
+## Over the whole katana (grip and guard as well as the blade): the level-up's
+## white flash and gold glow, and a faint flash with each kill.
+func _draw_whole_glow() -> void:
+	var grip0 := _hilt_left()
+	var grip := _band(grip0, 0.0, BLADE.y + 3.0)
+	var outline := _band(grip0, 0.0, BLADE.y + 3.0)
+	outline.append(outline[0])
+	if _level_up >= 0.0:
+		var flash := 1.0 - clampf(_level_up / (LEVEL_UP_FLASH + 0.1), 0.0, 1.0)
+		if flash > 0.0:
+			draw_colored_polygon(grip, Color(1, 1, 1, 0.8 * flash))
+		var glow := 1.0 - clampf(_level_up / LEVEL_UP_TIME, 0.0, 1.0)
+		draw_polyline(outline, Color(STREAK_GOLD, 0.55 * glow), 10.0 * glow + 2.0, true)
+	if _hit > 0.0:
+		draw_colored_polygon(grip, Color(1, 1, 1, 0.18 * _hit))
+		_fill(0.0, BLADE.x, Color(1, 1, 1, 0.18 * _hit))
 
 
 func _hilt_left() -> float:
@@ -702,18 +733,19 @@ func _draw() -> void:
 	# A level-up swells the level and the whole katana for a moment.
 	var swell := 0.0
 	if _level_up >= 0.0:
-		swell = sin(clampf(_level_up / 0.35, 0.0, 1.0) * PI)
+		swell = sin(clampf(_level_up / LEVEL_UP_SWELL, 0.0, 1.0) * PI)
 	var lv := _level_text()
 	var lv_w := FONT.get_string_size(lv, HORIZONTAL_ALIGNMENT_LEFT, -1, LEVEL_SIZE).x
 	var lv_at := Vector2(_hilt_left() - GAP_LEVEL - lv_w / 2.0, BLADE.y / 2.0)
-	draw_set_transform(lv_at, 0.0, Vector2.ONE * (1.0 + 0.45 * swell))
+	draw_set_transform(lv_at, 0.0, Vector2.ONE * (1.0 + 0.28 * swell))
 	var lv_col := Color(1, 1, 1, 0.85).lerp(STREAK_GOLD, clampf(1.0 - _level_up / LEVEL_UP_TIME, 0.0, 1.0) if _level_up >= 0.0 else 0.0)
 	draw_string(FONT, Vector2(-lv_w / 2.0, LEVEL_SIZE * 0.36), lv, HORIZONTAL_ALIGNMENT_LEFT, -1, LEVEL_SIZE, lv_col)
 	var c := Vector2((_hilt_left() + BLADE.x) / 2.0, BLADE.y / 2.0)
-	var sc := 1.0 + 0.08 * swell
+	var sc := 1.0 + 0.08 * swell + 0.025 * _hit
 	draw_set_transform(c * (1.0 - sc), 0.0, Vector2.ONE * sc)
 	_draw_hilt()
 	_draw_blade()
+	_draw_whole_glow()
 	_draw_blade_arcs()
 	draw_set_transform(Vector2.ZERO)
 	for b in _bits:

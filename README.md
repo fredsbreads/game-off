@@ -169,16 +169,16 @@ run upside down.
   glows gold with a gold rim, gold sparks rise off it, and each gain pops
   bigger with a gold ring); the level; the level bar as a katana (a straight, level grip: yellow
   wrap over black, black diamonds between; a black guard edge-on, a pale
-  gold collar; the blade curving gently up from the guard, a temper line
-  along it) whose blade fills from the guard
+  gold collar; the blade straight for its first 40%, then curving up toward
+  the tip, a temper line along it; the whole katana pulses with each kill) whose blade fills from the guard
   to the tip (grey: this chain's kills so far; gold: PERFECT's bonus growing
   in, sparks off its edge; grey pieces breaking off: a dropped chain's lost
   half; a shine sweeps it as a chain is added; a glint runs along it once
   80% full; once this chain's kills would fill it, they glow pulsing gold
   and lightning crackles along the blade (finishing the chain levels up);
-  a level-up flashes it white, swells it, wraps it in lightning, bursts
-  sparks off it and pops the level in gold before the blade drains to the
-  new level). The bolt sits out toward the left edge and the streak toward
+  a level-up plays the moment the chain counts (0.6 s): the whole katana
+  flashes white, swells, is wrapped in lightning, bursts sparks and pops
+  the level in gold before the blade drains to the new level). The bolt sits out toward the left edge and the streak toward
   the right, the level and katana centred between them. A streak finisher's
   or the power-up finale's kill counts on the streak once that's over;
   and the Flawless Streak, which pops with every kill (bigger, with a ring, at
