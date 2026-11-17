@@ -181,7 +181,7 @@ const CLASH_PAUSE_FACTOR := 1.5    # the freeze after a clash is this much longe
 const CLASH_BEAT := 0.12
 const CLASH_REAPPEAR := 0.0  # the knight shows at her new spot this soon (the clash plays on behind)
 const CLASH_ZOOM := 0.05   # how much closer a clash (and a teleporter's last hit) zooms at its peak (0.05 = 5 %)
-const CLASH_FLASH := Color(1, 1, 1, 0.22)
+const CLASH_FLASH := Color(1, 1, 1, 0.11)
 var _pause_min := KILL_PAUSE_MIN
 var _drop_pounce := false            # a chain just dropped: check for a knight across
 var _cut_pending := false
