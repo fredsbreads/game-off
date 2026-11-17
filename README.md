@@ -95,7 +95,9 @@ run upside down.
   (`_strands_by_knight` in `scripts/patterns.gd`). Finishing a chain always
   leaves you clear of her.
 - **The ninja** (from level 10, `scripts/ninja.gd`), a man: everything the
-  knight does, he does too (the same hits, blinks and duel rules, his own art).
+  knight does, he does too (the same hits, blinks and duel rules, his own art,
+  drawn a little bigger, with cyan lightning where hers is green). If two
+  teleporters would strike at once, a ninja can be either of them.
   He also watches straight ahead: while she's in his row with him no further
   than her forward teleport reaches, he drops into his stance (hand on his
   sword) with an alert (the knight's swish, higher: `NINJA_ALERT_PITCH`). Run
@@ -190,7 +192,7 @@ A bar above the ceiling row fills as you chain kills; filling it levels you up.
 - Enemy: "Martial Hero 3" asset pack (CC0, see `assets/sprites/martial_hero/License.txt`).
 - Knight: "Hero Knight" asset pack (CC0, see `assets/sprites/hero_knight/License.txt`); her lightning is the Frostwindz pack recoloured green.
 - Knight wind-up sound: "Sword blade swish" from Mixkit (same licence), in `assets/sounds/knight_warn.ogg`.
-- Ninja: "Martial Hero 2" asset pack (CC0, see `assets/sprites/ninja/License.txt`).
+- Ninja: "Martial Hero 2" asset pack (CC0, see `assets/sprites/ninja/License.txt`), his red mask recoloured to his clothes' blue; his lightning is the Frostwindz pack recoloured cyan.
 - Knight kill sound: "Samurai sword impact" from Mixkit (same licence), the impact only (the build-up cut off), in `assets/sounds/knight_kill.ogg`.
 - Clash sound: "Heavy sword smashes metal" from Mixkit (same licence as the other Mixkit sounds), the crash only, in `assets/sounds/clash.ogg`.
 - Lightning effects: "Pixel Art Skill Animations - Lightning" by Frostwindz (https://frostwindz.itch.io/), recoloured red, in `assets/vfx`.

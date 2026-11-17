@@ -25,11 +25,25 @@ const BOLT_SHEETS := [
 	preload("res://assets/vfx/lightning_5.png"), preload("res://assets/vfx/lightning_6.png"),
 ]
 const BOLT_FRAMES := [4, 4, 5, 5, 4, 8]
-# The knight's lightning: the same strikes and sparks, green.
-const BOLT_SHEETS_GREEN := {
-	Bolt.STRIKE: preload("res://assets/vfx/lightning_3_green.png"),
-	Bolt.SPARKS: preload("res://assets/vfx/lightning_6_green.png"),
+# The teleporters' lightning: the same strikes and sparks, the knight's green,
+# the ninja's cyan. A bolt's `green` argument: false (hers), true or "green",
+# or "cyan".
+const BOLT_SHEETS_TINTED := {
+	"green": {
+		Bolt.STRIKE: preload("res://assets/vfx/lightning_3_green.png"),
+		Bolt.SPARKS: preload("res://assets/vfx/lightning_6_green.png"),
+	},
+	"cyan": {
+		Bolt.STRIKE: preload("res://assets/vfx/lightning_3_cyan.png"),
+		Bolt.SPARKS: preload("res://assets/vfx/lightning_6_cyan.png"),
+	},
 }
+
+
+static func _tint(green: Variant) -> String:
+	if green is String:
+		return green
+	return "green" if green else ""
 const SPARK_FRAMES := [0, 1, 2, 3, 4, 5]   # the small bolts in SPARKS with something in them
 const BOLT_LENGTH := 211.0   # pixels the THIN / THICK bolts span across their frame
 
@@ -47,7 +61,7 @@ var bolt_alpha := 1.0   # lightning fades with her as she dissolves
 ## `first`: start at this frame (to play only the end of an animation).
 ## `hold`: a frame to stay on for `hold_time` seconds before playing on
 ## (-1: none).
-func bolt(kind: int, pos: Vector2, angle := 0.0, size := Vector2.ONE, fps := 20.0, first := 0, green := false, hold := -1, hold_time := 0.0) -> void:
+func bolt(kind: int, pos: Vector2, angle := 0.0, size := Vector2.ONE, fps := 20.0, first := 0, green: Variant = false, hold := -1, hold_time := 0.0) -> void:
 	var s := _bolt_sprite(kind, pos, angle, size, green)
 	s.frame = first
 	_items.append({"kind": "anim", "t": 0.0, "node": s, "fps": fps, "first": first,
@@ -61,7 +75,7 @@ func bolt_between(kind: int, a: Vector2, b: Vector2, thickness := 1.2, fps := 20
 
 
 ## A strike from `a` that bursts at `b` (the teleport look).
-func strike(a: Vector2, b: Vector2, green := false, fps := 18.0) -> void:
+func strike(a: Vector2, b: Vector2, green: Variant = false, fps := 18.0) -> void:
 	var d := b - a
 	var sy := maxf(d.length(), 40.0) / 200.0
 	# The strike runs down its frame with the burst near the bottom: turn the
@@ -73,10 +87,12 @@ func strike(a: Vector2, b: Vector2, green := false, fps := 18.0) -> void:
 const STRIKE_BURST_Y := 215.0   # pixels down the STRIKE frame where its burst is
 
 
-func _bolt_sprite(kind: int, pos: Vector2, angle: float, size: Vector2, green := false) -> Sprite2D:
+func _bolt_sprite(kind: int, pos: Vector2, angle: float, size: Vector2, green: Variant = false) -> Sprite2D:
 	var s := Sprite2D.new()
-	s.texture = BOLT_SHEETS_GREEN[kind] if green and BOLT_SHEETS_GREEN.has(kind) else BOLT_SHEETS[kind]
-	if not green:
+	var tint := _tint(green)
+	var tinted: Dictionary = BOLT_SHEETS_TINTED.get(tint, {})
+	s.texture = tinted[kind] if tinted.has(kind) else BOLT_SHEETS[kind]
+	if tint == "":
 		s.material = Palette.sprite_material()   # her colour (pink from level 10)
 	s.hframes = BOLT_FRAMES[kind]
 	s.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST

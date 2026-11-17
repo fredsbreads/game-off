@@ -66,6 +66,7 @@ const KNIGHT_ART := {
 	"swings": CLASH_SWINGS, "by_pose": CLASH_BY_POSE,
 	"windup_anim": "attack", "windup_frame": WINDUP_FRAME,
 	"attack_start": K_ATTACK_START,
+	"lightning": "green", "outline": SLASH_OUTLINE,
 }
 ## The art in use (see KNIGHT_ART; the ninja sets his own before _ready).
 var art: Dictionary = KNIGHT_ART
@@ -102,6 +103,11 @@ func _part_material(part: int) -> ShaderMaterial:
 	m.set_shader_parameter("white_part", part)
 	return m
 const WINDUP_FRAME := 1             # sword raised, from her attack animation
+
+
+## Her lightning's colour (Fx: "green"; the ninja's "cyan").
+func lightning() -> String:
+	return art["lightning"]
 
 
 func hits_left() -> int:
@@ -242,7 +248,7 @@ func _leave_ghost(beat := 0.0, her_pose := 0) -> void:
 		s.flip_h = true
 		s.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		var mat := _part_material(part)
-		mat.set_shader_parameter("outline_color", SLASH_OUTLINE)
+		mat.set_shader_parameter("outline_color", art["outline"])
 		mat.set_shader_parameter("glint", 1.0)
 		s.material = mat
 		holder.add_child(s)
@@ -318,7 +324,7 @@ func slash(her_x: float, side := 1.0) -> void:
 		_sprite.frame = art["kill_body_from"].get(kill_frame, kill_frame)
 		_sprite.pause()
 		for m in [_material, _arc.material]:
-			m.set_shader_parameter("outline_color", SLASH_OUTLINE)
+			m.set_shader_parameter("outline_color", art["outline"])
 			m.set_shader_parameter("glint", 1.0)
 		# Her body over the player (and the player's effects) for the killing blow; the arc
 		# stays behind.

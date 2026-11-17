@@ -771,7 +771,7 @@ func _step() -> void:
 				if not others.is_empty():
 					var back: Knight = others[0]
 					var from := back.pounce(player.x, player.row, -1.0)
-					fx.strike(from, Vector2(back.tile_x * Rules.TILE, Rules.body_center_y(back.row)), true, KILL_STRIKE_FPS)
+					fx.strike(from, Vector2(back.tile_x * Rules.TILE, Rules.body_center_y(back.row)), back.lightning(), KILL_STRIKE_FPS)
 					_second_killer = back
 				k.slash(player.x)   # the same killing blow as when the knight teleports to the player
 				_warn_sound.play(WARN_PEAK)
@@ -1264,6 +1264,8 @@ func _prewarm() -> void:
 	for kind in Fx.Bolt.values():
 		warm.bolt(kind, at)
 	warm.bolt(Fx.Bolt.SPARKS, at, 0.0, Vector2.ONE, 20.0, 0, true)
+	warm.bolt(Fx.Bolt.SPARKS, at, 0.0, Vector2.ONE, 20.0, 0, "cyan")
+	warm.strike(at - Vector2(100, 0), at, "cyan")
 	warm.text(at, "PERFECT", 30, Color.WHITE)
 	var plain := Fx.new()   # blood / sparks without her colour material
 	view.add_child(plain)
@@ -1391,7 +1393,7 @@ func _knights_strike(ks: Array[Knight]) -> void:
 	var front: Knight = ks[0] if ks[0].tile_x >= ks[1].tile_x else ks[1]
 	var back: Knight = ks[1] if front == ks[0] else ks[0]
 	var from := back.pounce(player.x, player.row, -1.0)
-	fx.strike(from, Vector2(back.tile_x * Rules.TILE, Rules.body_center_y(back.row)), true, KILL_STRIKE_FPS)
+	fx.strike(from, Vector2(back.tile_x * Rules.TILE, Rules.body_center_y(back.row)), back.lightning(), KILL_STRIKE_FPS)
 	_second_killer = back
 	_knight_strikes(front)
 
@@ -1461,7 +1463,7 @@ func _update_knight_threats() -> void:
 func _knight_strikes(k: Knight) -> void:
 	var from := k.pounce(player.x, player.row)
 	# Slower than a teleport, so it's still there through the death freeze.
-	fx.strike(from, Vector2(k.tile_x * Rules.TILE, Rules.body_center_y(k.row)), true, KILL_STRIKE_FPS)
+	fx.strike(from, Vector2(k.tile_x * Rules.TILE, Rules.body_center_y(k.row)), k.lightning(), KILL_STRIKE_FPS)
 	# The knight's swish lands with the slash: skip to its peak if it isn't there yet.
 	if not _warn_sound.playing or _warn_sound.get_playback_position() < WARN_PEAK:
 		_warn_sound.play(WARN_PEAK)
@@ -1599,7 +1601,7 @@ func _clash(knight: Knight) -> void:
 	var to := Vector2(knight.tile_x * Rules.TILE, Rules.body_center_y(knight.row))
 	var reappear := func() -> void:
 		if is_instance_valid(knight) and state == State.PLAYING:
-			fx.strike(from, to, true)   # exactly her teleport's strike, in green
+			fx.strike(from, to, knight.lightning())   # exactly her teleport's strike, in her colour (the ninja's cyan)
 	if CLASH_REAPPEAR > 0.0:
 		get_tree().create_timer(CLASH_REAPPEAR).timeout.connect(reappear)
 	else:
