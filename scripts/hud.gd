@@ -205,7 +205,7 @@ func _ready() -> void:
 	_rotate_font = FontVariation.new()
 	_rotate_font.base_font = preload("res://assets/fonts/RussoOne-Regular.ttf")
 	_rotate_font.fallbacks = [preload("res://assets/fonts/NotoSansJP-shrug.ttf")]
-	# A red frog beside the message, facing right, croaking now and then
+	# A red frog beside the message, facing south-east, croaking now and then
 	# (assets/sprites/frog_croak_red.png: four 32 px frames).
 	_rotate_sprite = AnimatedSprite2D.new()
 	var frames := SpriteFrames.new()
@@ -219,7 +219,7 @@ func _ready() -> void:
 	_rotate_sprite.sprite_frames = frames
 	_rotate_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_rotate_sprite.scale = Vector2(8, 8)
-	_rotate_sprite.offset = Vector2(0, -7)   # (the frog sits low in its frames: centre it in the glow)
+	_rotate_sprite.offset = Vector2(0.5, -9)   # (the frog's pixels centre at (15.5, 25) in its 32 px frames: put that on the glow's centre)
 	_rotate_sprite.play()
 	_rotate.add_child(_rotate_sprite)
 
