@@ -15,19 +15,18 @@ extends Knight
 ## Art: "Martial Hero 2" (CC0), assets/sprites/ninja.
 
 const N_IDLE := preload("res://assets/sprites/ninja/idle.png")
-const N_RUN := preload("res://assets/sprites/ninja/run.png")           # frame 6 (both feet down, hand on his sword): his stance
+const N_STANCE := preload("res://assets/sprites/ninja/stance.png")     # his stance: the last frame of "Run" (both feet down, hand on his sword), lowered onto the ground
 const N_ATTACK := preload("res://assets/sprites/ninja/attack.png")     # "Attack1": his clash swings
 const N_ATTACK2 := preload("res://assets/sprites/ninja/attack2.png")   # "Attack2": the killing blow
 const N_TAKE_HIT := preload("res://assets/sprites/ninja/take_hit.png")
 const N_DEATH := preload("res://assets/sprites/ninja/death.png")
-const N_STANCE_FRAME := 6
 
 const NINJA_ART := {
 	"frame": Vector2i(200, 200), "feet": Vector2(100, 128), "scale": 2.1,
 	"anims": [["idle", N_IDLE, 5.0, true], ["death", N_DEATH, 12.0, false],
 		["attack", N_ATTACK, 14.0, false], ["kill", N_ATTACK2, 14.0, false],
 		["hit", N_TAKE_HIT, 12.0, false, 3],
-		["stance", N_RUN, 1.0, false, 1, N_STANCE_FRAME]],
+		["stance", N_STANCE, 1.0, false, 1]],
 	"kill_frame": 2, "kill_body_from": {},
 	"swings": [
 		{"sheet": N_ATTACK, "frames": [1, 2, 3], "hold": 2, "body_from": {}},
