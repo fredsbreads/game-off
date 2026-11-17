@@ -1214,6 +1214,10 @@ func _finisher_level_up(grade: String) -> void:
 	var body := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row))
 	fx.bolt(Fx.Bolt.RING, body, randf() * TAU, Vector2.ONE * 2.2, 12.0)
 	_end_chain(grade)   # the level-up (its jingle, the bar)
+	# The flawless count goes up now, with the level-up's sound and the
+	# katana's bump (not after the hold that follows).
+	_streak_shown = sweep
+	hud.set_streak(_streak_shown)
 
 
 ## Testing colours: the C key switches her level-10 colour to the next one
