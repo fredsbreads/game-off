@@ -182,6 +182,8 @@ const CLASH_BEAT := 0.12
 const CLASH_REAPPEAR := 0.0  # the knight shows at her new spot this soon (the clash plays on behind)
 const CLASH_ZOOM := 0.05   # how much closer a clash (and a teleporter's last hit) zooms at its peak (0.05 = 5 %)
 const CLASH_FLASH := Color(1, 1, 1, 0.11)
+const GREY_BRIDGE := 0.15   # the chain's grey holds this long after a freeze ends (her teleport to the next kill)
+var _grey_bridge := 0.0
 var _pause_min := KILL_PAUSE_MIN
 var _drop_pounce := false            # a chain just dropped: check for a knight across
 var _cut_pending := false
@@ -863,7 +865,14 @@ func _update_pause_visuals() -> void:
 	var paused := state == State.PLAYING and _hitstop > 0.0
 	var flashing := paused and INVERT_FLASH and _pause_elapsed < INVERT_TIME
 	var chain_pause := paused and (_pause_is_chain or _finishing or _finale_hold)   # the finishers too
-	freeze_effect.set_state(1.0 if flashing else 0.0, 1.0 if chain_pause and not flashing else 0.0)
+	# The grey stays on through her teleport between two kills of a chain
+	# (a few frames), so it doesn't blink off and on with every kill.
+	if chain_pause:
+		_grey_bridge = GREY_BRIDGE
+	else:
+		_grey_bridge = maxf(_grey_bridge - get_process_delta_time(), 0.0)
+	var grey := chain_pause or (state == State.PLAYING and chain > 0 and _grey_bridge > 0.0)
+	freeze_effect.set_state(1.0 if flashing else 0.0, 1.0 if grey and not flashing else 0.0)
 	fx.frozen = paused and _pause_elapsed >= FX_FREEZE_AFTER
 	blood_fx.frozen = fx.frozen
 	text_fx.frozen = fx.frozen
