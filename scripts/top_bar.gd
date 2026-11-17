@@ -16,9 +16,9 @@ extends Control
 const FONT := preload("res://assets/fonts/RussoOne-Regular.ttf")
 
 # The blade.
-const BLADE := Vector2(300, 14)
-const TIP := 34.0            # pixels at the end that taper to the point
-const SORI := 5.0            # the blade's upward curve, pixels at the tip
+const BLADE := Vector2(420, 18)
+const TIP := 46.0            # pixels at the end that taper to the point
+const SORI := 6.0            # the blade's upward curve, pixels at the tip
 const STEEL := Color(0.92, 0.94, 1.0, 0.95)       # counted
 const PENDING := Color(0.6, 0.62, 0.68, 0.8)      # this chain's kills, not yet counted
 const EMPTY := Color(0.55, 0.6, 0.7, 0.16)
@@ -31,18 +31,23 @@ const CRUMBLE_FALL := 20.0
 const RESULT_ACT := 0.35
 const RESULT_HOLD := 0.2
 
-# The hilt, left of the blade.
-const HABAKI := 6.0
-const TSUBA := Vector2(7, 32)
-const TSUKA := 66.0
-const KASHIRA := 5.0
-const GOLD := Color(0.86, 0.68, 0.3)
-const WRAP := Color(0.62, 0.05, 0.1)       # the handle's wrap (her red)
-const WRAP_UNDER := Color(0.9, 0.87, 0.8)  # what shows between the wraps
+# The hilt, left of the blade: her own katana's (see her sprites): a thin
+# black guard, a yellow band with black squares, then the black grip.
+const TSUBA := Vector2(6, 34)
+const TSUKA := 92.0
+const YELLOW_PART := 0.45     # of the grip, from the guard
+const HILT_YELLOW := Color(1.0, 0.9, 0.15)
+const HILT_BLACK := Color(0.03, 0.03, 0.04)
+const CHECK := 4.0            # the black squares' size (pixels)
 
 # The power-up bolt, left of the level.
-const BOLT_SIZE := Vector2(30, 46)
-const BOLT_POINTS := [Vector2(19, 0), Vector2(2, 26), Vector2(13, 26), Vector2(8, 46), Vector2(28, 17), Vector2(17, 17), Vector2(23, 0)]
+const BOLT_SIZE := Vector2(36, 54)
+const BOLT_POINTS := [Vector2(23, 0), Vector2(2, 31), Vector2(16, 31), Vector2(10, 54), Vector2(34, 20), Vector2(20, 20), Vector2(28, 0)]
+# Space between the pieces (pixels): bolt | LV | hilt ... tip | FLAWLESS.
+const GAP_BOLT := 40.0
+const GAP_LEVEL := 22.0
+const GAP_STREAK := 44.0
+const LEVEL_SIZE := 24
 const CHARGE_COLOR := Color(0.95, 0.15, 0.2)   # her red (her colour once she has it: Palette.tint)
 
 # The flawless streak, right of the tip.
@@ -248,37 +253,34 @@ func _draw_result() -> void:
 
 func _draw_hilt() -> void:
 	var mid := BLADE.y / 2.0
-	# Habaki (the gold collar), tsuba (the guard), tsuka (the wrapped handle), kashira (the cap).
-	draw_rect(Rect2(-HABAKI, -1.0, HABAKI, BLADE.y + 2.0), GOLD)
-	var tsuba := Rect2(-HABAKI - TSUBA.x, mid - TSUBA.y / 2.0, TSUBA.x, TSUBA.y)
-	draw_rect(tsuba, Color(0.1, 0.08, 0.08))
-	draw_rect(tsuba, GOLD, false, 1.5)
-	var h := BLADE.y * 0.95
-	var handle := Rect2(tsuba.position.x - TSUKA, mid - h / 2.0, TSUKA, h)
-	draw_rect(handle, WRAP_UNDER)
-	# The wrap: bands crossing over, leaving diamonds.
-	var step := 11.0
-	var x := handle.position.x
-	while x < handle.end.x - 0.1:
-		var x1 := minf(x + step, handle.end.x)
-		var cx := (x + x1) / 2.0
-		draw_colored_polygon(PackedVector2Array([Vector2(x, handle.position.y), Vector2(x1, handle.position.y), Vector2(cx, mid)]), WRAP)
-		draw_colored_polygon(PackedVector2Array([Vector2(x, handle.end.y), Vector2(x1, handle.end.y), Vector2(cx, mid)]), WRAP)
-		x += step
-	draw_rect(handle, Color(0.15, 0.0, 0.02), false, 1.0)
-	draw_rect(Rect2(handle.position.x - KASHIRA, mid - h * 0.55, KASHIRA, h * 1.1), Color(0.18, 0.14, 0.12))
-	draw_rect(Rect2(handle.position.x - KASHIRA, mid - h * 0.55, KASHIRA, h * 1.1), GOLD, false, 1.0)
+	var tsuba := Rect2(-TSUBA.x, mid - TSUBA.y / 2.0, TSUBA.x, TSUBA.y)
+	var h := BLADE.y
+	var grip := Rect2(tsuba.position.x - TSUKA, mid - h / 2.0, TSUKA, h)
+	draw_rect(grip, HILT_BLACK)
+	# The yellow band by the guard, with black squares in a checker.
+	var yellow := Rect2(grip.end.x - TSUKA * YELLOW_PART, grip.position.y, TSUKA * YELLOW_PART, h)
+	draw_rect(yellow, HILT_YELLOW)
+	var row := 0
+	var y := yellow.position.y + 2.0
+	while y + CHECK <= yellow.end.y - 1.0:
+		var x := yellow.position.x + 3.0 + (CHECK * 1.5 if row % 2 == 1 else 0.0)
+		while x + CHECK <= yellow.end.x - 2.0:
+			draw_rect(Rect2(x, y, CHECK, CHECK), HILT_BLACK)
+			x += CHECK * 3.0
+		y += CHECK + 1.5
+		row += 1
+	draw_rect(tsuba, HILT_BLACK)
 
 
 func _hilt_left() -> float:
-	return -HABAKI - TSUBA.x - TSUKA - KASHIRA
+	return -TSUBA.x - TSUKA
 
 
 # --- the power-up bolt -------------------------------------------------------
 
 func _bolt_origin() -> Vector2:
-	var lv_w := FONT.get_string_size(_level_text(), HORIZONTAL_ALIGNMENT_LEFT, -1, 20).x
-	return Vector2(_hilt_left() - 12.0 - lv_w - 26.0 - BOLT_SIZE.x, BLADE.y / 2.0 - BOLT_SIZE.y / 2.0)
+	var lv_w := FONT.get_string_size(_level_text(), HORIZONTAL_ALIGNMENT_LEFT, -1, LEVEL_SIZE).x
+	return Vector2(_hilt_left() - GAP_LEVEL - lv_w - GAP_BOLT - BOLT_SIZE.x, BLADE.y / 2.0 - BOLT_SIZE.y / 2.0)
 
 
 func _bolt_poly(o: Vector2, scale_by := 1.0) -> PackedVector2Array:
@@ -312,7 +314,7 @@ func _strike_arcs() -> void:
 	var o := _bolt_origin()
 	var c := o + BOLT_SIZE / 2.0
 	for n in 3:
-		var a := c + Vector2.RIGHT.rotated(_rng.randf() * TAU) * _rng.randf_range(10.0, 18.0)
+		var a := c + Vector2.RIGHT.rotated(_rng.randf() * TAU) * _rng.randf_range(12.0, 22.0)
 		var b := a + (a - c).normalized().rotated(_rng.randf_range(-0.8, 0.8)) * _rng.randf_range(7.0, 13.0)
 		var pts := PackedVector2Array()
 		var nrm := (b - a).orthogonal().normalized()
@@ -373,14 +375,14 @@ func _streak_colour(n: int) -> Color:
 
 
 func _draw_streak() -> void:
-	var x := BLADE.x + 22.0
+	var x := BLADE.x + GAP_STREAK
 	var mid := BLADE.y / 2.0
 	var cap_col := _streak_colour(_streak)
-	draw_string(FONT, Vector2(x, mid - 12.0), "FLAWLESS", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(cap_col, 0.65))
-	var fs := 26
+	draw_string(FONT, Vector2(x, mid - 15.0), "FLAWLESS", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(cap_col, 0.65))
+	var fs := 30
 	var text := str(_streak)
 	var w := FONT.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
-	var centre := Vector2(x + w / 2.0, mid + 5.0)
+	var centre := Vector2(x + w / 2.0, mid + 7.0)
 	# The pop: bigger right after a kill (more at a milestone), easing back.
 	var pop := ease(_pop, 2.0) * (0.6 if _pop_big else 0.3)
 	if _break_t < 0.0 or _break_t > 0.25:
@@ -399,7 +401,7 @@ func _draw_streak() -> void:
 		var drop := 60.0 * t * t
 		var red := Color(1.0, 0.25, 0.3, 1.0 - t)
 		for side in [-1.0, 1.0]:
-			var piece_at := Vector2(x + ow / 2.0 + shake + side * 8.0 * t, mid + 5.0 + drop * (1.0 if side < 0.0 else 1.2))
+			var piece_at := Vector2(x + ow / 2.0 + shake + side * 8.0 * t, mid + 7.0 + drop * (1.0 if side < 0.0 else 1.2))
 			draw_set_transform(piece_at, side * 0.6 * t, Vector2.ONE)
 			draw_string(FONT, Vector2(-ow / 2.0, fs * 0.35), old, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(red, red.a * 0.6))
 		draw_set_transform(Vector2.ZERO)
@@ -409,7 +411,7 @@ func _draw_streak() -> void:
 
 ## How far it reaches left and right of its origin (for centring it).
 func extent() -> Vector2:
-	return Vector2(_bolt_origin().x, BLADE.x + 22.0 + 80.0)
+	return Vector2(_bolt_origin().x, BLADE.x + GAP_STREAK + 80.0)
 
 
 func _level_text() -> String:
@@ -419,8 +421,8 @@ func _level_text() -> String:
 func _draw() -> void:
 	_draw_bolt()
 	var lv := _level_text()
-	var lv_w := FONT.get_string_size(lv, HORIZONTAL_ALIGNMENT_LEFT, -1, 20).x
-	draw_string(FONT, Vector2(_hilt_left() - 12.0 - lv_w, BLADE.y / 2.0 + 7.0), lv, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color(1, 1, 1, 0.85))
+	var lv_w := FONT.get_string_size(lv, HORIZONTAL_ALIGNMENT_LEFT, -1, LEVEL_SIZE).x
+	draw_string(FONT, Vector2(_hilt_left() - GAP_LEVEL - lv_w, BLADE.y / 2.0 + LEVEL_SIZE * 0.36), lv, HORIZONTAL_ALIGNMENT_LEFT, -1, LEVEL_SIZE, Color(1, 1, 1, 0.85))
 	_draw_hilt()
 	_draw_blade()
 	_draw_streak()
