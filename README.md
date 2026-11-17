@@ -116,7 +116,7 @@ run upside down.
   (`AUTO_FINALE_FREEZE`, `AUTO_FINALE_ZOOM`, `AUTO_FINALE_CRACKLE`), then a big lightning strike, a
   full-screen flash and thunder (the hold is grey and crackling, like a
   freeze frame). No new chain is laid while it plays, so nothing pops in or
-  out; the next one comes in past the screen's edge (`AUTO_GAP_TILES`). The meter starts again from empty (the auto-chain
+  out, and anyone still on screen ahead is struck down by the final strike; the next one comes in past the screen's edge (`AUTO_GAP_TILES`). The meter starts again from empty (the auto-chain
   adds nothing to it). Its kills count for the bar and the streak, but
   the streak finisher only plays at the end of a chain she played herself.
   `CHARGE_*`, `_auto_*` in `scripts/main.gd`.

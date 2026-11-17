@@ -1071,6 +1071,16 @@ func _auto_finale_strike(grade: String) -> void:
 	_auto_ending = true
 	_end_chain(grade)   # (adds no charge: the meter starts again from empty)
 	_auto_ending = false
+	# Anyone still standing ahead of her on screen (on screen before it began)
+	# is struck down by it too (no points), so the screen is clear.
+	var right := cam.left() / Rules.TILE + CameraRig.VIEW_TILES + 2.0
+	for e in level.enemies:
+		if e.alive and e.tile_x > player.x and e.tile_x < right:
+			var pos := Vector2(e.tile_x * Rules.TILE, Rules.body_center_y(e.row))
+			fx.strike(pos + Vector2(0, -260.0 if e.row == Rules.Row.FLOOR else 260.0), pos)
+			fx.kill_burst(pos, 3)
+			blood_fx.blood(pos, 1.0, 20, BLOOD_BURST, 1.0 if e.row == Rules.Row.CEILING else -1.0)
+			e.die()
 	# A breather: nothing was laid during the auto-chain, and the next chain
 	# comes in well past the screen's right edge.
 	level.spawn_hold = false
