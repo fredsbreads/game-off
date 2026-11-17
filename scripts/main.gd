@@ -1026,7 +1026,8 @@ func _finisher(k: Enemy, grade: String) -> void:
 	# The whole thing the first time in a run; after that, the quick one. With
 	# Red (No Shift) picked, always the quick one (no colour changes to show).
 	var quick := _finished_before or Palette.keeps_red()
-	_finished_before = true
+	if not Palette.keeps_red():
+		_finished_before = true   # (a quick red one doesn't count: switching to a colour later still shows it in full once)
 	_fin_hop = FINISHER_QUICK_HOP if quick else FINISHER_HOP
 	_fin_strike_fps = 18.0 if quick else FINISHER_STRIKE_FPS
 	_fin_bolt_fps = FINISHER_QUICK_BOLT_FPS if quick else FINISHER_BOLT_FPS
