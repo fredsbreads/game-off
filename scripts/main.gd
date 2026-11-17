@@ -135,6 +135,7 @@ const STREAK_REWARD := 50
 # next chain.
 const CHARGE_FULL := 10
 const CHARGE_GAIN := {"PERFECT": 2, "CLEAN": 1}
+const CHARGE_GOLDEN_PERFECT := 4   # a PERFECT while she has her reward colour (golden)
 const AUTO_STEP := 0.1          # seconds between her auto-chain hops
 const AUTO_DUEL_STEP := 0.32    # ...after the first clash with a teleporter: the duel gets its weight
 const AUTO_DUEL_STEP_AGAIN := 0.18   # ...after her later clashes and her last hit (still more than a hop)
@@ -1716,7 +1717,10 @@ func _end_chain(grade: String, word: String = "") -> void:
 		if grade == "DROPPED":
 			_break_streak()   # a dropped chain ends the flawless streak
 		if not _auto and not _auto_ending:
-			_add_charge(int(CHARGE_GAIN.get(grade, 0)))
+			var gain := int(CHARGE_GAIN.get(grade, 0))
+			if grade == "PERFECT" and Palette.pink >= 1.0:
+				gain = CHARGE_GOLDEN_PERFECT   # golden: her perfect chains count double
+			_add_charge(gain)
 		if grade != "SINGLE":
 			var above := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row) - Rules.TILE * 1.4)
 			if player.row == Rules.Row.CEILING:

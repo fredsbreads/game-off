@@ -156,7 +156,8 @@ run upside down.
   `scripts/main.gd`; colours in `scripts/palette.gd` and
   `shaders/accent.gdshaderinc`.
 - **The auto-chain power-up**: a thin meter under the level bar fills as
-  chains end (CLEAN +1, PERFECT +2; full at 10; dropped and one-kill chains
+  chains end (CLEAN +1, PERFECT +2, a PERFECT while golden +4:
+  `CHARGE_GOLDEN_PERFECT`; full at 10; dropped and one-kill chains
   add nothing, and nothing drains it). Full = she's charged: her lightning
   ring loops around her (the "your move" freeze shows sparkles on her
   instead), the meter flashes. The meter is her red (her colour once she has
