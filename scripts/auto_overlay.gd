@@ -1,14 +1,11 @@
 class_name AutoOverlay
 extends Control
 ## While the power-up's auto-chain plays itself (main.gd _auto, through its
-## finale): a crackling frame of lightning round the screen in her colour,
-## "AUTO" slamming in at the start, and a small "AUTO" tag that stays. A press
-## while it runs (it's ignored) flares the frame and the tag, so it's clear
-## the game is playing this part.
+## finale): a crackling frame of lightning round the screen in her colour.
+## A press while it runs (it's ignored) flares it, so it's clear the game is
+## playing this part.
 
-const FONT := preload("res://assets/fonts/RussoOne-Regular.ttf")
 const RED := Color(0.95, 0.15, 0.2)   # her red (her colour once she has it: Palette.tint)
-const STAMP_TIME := 0.7
 const EDGE := 26.0                     # how far in the frame's glow reaches (pixels)
 
 var _active := false
@@ -91,20 +88,3 @@ func _draw() -> void:
 	for arc in _arcs:
 		draw_polyline(arc, Color(col, 0.5 * a), 6.0, true)
 		draw_polyline(arc, Color(1, 0.95, 0.95, minf(a, 1.0)), 1.6, true)
-	# "AUTO": slams in big at the start, then a small tag stays near the top.
-	if _active and _t < STAMP_TIME:
-		var k := _t / STAMP_TIME
-		var sc := lerpf(2.2, 1.0, ease(minf(k / 0.25, 1.0), 0.3))
-		var alpha := 1.0 - clampf((k - 0.6) / 0.4, 0.0, 1.0)
-		_draw_word("AUTO", Vector2(size.x / 2.0, size.y * 0.42), 64, sc, alpha, col)
-	var tag_a := _fade * (0.85 if _t >= STAMP_TIME * 0.6 or not _active else 0.0)
-	if tag_a > 0.0:
-		_draw_word("AUTO", Vector2(size.x / 2.0, size.y - 34.0), 26, 1.0 + 0.35 * _poke, tag_a, col)
-
-
-func _draw_word(word: String, at: Vector2, fs: int, sc: float, alpha: float, col: Color) -> void:
-	var w := FONT.get_string_size(word, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
-	draw_set_transform(at, 0.0, Vector2.ONE * sc)
-	draw_string_outline(FONT, Vector2(-w / 2.0, fs * 0.35), word, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, 8, Color(col.darkened(0.5), alpha))
-	draw_string(FONT, Vector2(-w / 2.0, fs * 0.35), word, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(1, 1, 1, alpha))
-	draw_set_transform(Vector2.ZERO)
