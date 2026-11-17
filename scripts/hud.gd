@@ -489,7 +489,7 @@ func _draw_backdrop() -> void:
 		_draw_glow_title(c, "PAUSED", 60, top + 62.0, view.x, a)
 		return
 	_draw_glow_title(c, "GAME OVER", 66, top + 64.0, view.x, a)
-	# The stats: big numbers over small labels, side by side.
+	# The stats: small labels over big numbers, side by side.
 	var font := ThemeDB.fallback_font
 	var col_w := 210.0
 	var x0 := (view.x - col_w * _over_stats.size()) / 2.0
@@ -499,9 +499,9 @@ func _draw_backdrop() -> void:
 		var value := str(_over_stats[i][0])
 		var label: String = _over_stats[i][1]
 		var vw := font.get_string_size(value, HORIZONTAL_ALIGNMENT_LEFT, -1, 46).x
-		c.draw_string(font, Vector2(cx - vw / 2.0, sy + 46.0), value, HORIZONTAL_ALIGNMENT_LEFT, -1, 46, Color(1, 1, 1, a))
 		var lw := font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
-		c.draw_string(font, Vector2(cx - lw / 2.0, sy + 74.0), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(1, 1, 1, 0.55 * a))
+		c.draw_string(font, Vector2(cx - lw / 2.0, sy + 20.0), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(1, 1, 1, 0.55 * a))   # (the label over its number)
+		c.draw_string(font, Vector2(cx - vw / 2.0, sy + 72.0), value, HORIZONTAL_ALIGNMENT_LEFT, -1, 46, Color(1, 1, 1, a))
 		if i > 0:   # thin dividers between them
 			var dx := x0 + col_w * i
 			c.draw_line(Vector2(dx, sy + 10.0), Vector2(dx, sy + 78.0), Color(1, 1, 1, 0.15 * a), 1.0)
