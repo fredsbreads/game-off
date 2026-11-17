@@ -20,6 +20,7 @@ const WIDTH := 700.0
 const TITLE_H := 64.0
 const LABEL_SIZE := 24
 const VALUE_W := 330.0   # the value's part of a row (on the right)
+const BUTTON_W := 300.0  # an action row's button (centred)
 
 const STEPS_VOLUME := [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
 const STEPS_SHAKE := [0.0, 0.25, 0.5, 0.75, 1.0]
@@ -93,7 +94,10 @@ func handle(event: InputEvent, pos: Vector2) -> void:
 		return
 	for i in _rows.size():
 		var r := _row_rect(i)
-		if r.grow_individual(0, ROW_GAP / 2.0, 0, ROW_GAP / 2.0).has_point(pos):
+		# A button (Flip Screen, Reset To Defaults, Back) only takes taps on the
+		# box drawn for it; a setting's row takes them anywhere along it.
+		var area := _button_rect(i) if _rows[i].has("action") else r.grow_individual(0, ROW_GAP / 2.0, 0, ROW_GAP / 2.0)
+		if area.has_point(pos):
 			_selected = i
 			# The value's left third steps back; anywhere else steps on.
 			var back: bool = _rows[i].has("key") and pos.x < r.end.x - VALUE_W + VALUE_W / 3.0 and pos.x >= r.end.x - VALUE_W
@@ -167,6 +171,12 @@ func _top() -> float:
 	return maxf((size.y - h) / 2.0, 8.0)
 
 
+## An action row's button: BUTTON_W wide, centred in its row.
+func _button_rect(i: int) -> Rect2:
+	var r := _row_rect(i)
+	return Rect2(Vector2(r.position.x + (r.size.x - BUTTON_W) / 2.0, r.position.y), Vector2(BUTTON_W, r.size.y))
+
+
 func _row_rect(i: int) -> Rect2:
 	var w := minf(WIDTH, size.x - 32.0)
 	return Rect2(Vector2((size.x - w) / 2.0, _top() + TITLE_H + i * (ROW_H + ROW_GAP)), Vector2(w, ROW_H))
@@ -187,8 +197,8 @@ func _draw() -> void:
 		var text_y := r.position.y + r.size.y / 2.0 + LABEL_SIZE * 0.35
 		if row.has("action"):
 			# A button, centred.
-			var bw := 300.0
-			var b := Rect2(Vector2(r.position.x + (r.size.x - bw) / 2.0, r.position.y), Vector2(bw, r.size.y))
+			var b := _button_rect(i)
+			var bw := BUTTON_W
 			draw_rect(b, Color(1, 1, 1, 0.2 if picked else 0.1))
 			draw_rect(b, Color(1, 1, 1, 0.95 if picked else 0.6), false, 2.0)
 			var w := font.get_string_size(row["label"], HORIZONTAL_ALIGNMENT_LEFT, -1, LABEL_SIZE).x
