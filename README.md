@@ -69,7 +69,9 @@ run upside down.
   and where you are when it fires.
 - A short cooldown of 0.2 s (12 frames) between teleports, shared by all of them; a kill resets it. A press of the other button during the cooldown fires as soon as it ends; pressing the same button again is ignored (`COOLDOWN_SECONDS` in `scripts/rules.gd`).
 - Every kill gets a short hit freeze. If another enemy is under one of your
-  markers, it becomes a 0.7 s "your move" pause (tap to skip).
+  markers, it becomes a 0.7 s "your move" pause (tap to skip), 0.01 s
+  shorter for each kill in the chain so far, down to 0.5 s
+  (`KILL_PAUSE_FLOOR`); after a clash it's 1.5x that, plus 0.12 s.
 - Each teleport has a marker: a small katana floating over its landing spot
   (the line on the floor/ceiling under it is the landing zone). When an enemy
   is in that teleport's range (touching the line), the katana turns red and
