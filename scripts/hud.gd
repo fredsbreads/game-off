@@ -27,12 +27,14 @@ var _chain_bar_bg: ColorRect
 var _chain_bar: ColorRect
 var _message: Label
 var _rotate: ColorRect
-var _rotate_label: Label
+var _rotate_font: FontVariation
 var _rotate_sprite: AnimatedSprite2D
 
 # Phones held sideways get this message instead of the game (in the
 # browser, upright play is the intended way; see export_presets.cfg).
-const PORTRAIT_MESSAGE := "Play in Portrait Mode.\nLock your Rotation.\n(Mobile browsers are weird ¯\\_(ツ)_/¯)"
+const PORTRAIT_TITLE := "PLAY IN PORTRAIT"
+const PORTRAIT_LINE := "Turn your phone upright and lock your rotation."
+const PORTRAIT_NOTE := "(Mobile browsers are weird ¯\\_(ツ)_/¯)"
 var _flash: ColorRect
 # The level-10 colour change: a glowing band sweeping across the screen.
 var _sweep: Control
@@ -193,18 +195,16 @@ func _ready() -> void:
 	add_child(options)
 	options.closed.connect(_on_options_closed)   # over everything but the "turn your phone" screen
 
-	_rotate = _rect(Color(0.05, 0.05, 0.07, 1))
+	# The "turn your phone" screen, in the title screen's look: its dark
+	# background, the heading in her red with a glow, her falling (with a red
+	# glow behind her) beside it. Drawn in _draw_rotate.
+	_rotate = _rect(Color(0, 0, 0, 0))
 	_rotate.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_rotate_label = _label(34, Vector2.ZERO)
-	_rotate_label.reparent(_rotate)
-	_rotate_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_rotate_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_rotate_label.text = PORTRAIT_MESSAGE
-	# The game's font has no ツ: this label's falls back to a tiny one that does.
-	var font := FontVariation.new()
-	font.base_font = preload("res://assets/fonts/RussoOne-Regular.ttf")
-	font.fallbacks = [preload("res://assets/fonts/NotoSansJP-shrug.ttf")]
-	_rotate_label.add_theme_font_override("font", font)
+	_rotate.draw.connect(_draw_rotate)
+	# The game's font has no ツ: it falls back to a tiny one that does.
+	_rotate_font = FontVariation.new()
+	_rotate_font.base_font = preload("res://assets/fonts/RussoOne-Regular.ttf")
+	_rotate_font.fallbacks = [preload("res://assets/fonts/NotoSansJP-shrug.ttf")]
 	# Her falling animation beside the message.
 	_rotate_sprite = AnimatedSprite2D.new()
 	var frames := SpriteFrames.new()
@@ -227,8 +227,7 @@ func _process(delta: float) -> void:
 	var view := get_viewport().get_visible_rect().size
 	if _rotate.visible:
 		_rotate_sprite.position = Vector2(view.x * 0.2, view.y * 0.5)
-		_rotate_label.position = Vector2(view.x * 0.36, 0)
-		_rotate_label.size = Vector2(view.x * 0.6, view.y)
+		_rotate.queue_redraw()
 	var right := view.x
 	_chain.position = Vector2(right - 220, 6)
 	_chain_bar_bg.position = Vector2(right - 200, 54)
@@ -482,12 +481,6 @@ func _draw_backdrop() -> void:
 	var bt := _band.end.y
 	c.draw_polygon(PackedVector2Array([Vector2(0, t - soft), Vector2(view.x, t - soft), Vector2(view.x, t), Vector2(0, t)]), PackedColorArray([clear, clear, dark, dark]))
 	c.draw_polygon(PackedVector2Array([Vector2(0, bt), Vector2(view.x, bt), Vector2(view.x, bt + soft), Vector2(0, bt + soft)]), PackedColorArray([dark, dark, clear, clear]))
-	# Red hairlines, brightest in the middle.
-	for y in [t, bt]:
-		var mid := Color(MainMenu.TITLE_RED, 0.75 * a)
-		var edge := Color(MainMenu.TITLE_RED, 0.0)
-		c.draw_polygon(PackedVector2Array([Vector2(0, y - 1), Vector2(view.x / 2.0, y - 1), Vector2(view.x / 2.0, y + 1), Vector2(0, y + 1)]), PackedColorArray([edge, mid, mid, edge]))
-		c.draw_polygon(PackedVector2Array([Vector2(view.x / 2.0, y - 1), Vector2(view.x, y - 1), Vector2(view.x, y + 1), Vector2(view.x / 2.0, y + 1)]), PackedColorArray([mid, edge, edge, mid]))
 	var top := t + BAND_PAD
 	if _backdrop_mode == "pause":
 		_draw_glow_title(c, "PAUSED", 60, top + 62.0, view.x, a)
@@ -702,3 +695,38 @@ func _rect(color: Color) -> ColorRect:
 	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(r)
 	return r
+
+
+## The "turn your phone" screen (phones held sideways).
+func _draw_rotate() -> void:
+	var c := _rotate
+	var v := c.size
+	c.draw_polygon(PackedVector2Array([Vector2.ZERO, Vector2(v.x, 0), v, Vector2(0, v.y)]),
+			PackedColorArray([MainMenu.BG_TOP, MainMenu.BG_TOP, MainMenu.BG_BOTTOM, MainMenu.BG_BOTTOM]))
+	# A soft red glow behind her, breathing.
+	var t := Time.get_ticks_msec() / 1000.0
+	var centre := Vector2(v.x * 0.2, v.y * 0.5)
+	for i in 10:
+		var k := 1.0 - i / 10.0
+		c.draw_circle(centre, 40.0 + 150.0 * k, Color(MainMenu.TITLE_RED, (0.035 + 0.01 * sin(t * 2.6)) * (1.0 - k * 0.5)))
+	# The words, centred in the space right of her.
+	var left := v.x * 0.38
+	var w := v.x * 0.58
+	var font: Font = menu.title_font
+	var hs := 56
+	while hs > 24 and font.get_string_size(PORTRAIT_TITLE, HORIZONTAL_ALIGNMENT_LEFT, -1, hs).x > w:
+		hs -= 2
+	var y := v.y * 0.5 - 30.0
+	var hw := font.get_string_size(PORTRAIT_TITLE, HORIZONTAL_ALIGNMENT_LEFT, -1, hs).x
+	var base := Vector2(left + (w - hw) / 2.0, y)
+	for i in 12:
+		c.draw_string(font, base + Vector2.RIGHT.rotated(i * TAU / 12.0) * 5.0, PORTRAIT_TITLE, HORIZONTAL_ALIGNMENT_LEFT, -1, hs, Color(MainMenu.TITLE_TEXT_RED, 0.07))
+	c.draw_string(font, base, PORTRAIT_TITLE, HORIZONTAL_ALIGNMENT_LEFT, -1, hs, MainMenu.TITLE_TEXT_RED)
+	var bs := 24
+	while bs > 14 and _rotate_font.get_string_size(PORTRAIT_LINE, HORIZONTAL_ALIGNMENT_LEFT, -1, bs).x > w:
+		bs -= 1
+	var lw := _rotate_font.get_string_size(PORTRAIT_LINE, HORIZONTAL_ALIGNMENT_LEFT, -1, bs).x
+	c.draw_string(_rotate_font, Vector2(left + (w - lw) / 2.0, y + 50.0), PORTRAIT_LINE, HORIZONTAL_ALIGNMENT_LEFT, -1, bs, Color.WHITE)
+	var ns := maxi(bs - 4, 12)
+	var nw := _rotate_font.get_string_size(PORTRAIT_NOTE, HORIZONTAL_ALIGNMENT_LEFT, -1, ns).x
+	c.draw_string(_rotate_font, Vector2(left + (w - nw) / 2.0, y + 88.0), PORTRAIT_NOTE, HORIZONTAL_ALIGNMENT_LEFT, -1, ns, Color(1, 1, 1, 0.5))
