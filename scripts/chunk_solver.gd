@@ -22,9 +22,10 @@ extends RefCounted
 ##   5. running on past a knight straight across from you (out of reach of
 ##      your across teleport) makes her teleport to you: you die
 ##   6. a knight you've hit is within a teleport of you while you run: same
-##   7. a ninja (knight group >= Patterns.NINJA_GROUP) straight ahead in your
-##      row, in your forward reach: running there NINJA_AGGRO_DELAY and he
-##      strikes; and once he's seen you there, coming back into it does at once
+##   7. a ninja (knight group >= Patterns.NINJA_GROUP) straight in front of you
+##      in your row but too close to teleport to: he strikes (after running,
+##      or where a teleport lands); and once he's seen you under your forward
+##      marker, coming back under it does at once
 ## (both checked after running, so chaining on from a kill never triggers it;
 ## teleporting past a knight is fine).
 ##
@@ -124,6 +125,8 @@ static func step(enemies: Array[Vector2], state: Array, move: int, speed: float,
 			snap_to -= Rules.STRIKE_OFFSET
 			if move == Rules.Move.VERTICAL and snap_to < x and not _can_chain(enemies, mask, snap_to, row, knights):
 				snap_to = x
+			if _ninja_too_close(enemies, mask, snap_to, row, knights):
+				return []   # landed right in front of a ninja she can't reach
 			return [snap_to, row, 0, mask, 0, alerted | _ninjas_ahead(enemies, mask, snap_to, row, knights)]
 		cooldown = Rules.cooldown_frames()
 
@@ -139,16 +142,28 @@ static func step(enemies: Array[Vector2], state: Array, move: int, speed: float,
 	var before := _ninjas_ahead(enemies, mask, x0, row0, knights)
 	var ahead := _ninjas_ahead(enemies, mask, x, row, knights)
 	if (ahead & alerted & ~before) != 0:
-		return []   # back into the reach of one that had seen her
-	if ahead != 0:
-		ninja_frames += 1
-		if ninja_frames >= roundi(Rules.NINJA_AGGRO_DELAY * Rules.PHYSICS_FPS):
-			return []
-	else:
-		ninja_frames = 0
+		return []   # back under her marker for one that had seen her
+	if _ninja_too_close(enemies, mask, x, row, knights):
+		return []   # ran on past her chance to reach him
 	alerted |= ahead
 	cooldown = maxi(cooldown - 1, 0)
 	return [x, row, cooldown, mask, ninja_frames, alerted]
+
+
+## True if an un-hit ninja is straight in front of (x, row) but too close to
+## teleport to.
+static func _ninja_too_close(enemies: Array[Vector2], mask: int, x: float, row: int, knights: Array) -> bool:
+	if knights.is_empty():
+		return false
+	for i in enemies.size():
+		var g := int(knights[i])
+		if not Patterns.is_ninja_group(g) or (mask & (1 << i)) != 0 or not exists(i, mask, knights):
+			continue
+		if i > 0 and int(knights[i - 1]) == g:
+			continue   # hit already: the knight rules
+		if Rules.ninja_too_close(enemies[i].x, int(enemies[i].y), x, row):
+			return true
+	return false
 
 
 ## Bits (by spot index) of the un-hit ninjas straight ahead of (x, row), in

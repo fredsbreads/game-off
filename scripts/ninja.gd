@@ -5,13 +5,14 @@ extends Knight
 ## to one of the player's landing spots after each, and he strikes if the
 ## player runs on past him across the rows or lets a freeze run out there.
 ##
-## And he also watches straight ahead: while the player is in his row with him
-## inside the forward teleport's reach (forward_aggro), he drops into his
-## stance (hand on his sword) with an alert. If she's still there after
-## Rules.NINJA_AGGRO_DELAY seconds of running, or a freeze runs out with him
-## there, he teleports to her and cuts her down; once he's been alerted, coming
-## back into his reach brings him at once. main.gd runs it; ChunkSolver
-## mirrors the running part.
+## And he also watches straight ahead (forward_aggro): the instant she could
+## teleport to him (in his row, under her forward marker) he drops into his
+## stance (hand on his sword) with an alert, and holds it. The instant he's
+## straight in front of her but too close to reach (she ran on past her
+## chance, or a teleport put her there, even in a freeze), he teleports to her
+## and cuts her down; also if a freeze runs out with him under her marker, or
+## once he's alerted, she comes back under it. main.gd runs it; ChunkSolver
+## mirrors it.
 ## Art: "Martial Hero 2" (CC0), assets/sprites/ninja.
 
 const N_IDLE := preload("res://assets/sprites/ninja/idle.png")

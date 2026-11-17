@@ -98,13 +98,14 @@ run upside down.
   knight does, he does too (the same hits, blinks and duel rules, his own art,
   drawn a little bigger, with cyan lightning where hers is green). If two
   teleporters would strike at once, a ninja can be either of them.
-  He also watches straight ahead: while she's in his row with him no further
-  than her forward teleport reaches, he drops into his stance (hand on his
-  sword) with an alert (the knight's swish, higher: `NINJA_ALERT_PITCH`). Run
-  on there for 0.6 s (`NINJA_AGGRO_DELAY` in `scripts/rules.gd`), or let a
-  freeze run out with him there, and he teleports to her and cuts her down;
-  once he's alerted, coming back into his reach brings him at once, and he
-  stays in his stance to show it. Level 10
+  He also watches straight ahead: the instant she could teleport to him (in
+  his row, under her forward marker) he drops into his stance (hand on his
+  sword) with an alert (the knight's swish, higher: `NINJA_ALERT_PITCH`), and
+  holds it. The instant he's straight in front of her but too close to reach
+  (she ran on past her chance, or a teleport landed her there, even in a
+  freeze), he teleports to her and cuts her down (`Rules.ninja_ahead`,
+  `ninja_too_close`). Same if a freeze runs out with him under her marker,
+  or, once he's alerted, she comes back under it. Level 10
   opens with a ninja alone, like the knight's debut at 5 (it waits for the
   power-up the same way). After that a teleporter is a ninja 25% of the time
   at level 10, +5% a level, up to 50% (`NINJA_SHARE*`): he takes knights'

@@ -615,6 +615,11 @@ func _physics_process(delta: float) -> void:
 		State.PLAYING:
 			if hud.needs_portrait():
 				pass
+			elif _hitstop > 0.0 and not _auto and not _finale_hold and not _finishing and _ninja_strikes(false):
+				# Landed right in front of a ninja, too close to reach him: he comes at once.
+				_clear_pending()
+				_hitstop = 0.0
+				_knights_strike(_strikers())
 			elif _hitstop > 0.0:
 				_bot_acts_in_pause()
 				_hitstop -= delta
@@ -789,8 +794,8 @@ func _step() -> void:
 	if pouncer:
 		_knights_strike(_strikers(run_from))   # with a second one, if there is
 		return
-	# 4b. a ninja she's running at, straight ahead in his reach: NINJA_AGGRO_DELAY
-	# there and he strikes; at once if he'd already alerted and she came back.
+	# 4b. a ninja straight in front of her that she can't teleport to (too
+	# close), or one that had alerted and she's come back under her marker.
 	if not (_press_x_set and player.cooldown == 0) and _ninja_strikes():
 		_knights_strike(_strikers(run_from))
 		return
@@ -1376,7 +1381,8 @@ func _strikers(run_from := NAN) -> Array[Knight]:
 			continue
 		var fighting := k.engaged and Rules.knight_in_reach(k.tile_x - player.x)
 		var passed := not is_nan(run_from) and Rules.knight_runs_past(k.tile_x, k.row, run_from, player.x, player.row)
-		var ahead := k.forward_aggro and not k.engaged and Rules.ninja_ahead(k.tile_x, k.row, player.x, player.row)
+		var ahead := k.forward_aggro and not k.engaged and (Rules.ninja_ahead(k.tile_x, k.row, player.x, player.row) \
+				or Rules.ninja_too_close(k.tile_x, k.row, player.x, player.row))
 		if fighting or passed or ahead or Rules.knight_across(k.tile_x, k.row, player.x, player.row):
 			found.append(k)
 	found.sort_custom(func(a: Knight, b: Knight) -> bool:
@@ -1398,22 +1404,23 @@ func _knights_strike(ks: Array[Knight]) -> void:
 	_knight_strikes(front)
 
 
-## Every running frame: each ninja she's in front of (in his row, in her
-## forward reach) counts the time; true if one strikes now (his delay is up,
-## or he'd alerted before and she's come back into his reach).
-func _ninja_strikes() -> bool:
+## True if a ninja strikes now: one straight in front of her in her row that
+## she can't teleport to (too close: she ran on past her chance, or landed
+## there), or one that had alerted and she's come back under her marker.
+## `running`: false in a freeze (only "too close" counts there).
+func _ninja_strikes(running := true) -> bool:
 	var strike := false
 	for e in level.enemies:
 		var k := e as Knight
 		if k == null or not k.alive or not k.forward_aggro or k.engaged:
 			continue
+		if Rules.ninja_too_close(k.tile_x, k.row, player.x, player.row):
+			strike = true
+		if not running:
+			continue
 		var now := Rules.ninja_ahead(k.tile_x, k.row, player.x, player.row)
 		if now and not k.ahead and k.alerted:
 			strike = true   # she left his reach after his alert, and came back
-		if now:
-			k.aggro_time += 1.0 / Rules.PHYSICS_FPS
-			if k.aggro_time >= Rules.NINJA_AGGRO_DELAY - 0.0001:
-				strike = true
 		k.ahead = now
 	return strike
 

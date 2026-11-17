@@ -84,12 +84,11 @@ var debut := false
 var threat := false
 var warned := false   # she's already given her wind-up swish once
 ## The ninja's extra: he also watches straight ahead (see ninja.gd). main.gd
-## keeps the rest: `ahead` while the player's in his row inside the forward
-## reach, `aggro_time` running there, and `alerted` once he's given his alert
-## (coming back into his reach after that brings him at once).
+## keeps the rest: `ahead` while she could teleport to him (under her forward
+## marker), and `alerted` once he's given his alert (coming back under it
+## after that brings him at once).
 var forward_aggro := false
 var ahead := false
-var aggro_time := 0.0
 var alerted := false
 var _slashing := false   # the killing blow: green outline held
 var _arc: AnimatedSprite2D

@@ -93,16 +93,17 @@ static func knight_in_reach(dx: float) -> bool:
 	return dx >= -FORWARD and dx < FORWARD + kill_zone(Move.FORWARD).y
 
 
-## The ninja also watches straight ahead: he's "ahead" of the player while
-## he's in her row, no further than her forward teleport reaches. Running there this
-## long (seconds) and he strikes; see ninja.gd.
-const NINJA_AGGRO_DELAY := 0.6
-
-
+## The ninja also watches straight ahead (see ninja.gd): he's "ahead" of the
+## player while she could teleport to him (in her row, under her forward
+## marker: he winds up), and "too close" once he's in front of her in her row
+## but nearer than that (she can't reach him: he strikes).
 static func ninja_ahead(ninja_x: float, ninja_row: int, x: float, row: int) -> bool:
-	# From the far edge of her forward reach all the way to him.
+	return ninja_row == row and in_kill_zone(Move.FORWARD, ninja_x, x + move_dx(Move.FORWARD))
+
+
+static func ninja_too_close(ninja_x: float, ninja_row: int, x: float, row: int) -> bool:
 	var d := ninja_x - x
-	return ninja_row == row and d > 0.0 and d < move_dx(Move.FORWARD) + kill_zone(Move.FORWARD).y
+	return ninja_row == row and d > 0.0 and d <= move_dx(Move.FORWARD) - kill_zone(Move.FORWARD).x
 
 
 ## True if the player is straight across from a knight (at knight_x in
