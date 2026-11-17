@@ -17,6 +17,9 @@ const LEVEL_CHOICE := true
 # 15: the master's);
 # the pick is kept between visits.
 const START_LEVELS := [1, 5, 10, 15]
+## The start level picked on the title screen: kept through this visit (back
+## to the title screen, retries) but not saved, so the game always opens on 1.
+static var _session_start_level := 1
 # Every kill gets a short hit freeze (invert flash).
 const KILL_HIT := 0.06
 # If another enemy is under any marker where you land, the
@@ -321,7 +324,7 @@ func _ready() -> void:
 		debug.main = self
 		add_child(debug)
 	if LEVEL_CHOICE and progression.level == 1:   # (not set by the debug --level option)
-		var start: int = _load_setting("start_level", 1)
+		var start := _session_start_level
 		progression.level = start if start in _unlocked_start_levels() else 1
 		level.level = progression.level
 	Palette.set_pink(0.0)   # every run starts red (her colour is the streak reward)
@@ -2057,10 +2060,7 @@ func _choose_start_level(want: int) -> void:
 		want = levels[(levels.find(progression.level) + 1) % levels.size()]
 	elif want == -1:   # the one before
 		want = levels[posmod(levels.find(progression.level) - 1, levels.size())]
-	var cfg := ConfigFile.new()
-	cfg.load(SAVE_PATH)
-	cfg.set_value("settings", "start_level", want)
-	cfg.save(SAVE_PATH)
+	_session_start_level = want
 	if want != progression.level:
 		# A fresh run at that level (after this input is done with).
 		get_tree().reload_current_scene.call_deferred()
