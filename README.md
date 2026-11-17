@@ -113,7 +113,11 @@ run upside down.
   it). Her next kill that has a chain
   after it sets it off: the rest of that chain plays itself, perfectly and
   fast (`AUTO_STEP` between hops); its last kill holds, zoomed in
-  (`AUTO_FINALE_FREEZE`, `AUTO_FINALE_ZOOM`, `AUTO_FINALE_CRACKLE`), then a big lightning strike, a
+  (`AUTO_FINALE_FREEZE`, `AUTO_FINALE_ZOOM`, `AUTO_FINALE_CRACKLE`; the music
+  drops away through it, `AUTO_FINALE_DUCK_DB`), then the bang on a short
+  frozen white frame (`AUTO_FINALE_IMPACT`), its thunder the loudest sound
+  in the game (`AUTO_FINALE_DB`, a deep heavy hit under it; a limiter on the
+  master bus keeps it clean): a big lightning strike, a
   full-screen flash and thunder (the hold is grey and crackling, like a
   freeze frame). No new chain is laid while it plays, so nothing pops in or
   out, and anyone still on screen ahead is struck down by the final strike; the next one comes in past the screen's edge (`AUTO_GAP_TILES`). The meter starts again from empty (the auto-chain

@@ -79,6 +79,7 @@ var _knight_kill_sound: AudioStreamPlayer   # the sword impact when a knight goe
 var _pink_shift_sound: AudioStreamPlayer   # her colour sweeping from red to pink
 var _lose_colour_sound: AudioStreamPlayer  # the streak breaks: back to red
 var _charge_sound: AudioStreamPlayer       # the power-up meter is full
+var _auto_finale_layer: AudioStreamPlayer
 var _auto_finale_sound: AudioStreamPlayer  # thunder at the end of an auto-chain
 var _warn_sound: AudioStreamPlayer   # a knight winding up to strike
 const KILL_STRIKE_FPS := 5.0         # the knight's teleport onto the player lingers (normal: 18)
@@ -118,7 +119,10 @@ const AUTO_STEP := 0.1          # seconds between her auto-chain hops
 const AUTO_DUEL_STEP := 0.32    # ...after a clash or a knight's last hit: the duel gets its weight
 const AUTO_GAP_TILES := 12.0    # extra empty run after an auto-chain
 const AUTO_FINALE_FREEZE := 0.3  # its last kill holds this long (zoomed in, grey, crackling) before the big strike
-const AUTO_FINALE_CRACKLE := 0.05 # ...a crackle of lightning on her this often while it holds
+const AUTO_FINALE_CRACKLE := 0.05
+const AUTO_FINALE_IMPACT := 0.14  # the big strike lands on a frozen, white-hot frame this long
+const AUTO_FINALE_DUCK_DB := -22.0 # the music drops by this through the hold (silence before the bang)
+const AUTO_FINALE_DB := 1.0       # the thunder (the loudest thing in the game) # ...a crackle of lightning on her this often while it holds
 const AUTO_FINALE_ZOOM := 0.25   # how much closer that hold is (0.25 = 25 %)
 var charge := 0                 # the meter (0..CHARGE_FULL)
 var _charged := false           # full: the next chainable kill sets it off
@@ -232,7 +236,17 @@ func _ready() -> void:
 	add_child(_charge_sound)
 	_auto_finale_sound = AudioStreamPlayer.new()
 	_auto_finale_sound.stream = preload("res://assets/sounds/auto_finale.ogg")
-	_auto_finale_sound.volume_db = -2.0
+	_auto_finale_sound.volume_db = AUTO_FINALE_DB
+	# A limiter on everything: the loudest moments (the power-up's bang) get
+	# loud without distorting. (Added once: the bus outlives a retry.)
+	if AudioServer.get_bus_effect_count(0) == 0:
+		var limiter := AudioEffectHardLimiter.new()
+		limiter.ceiling_db = -0.5
+		AudioServer.add_bus_effect(0, limiter)
+	_auto_finale_layer = AudioStreamPlayer.new()   # a heavy hit under the thunder
+	_auto_finale_layer.stream = preload("res://assets/sounds/knight_kill.ogg")
+	_auto_finale_layer.volume_db = 0.0
+	add_child(_auto_finale_layer)
 	add_child(_auto_finale_sound)
 	_lose_colour_sound = AudioStreamPlayer.new()
 	_lose_colour_sound.stream = preload("res://assets/sounds/streak_break.ogg")
@@ -1045,6 +1059,7 @@ func _auto_finale(grade: String) -> void:
 	var body := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row))
 	cam.hold_zoom(body, AUTO_FINALE_ZOOM, 16.0)
 	cam.shake(0.1, 12.0)
+	_duck_music(MUSIC_DB + AUTO_FINALE_DUCK_DB, 0.12)
 	hud.flash(Color(1, 1, 1, 0.3), 0.1)
 	get_tree().create_timer(AUTO_FINALE_FREEZE, false).timeout.connect(_auto_finale_strike.bind(grade))
 
@@ -1062,13 +1077,22 @@ func _auto_finale_strike(grade: String) -> void:
 	var body := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row))
 	fx.bolt(Fx.Bolt.RING, body, randf() * TAU, Vector2.ONE * 3.2, 12.0)
 	player.zap_fx.zap(body, 12, Vector2.ZERO, Vector2(36, 54), 10)
-	hud.flash(Color(0.92, 0.98, 1.0, 0.7), 0.45)
+	hud.flash(Color(1.0, 1.0, 1.0, 0.9), 0.55)
 	cam.hold_zoom(body, 0.0, 3.0)
-	cam.shake(0.5, 26.0)
+	cam.punch(body, 0.15, 0.6)
+	cam.shake(0.6, 30.0)
 	_auto_finale_sound.play()
+	_auto_finale_layer.pitch_scale = 0.85   # deeper than a knight's last hit
+	_auto_finale_layer.play()
+	_duck_music(MUSIC_DB, 1.6, 0.35)
 	_auto_ending = true
 	_end_chain(grade)   # (adds no charge: the meter starts again from empty)
 	_auto_ending = false
+	# The bang lands on a short frozen frame.
+	_hitstop = AUTO_FINALE_IMPACT
+	_pause_min = AUTO_FINALE_IMPACT
+	_pause_is_chain = false
+	_pause_elapsed = 0.0
 	# Anyone still standing ahead of her on screen (on screen before it began)
 	# is struck down by it too (no points), so the screen is clear.
 	var right := cam.left() / Rules.TILE + CameraRig.VIEW_TILES + 2.0
@@ -1131,6 +1155,16 @@ func _prewarm() -> void:
 	view.add_child(grey)
 	freeze_effect.prewarm(0.5)   # (that one reads the real screen, so it warms up there, at 0.2 %: unseen)
 	get_tree().create_timer(0.5).timeout.connect(view.queue_free)
+
+
+## Fades the music to `db` over `seconds`, after `delay`.
+func _duck_music(db: float, seconds: float, delay := 0.0) -> void:
+	var music := get_tree().root.get_node_or_null("Music") as AudioStreamPlayer
+	if music == null:
+		return
+	var t := music.create_tween()
+	t.tween_interval(delay)
+	t.tween_property(music, "volume_db", db, seconds)
 
 
 ## Her knight debut waits while the power-up is charged or playing (so it
