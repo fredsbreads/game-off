@@ -694,13 +694,18 @@ func _request_fullscreen() -> void:
 		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
 
 
-## Left half of the screen = vertical, right half = forward.
+## Touch: left half of the screen = vertical, right half = forward. Mouse:
+## left click = vertical, right click = forward. Keys: see project.godot.
 ## Returns Rules.Move.FORWARD, Rules.Move.VERTICAL or Rules.Move.NONE.
 func _button_from_event(event: InputEvent) -> int:
 	if event is InputEventScreenTouch and event.pressed:
 		return _button_for_screen_x(_screen_pos(event).x)
+	# A mouse: left click = up/down, right click = forward (both together =
+	# diagonal, as with the keys). (The page stops the browser's right-click menu.)
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		return _button_for_screen_x(_screen_pos(event).x)
+		return Rules.Move.VERTICAL
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
+		return Rules.Move.FORWARD
 	if event.is_action_pressed("tp_vertical"):
 		return Rules.Move.VERTICAL
 	if event.is_action_pressed("tp_forward"):
