@@ -521,6 +521,11 @@ func _is_options_press(event: InputEvent) -> bool:
 ## An option changed on the Options screen: a sound previews the new
 ## sound-effects volume (the clash of a duel: what you hear most).
 func _on_option_changed(key: String) -> void:
+	if key == "colour" or key == "reset":
+		# Her markers are coloured in code each frame, which stops while paused:
+		# recolour them now, so a colour picked over the game shows at once.
+		player._update_markers(0.0)
+		player.queue_redraw()
 	if key == "sfx" or key == "reset":
 		_clash_sound.pitch_scale = 1.0
 		_clash_sound.play()

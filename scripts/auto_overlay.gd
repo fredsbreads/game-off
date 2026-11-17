@@ -36,7 +36,9 @@ func poke() -> void:
 
 func _process(delta: float) -> void:
 	if get_tree().paused:
-		return   # (frozen with the game)
+		if visible:
+			queue_redraw()   # frozen with the game, but redrawn (a colour picked in Options)
+		return
 	_t += delta
 	_fade = clampf(_fade + (delta / 0.15 if _active else -delta / 0.3), 0.0, 1.0)
 	_poke = maxf(_poke - delta / 0.35, 0.0)

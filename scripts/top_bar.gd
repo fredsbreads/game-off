@@ -131,8 +131,11 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	if not visible or get_tree().paused:
-		return   # (frozen with the game while paused)
+	if not visible:
+		return
+	if get_tree().paused:
+		queue_redraw()   # frozen with the game, but redrawn: a colour picked in Options shows at once
+		return
 	if not _result.is_empty():
 		_result_t += delta
 		if _result_t < RESULT_ACT and _result["grade"] != "DROPPED":
