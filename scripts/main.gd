@@ -487,10 +487,11 @@ func _is_options_press(event: InputEvent) -> bool:
 
 
 ## An option changed on the Options screen: a sound previews the new
-## sound-effects volume.
+## sound-effects volume (the clash of a duel: what you hear most).
 func _on_option_changed(key: String) -> void:
 	if key == "sfx" or key == "reset":
-		_perfect_sound.play()
+		_clash_sound.pitch_scale = 1.0
+		_clash_sound.play()
 
 
 func _set_paused(value: bool) -> void:
