@@ -99,7 +99,8 @@ run upside down.
   (`_strands_by_knight` in `scripts/patterns.gd`). Finishing a chain always
   leaves you clear of her.
 - **The ninja** (from level 10, `scripts/ninja.gd`), a man: everything the
-  knight does, he does too (the same hits, blinks and duel rules, his own art,
+  knight does, he does too (the same blinks and duel rules, his own art, but
+  4-5 hits to her 3-4: `NINJA_HITS_MIN/MAX` in `scripts/rules.gd`;
   drawn a little bigger, with cyan lightning where hers is green). If two
   teleporters would strike at once, a ninja can be either of them.
   He also watches straight ahead: the instant she could teleport to him (in

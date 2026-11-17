@@ -55,6 +55,9 @@ const RUN_SPEED := 6.0
 const KNIGHT_POINTS := 2
 const KNIGHT_HITS_MIN := 3
 const KNIGHT_HITS_MAX := 4
+# The ninja takes more: 4-5 hits.
+const NINJA_HITS_MIN := 4
+const NINJA_HITS_MAX := 5
 
 # Scoring.
 const KILL_POINTS := 100        # multiplied by the chain count

@@ -179,7 +179,7 @@ static func is_ninja_group(group: int) -> bool:
 
 ## A random chain for a generated level: a length from chain_length_range,
 ## each step F, V or D with equal odds. Knights (see knight_chance) take
-## KNIGHT_HITS_MIN-MAX spots: where she
+## KNIGHT_HITS_MIN-MAX spots (a ninja NINJA_HITS_MIN-MAX): where she
 ## starts, then one blink per hit to a random landing spot. The length counts
 ## spots (every hit), so knights don't make chains any longer.
 ## Returns {enemies, knights, steps, name}: `knights` has one entry per spot,
@@ -200,9 +200,15 @@ static func generate(level: int, rng: RandomNumberGenerator, knights := true, ni
 		var left := n
 		while left > 0:
 			if left >= Rules.KNIGHT_HITS_MIN and rng.randf() < chance:
-				var h := mini(rng.randi_range(Rules.KNIGHT_HITS_MIN, Rules.KNIGHT_HITS_MAX), left)
-				hits.append(-h if rng.randf() < share else h)
-				left -= h
+				# A ninja (4-5 hits) if there's room for one, else a knight (3-4).
+				if left >= Rules.NINJA_HITS_MIN and rng.randf() < share:
+					var nh := mini(rng.randi_range(Rules.NINJA_HITS_MIN, Rules.NINJA_HITS_MAX), left)
+					hits.append(-nh)
+					left -= nh
+				else:
+					var h := mini(rng.randi_range(Rules.KNIGHT_HITS_MIN, Rules.KNIGHT_HITS_MAX), left)
+					hits.append(h)
+					left -= h
 			else:
 				hits.append(1)
 				left -= 1
@@ -231,7 +237,7 @@ static func knight_alone(rng: RandomNumberGenerator) -> Dictionary:
 ## A lone ninja (the start of his debut level).
 static func ninja_alone(rng: RandomNumberGenerator) -> Dictionary:
 	for _attempt in 40:
-		var built := _build([-rng.randi_range(Rules.KNIGHT_HITS_MIN, Rules.KNIGHT_HITS_MAX)], rng)
+		var built := _build([-rng.randi_range(Rules.NINJA_HITS_MIN, Rules.NINJA_HITS_MAX)], rng)
 		if not built.is_empty():
 			built["name"] = "ninja alone: %s" % built["steps"]
 			return built
