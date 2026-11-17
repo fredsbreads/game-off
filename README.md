@@ -250,8 +250,7 @@ run upside down.
   `scripts/palette.gd` (default `"yellow"`; every name is in `COLOURS`
   there; the last, "red", is "Red (No Shift)": her red kept as it is, and
   the streak finisher is always the quick one, as there's no colour change
-  to show; a quick red one doesn't use up the run's one full finisher, so
-  switching to a colour later still shows it in full once).
+  to show).
   The player can pick another on the Options screen (saved);
   on a keyboard, **C** does too and shows the name (off with `CYCLE_KEY`).
 - **Screen shake** is scaled down globally by `SHAKE_SCALE` (0.5) in
