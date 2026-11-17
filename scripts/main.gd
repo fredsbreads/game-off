@@ -409,6 +409,12 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 			JavaScriptBridge.eval("window.redFlashSetFlip(!window.redFlashFlip)", true)
 			return
+		if tap and hud.pause_menu_button_contains(_screen_pos(event)):
+			# Leave the run for the title screen.
+			get_viewport().set_input_as_handled()
+			get_tree().paused = false
+			get_tree().reload_current_scene.call_deferred()
+			return
 		# Any other key, click or tap resumes (it doesn't also teleport).
 		if _is_press(event):
 			get_viewport().set_input_as_handled()

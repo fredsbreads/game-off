@@ -55,6 +55,8 @@ var options: OptionsMenu
 # The start screen's "Start at level" choice (1 or 5).
 # The game-over screen's "Main menu" button (a retry goes straight into a run).
 var _menu_button: Control
+# The pause screen's "Main Menu" button (leaves the run for the title screen).
+var _pause_menu_button: Control
 ## The title screen (main.gd passes it presses while it's open).
 var menu: MainMenu
 ## The power-up's auto-chain on screen (scripts/auto_overlay.gd).
@@ -127,6 +129,12 @@ func _ready() -> void:
 	_options_button.visible = false
 	_options_button.draw.connect(_draw_options_button)
 	add_child(_options_button)
+	_pause_menu_button = Control.new()
+	_pause_menu_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_pause_menu_button.size = FLIP_BUTTON_SIZE
+	_pause_menu_button.visible = false
+	_pause_menu_button.draw.connect(_draw_pause_menu_button)
+	add_child(_pause_menu_button)
 	_menu_button = Control.new()
 	_menu_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_menu_button.size = FLIP_BUTTON_SIZE
@@ -185,7 +193,7 @@ func _process(delta: float) -> void:
 	# The pause screen's buttons, side by side under the message (so they fit
 	# on an upright phone too).
 	var shown: Array[Control] = []
-	for b in [_flip_button, _options_button]:
+	for b in [_flip_button, _options_button, _pause_menu_button]:
 		if b.visible and _on_pause_screen:
 			shown.append(b)
 	var gap := 16.0
@@ -219,6 +227,7 @@ func open_options(over_game: bool) -> void:
 		_pause_dim.visible = false
 		_flip_button.visible = false
 		_options_button.visible = false
+		_pause_menu_button.visible = false
 	options.open()
 
 
@@ -351,6 +360,7 @@ func show_paused(paused: bool, can_flip: bool = false) -> void:
 	_flip_button.visible = paused and can_flip
 	_pause_can_flip = can_flip
 	_options_button.visible = paused
+	_pause_menu_button.visible = paused
 	if paused:
 		if not _on_pause_screen:   # (not again on coming back from Options)
 			_message_before_pause = _message.text
@@ -365,6 +375,21 @@ func show_paused(paused: bool, can_flip: bool = false) -> void:
 
 func options_button_contains(pos: Vector2) -> bool:
 	return _options_button.visible and not options.visible and _options_button.get_rect().grow(10.0).has_point(pos)
+
+
+func pause_menu_button_contains(pos: Vector2) -> bool:
+	return _pause_menu_button.visible and not options.visible and _pause_menu_button.get_rect().grow(10.0).has_point(pos)
+
+
+func _draw_pause_menu_button() -> void:
+	var s := FLIP_BUTTON_SIZE
+	_pause_menu_button.draw_rect(Rect2(Vector2.ZERO, s), Color(1, 1, 1, 0.12))
+	_pause_menu_button.draw_rect(Rect2(Vector2.ZERO, s), Color(1, 1, 1, 0.7), false, 2.0)
+	var font := ThemeDB.fallback_font
+	var text := "Main Menu"
+	var size := 26
+	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+	_pause_menu_button.draw_string(font, Vector2((s.x - w) / 2.0, s.y / 2.0 + size * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color.WHITE)
 
 
 func _draw_options_button() -> void:
