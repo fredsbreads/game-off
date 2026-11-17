@@ -22,8 +22,8 @@ The original single-row short/long version is kept on the `short-long-version` b
 
 The game opens on the title screen (`scripts/main_menu.gd`), on its own dark
 background with the music playing: "RED FLASH" across the top (the
-Shojumaru font, `TITLE_FONT`), her large on the left (the browser-tab pose:
-the first run frame, katana out behind her) with red lightning crackling
+Shojumaru font, `TITLE_FONT`), her large on the left, running (her run
+animation, katana out behind her) with red lightning crackling
 over her and her katana and a big strike onto her now and then, and the
 buttons on the right. **Play** (or `Enter` / `Space` / any teleport key), the level
 chooser (below), **Options** (`O`); `↑` / `↓` pick a button. After a death,

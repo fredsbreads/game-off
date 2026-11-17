@@ -13,7 +13,7 @@ extends Control
 
 const TITLE := "RED FLASH"
 ## The title's font ("Shojumaru", SIL Open Font License: assets/fonts).
-const TITLE_FONT := preload("res://assets/fonts/Shojumaru-Regular.ttf")
+var title_font: Font = preload("res://assets/fonts/Shojumaru-Regular.ttf")
 const TITLE_SIZE := 100
 const TITLE_RED := Color(1.0, 0.22, 0.29)
 const BG_TOP := Color(0.07, 0.04, 0.06)
@@ -23,14 +23,18 @@ const BUTTON_GAP := 14.0
 const LABEL_SIZE := 26
 const HINT := "left tap: shift    right tap: forward    both: shift + forward"
 
-## Her: the run sheet's first frame, at a whole-number scale (crisp pixels).
-const HER_FRAME := Rect2(0, 0, 96, 96)
-## The part of the frame she fills (frame pixels), and her katana's blade.
-const HER_BODY := Rect2(5, 22, 66, 49)
-const BLADE_FROM := Vector2(5, 37)
-const BLADE_TO := Vector2(24, 37)
+## Her: running (the run sheet, as in the game), at a whole-number scale
+## (crisp pixels).
+const RUN_FRAMES := 6
+const RUN_FPS := 12.0
+const FRAME_PX := 96
+## The part of a frame she fills in any of them (frame pixels), and her
+## katana's blade (its height in each frame: she bobs as she runs).
+const HER_BODY := Rect2(5, 22, 66, 63)
+const BLADE_X := Vector2(5, 24)
+const BLADE_Y := [37, 39, 40, 37, 39, 40]
 ## Her body without the katana (where bolts run across her).
-const HER_TORSO := Rect2(30, 24, 40, 46)
+const HER_TORSO := Rect2(30, 26, 40, 50)
 
 ## Bolts crackling over her: one every this many seconds (random in range).
 const HER_CRACKLE_EVERY := Vector2(0.02, 0.07)
@@ -137,7 +141,7 @@ func _title_baseline() -> float:
 
 
 func _title_rect() -> Rect2:
-	var w := TITLE_FONT.get_string_size(TITLE, HORIZONTAL_ALIGNMENT_LEFT, -1, TITLE_SIZE).x
+	var w := title_font.get_string_size(TITLE, HORIZONTAL_ALIGNMENT_LEFT, -1, TITLE_SIZE).x
 	var h := TITLE_SIZE * 0.78
 	return Rect2(Vector2((size.x - w) / 2.0, _title_baseline() - h), Vector2(w, h))
 
@@ -203,8 +207,9 @@ func _crackle_her() -> void:
 		_add_bolt(_her_point(a), _her_point(b), 6, s * 1.6, CRACKLE_LIFE, 1.3, 1)
 		return
 	if roll < 0.7:
-		var a := _her_point(BLADE_FROM.lerp(BLADE_TO, _rng.randf_range(0.0, 0.4)))
-		var b := _her_point(BLADE_FROM.lerp(BLADE_TO, _rng.randf_range(0.55, 1.0)))
+		var y: float = BLADE_Y[_run_frame()]
+		var a := _her_point(Vector2(lerpf(BLADE_X.x, BLADE_X.y, _rng.randf_range(0.0, 0.4)), y))
+		var b := _her_point(Vector2(lerpf(BLADE_X.x, BLADE_X.y, _rng.randf_range(0.55, 1.0)), y))
 		_add_bolt(a, b, 6, s * 2.2, CRACKLE_LIFE, 1.5, 1)
 		return
 	var p := _her_point(Vector2(_rng.randf_range(HER_TORSO.position.x, HER_TORSO.end.x),
@@ -282,8 +287,12 @@ func _draw_her() -> void:
 	var glow := 0.75 + 0.15 * sin(_t * 2.6) + 0.6 * _flash
 	var r := HER_BODY.size.x * s * 0.75
 	draw_texture_rect(_glow, Rect2(centre - Vector2(r, r), Vector2(r, r) * 2.0), false, Color(1, 1, 1, minf(glow, 1.0)))
-	var rect := Rect2(_her_origin(), HER_FRAME.size * s)
-	draw_texture_rect_region(Player.RUN_SHEET, rect, HER_FRAME)
+	var rect := Rect2(_her_origin(), Vector2(FRAME_PX, FRAME_PX) * s)
+	draw_texture_rect_region(Player.RUN_SHEET, rect, Rect2(_run_frame() * FRAME_PX, 0, FRAME_PX, FRAME_PX))
+
+
+func _run_frame() -> int:
+	return int(_t * RUN_FPS) % RUN_FRAMES
 
 
 func _draw_title() -> void:
@@ -292,10 +301,10 @@ func _draw_title() -> void:
 	var flicker := 0.85 + 0.15 * sin(_t * 23.0) * sin(_t * 7.0)
 	for i in 12:   # a soft glow
 		var o := Vector2.RIGHT.rotated(i * TAU / 12.0) * 6.0
-		draw_string(TITLE_FONT, base + o, TITLE, HORIZONTAL_ALIGNMENT_LEFT, -1, TITLE_SIZE, Color(TITLE_RED, 0.06 * flicker))
+		draw_string(title_font, base + o, TITLE, HORIZONTAL_ALIGNMENT_LEFT, -1, TITLE_SIZE, Color(TITLE_RED, 0.06 * flicker))
 	var fill := TITLE_RED.lerp(Color(1, 0.95, 0.95), _flash * 0.8)
-	draw_string(TITLE_FONT, base, TITLE, HORIZONTAL_ALIGNMENT_LEFT, -1, TITLE_SIZE, fill)
-	draw_string(TITLE_FONT, base + Vector2(0, -2), TITLE, HORIZONTAL_ALIGNMENT_LEFT, -1, TITLE_SIZE, Color(1, 0.65, 0.68, 0.3))
+	draw_string(title_font, base, TITLE, HORIZONTAL_ALIGNMENT_LEFT, -1, TITLE_SIZE, fill)
+	draw_string(title_font, base + Vector2(0, -2), TITLE, HORIZONTAL_ALIGNMENT_LEFT, -1, TITLE_SIZE, Color(1, 0.65, 0.68, 0.3))
 
 
 func _draw_button(i: int) -> void:
