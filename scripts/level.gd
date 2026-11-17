@@ -9,7 +9,7 @@ extends Node2D
 ## back later as pattern steps; for now it's all plain ground.
 
 const AHEAD_TILES := 48            # always have this much level built ahead
-const RUNWAY_TILES := 28.0         # the first enemy appears this far in (off screen at the start: about 2 s of running before it shows)
+const RUNWAY_TILES := 56.0 / 3.0   # the first enemy appears this far in (off screen at the start; 2/3 of the old 28)
 const SIGN_EVERY := 50             # distance marker every N tiles
 
 const GROUND_A := Color(0.36, 0.38, 0.44)
