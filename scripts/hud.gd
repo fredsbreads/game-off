@@ -51,6 +51,10 @@ var _band := Rect2()            # the band (set in _process)
 var _over_stats: Array = []     # [[value, label], ...] on the game-over screen
 var _over_hint := ""
 var _over_t := 0.0              # seconds the game-over screen has shown
+## On a computer the game-over screen has buttons only: New Run (picked
+## first) over Main Menu. (On touch screens a tap anywhere starts a new run.)
+var _retry_button: Control
+var _over_sel := 0             # 0 = New Run, 1 = Main Menu
 var _flip_button: Control
 const FLIP_BUTTON_SIZE := Vector2(300, 58)   # (as the title screen's buttons)
 const BAND_PAD := 30.0
@@ -173,6 +177,12 @@ func _ready() -> void:
 	_menu_button.visible = false
 	_menu_button.draw.connect(_draw_menu_button)
 	add_child(_menu_button)
+	_retry_button = Control.new()
+	_retry_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_retry_button.size = FLIP_BUTTON_SIZE
+	_retry_button.visible = false
+	_retry_button.draw.connect(func() -> void: _draw_menu_style_button(_retry_button, "New Run", true, _over_sel == 0))
+	add_child(_retry_button)
 
 	auto_overlay = AutoOverlay.new()
 	add_child(auto_overlay)
@@ -228,13 +238,16 @@ func _process(delta: float) -> void:
 	var col := shown.size() * FLIP_BUTTON_SIZE.y + maxf(shown.size() - 1, 0) * gap
 	var bx := (view.x - FLIP_BUTTON_SIZE.x) / 2.0
 	if _backdrop_mode == "over":
-		var h := OVER_TITLE_H + OVER_STATS_H + OVER_HINT_H + FLIP_BUTTON_SIZE.y
+		var buttons_h := FLIP_BUTTON_SIZE.y if is_touch() else FLIP_BUTTON_SIZE.y * 2.0 + gap
+		var h := OVER_TITLE_H + OVER_STATS_H + (OVER_HINT_H if is_touch() else 24.0) + buttons_h
 		_band = Rect2(0, (view.y - h) / 2.0 - BAND_PAD, view.x, h + BAND_PAD * 2.0)
 		_menu_button.position = Vector2(bx, _band.end.y - BAND_PAD - FLIP_BUTTON_SIZE.y)
+		_retry_button.position = _menu_button.position - Vector2(0, FLIP_BUTTON_SIZE.y + gap)
 		if _pause_dim.visible:
 			_over_t += delta
 			_pause_dim.queue_redraw()
 			_menu_button.modulate.a = _over_fade()
+			_retry_button.modulate.a = _over_fade()
 	else:
 		_band = Rect2(0, (view.y - PAUSE_TITLE_H - col) / 2.0 - BAND_PAD, view.x, PAUSE_TITLE_H + col + BAND_PAD * 2.0)
 		var y := _band.position.y + BAND_PAD + PAUSE_TITLE_H
@@ -363,7 +376,7 @@ func show_game_over(stats: Dictionary) -> void:
 	if not SHOW_SCORE_UI:
 		lines += "Kills  %d\n" % stats["kills"]
 		lines += "Level Reached  %d\n" % stats["level"]
-		lines += "Best Flawless Streak  %d\n" % stats["best_sweep"]
+		lines += "Peak Flawless Streak  %d\n" % stats["best_sweep"]
 	if SHOW_SCORE_UI:
 		lines += "Kills  %d      Best chain  x%d\n\n" % [stats["kills"], stats["best_chain"]]
 		lines += "Score  %d\n" % stats["score"]
@@ -375,8 +388,11 @@ func show_game_over(stats: Dictionary) -> void:
 		_message.text = lines
 		_message.visible = true
 		return
-	_over_stats = [[stats["kills"], "KILLS"], [stats["level"], "LEVEL"], [stats["best_sweep"], "BEST FLAWLESS"]]
-	_over_hint = "Tap To Retry" if is_touch() else "Press Any Key To Retry"
+	_over_stats = [[stats["kills"], "KILLS"], [stats["level"], "LEVEL"], [stats["best_sweep"], "PEAK FLAWLESS"]]
+	_over_hint = "Tap To Retry" if is_touch() else ""
+	_over_sel = 0
+	_retry_button.visible = not is_touch()
+	_redraw_over_buttons()
 	_backdrop_mode = "over"
 	_over_t = 0.0
 	_pause_dim.visible = true
@@ -388,7 +404,32 @@ func menu_button_contains(pos: Vector2) -> bool:
 
 
 func _draw_menu_button() -> void:
-	_draw_menu_style_button(_menu_button, "Main Menu", false, false)
+	_draw_menu_style_button(_menu_button, "Main Menu", false, not is_touch() and _retry_button.visible and _over_sel == 1)
+
+
+## The game-over screen's buttons (computer): Up/Down.
+func over_move(dir: int) -> void:
+	_over_sel = posmod(_over_sel + dir, 2)
+	_redraw_over_buttons()
+
+
+## What the picked game-over button does: "retry" or "menu".
+func over_selected() -> String:
+	return "retry" if _over_sel == 0 else "menu"
+
+
+## The game-over button under a click, or "".
+func over_button_at(pos: Vector2) -> String:
+	if _retry_button.visible and _retry_button.get_rect().grow(10.0).has_point(pos):
+		return "retry"
+	if menu_button_contains(pos):
+		return "menu"
+	return ""
+
+
+func _redraw_over_buttons() -> void:
+	_retry_button.queue_redraw()
+	_menu_button.queue_redraw()
 
 
 ## A button as the title screen draws them; `primary` = red (as its PLAY).
@@ -452,7 +493,9 @@ func _draw_backdrop() -> void:
 		if i > 0:   # thin dividers between them
 			var dx := x0 + col_w * i
 			c.draw_line(Vector2(dx, sy + 10.0), Vector2(dx, sy + 78.0), Color(1, 1, 1, 0.15 * a), 1.0)
-	# "Press any key to retry", breathing.
+	if _over_hint == "":
+		return
+	# "Tap to retry", breathing.
 	var hy := sy + OVER_STATS_H + 26.0
 	var hw := font.get_string_size(_over_hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 20).x
 	var breathe := 0.6 + 0.3 * sin(_over_t * 3.0)
@@ -581,6 +624,7 @@ func _draw_pause_button() -> void:
 
 func hide_message() -> void:
 	_message.visible = false
+	_retry_button.visible = false
 	if _backdrop_mode == "over":
 		_pause_dim.visible = false
 	_menu_button.visible = false

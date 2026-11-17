@@ -463,6 +463,26 @@ func _unhandled_input(event: InputEvent) -> void:
 				_start_music()   # (so its volume can be heard while it's set)
 				hud.open_options(false)
 		return
+	if state == State.OVER and not Hud.is_touch() and (event is InputEventKey or event is InputEventMouseButton):
+		# The game-over screen on a computer: buttons only (New Run, picked
+		# first, over Main Menu). Up/Down pick; Left/Right, the teleport keys,
+		# Enter or Space press; a click presses the button under it.
+		get_viewport().set_input_as_handled()
+		var pick := ""
+		if event is InputEventKey:
+			var code: int = event.physical_keycode if event.physical_keycode != 0 else event.keycode
+			match code:
+				KEY_UP, KEY_W: hud.over_move(-1)
+				KEY_DOWN, KEY_S: hud.over_move(1)
+				KEY_LEFT, KEY_RIGHT, KEY_A, KEY_D, KEY_J, KEY_K, KEY_SHIFT, KEY_ENTER, KEY_KP_ENTER, KEY_SPACE: pick = hud.over_selected()
+				KEY_M: pick = "menu"
+		elif event.button_index == MOUSE_BUTTON_LEFT:
+			pick = hud.over_button_at(_screen_pos(event))
+		if pick != "" and _state_time >= RETRY_DELAY:
+			if pick == "retry":
+				_retry = true
+			get_tree().reload_current_scene()
+		return
 	if state == State.OVER and _state_time >= RETRY_DELAY and (_is_menu_key(event) \
 			or ((event is InputEventScreenTouch or event is InputEventMouseButton) and hud.menu_button_contains(_screen_pos(event)))):
 		get_viewport().set_input_as_handled()
