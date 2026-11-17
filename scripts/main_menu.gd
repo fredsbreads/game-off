@@ -12,8 +12,8 @@ extends Control
 ## (Right, Left, K, J, D, A, the Shifts) plays; O opens Options.
 
 const TITLE := "RED FLASH"
-## The title's font ("Shojumaru", SIL Open Font License: assets/fonts).
-var title_font: Font = preload("res://assets/fonts/Shojumaru-Regular.ttf")
+## The title's font ("Russo One", SIL Open Font License: assets/fonts).
+var title_font: Font = preload("res://assets/fonts/RussoOne-Regular.ttf")
 const TITLE_SIZE := 100
 const TITLE_RED := Color(1.0, 0.22, 0.29)
 const BG_TOP := Color(0.07, 0.04, 0.06)

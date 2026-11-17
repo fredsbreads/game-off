@@ -2,13 +2,13 @@
 
 importer="font_data_dynamic"
 type="FontFile"
-uid="uid://iav0mvbtt10g"
-path="res://.godot/imported/Shojumaru-Regular.ttf-f9932e1ac33bea41f7c3b67ddc8b87b0.fontdata"
+uid="uid://jp4qsmqhejfi"
+path="res://.godot/imported/RussoOne-Regular.ttf-6dfa1e4f3354d5ba40d0775191309a1f.fontdata"
 
 [deps]
 
-source_file="res://assets/fonts/Shojumaru-Regular.ttf"
-dest_files=["res://.godot/imported/Shojumaru-Regular.ttf-f9932e1ac33bea41f7c3b67ddc8b87b0.fontdata"]
+source_file="res://assets/fonts/RussoOne-Regular.ttf"
+dest_files=["res://.godot/imported/RussoOne-Regular.ttf-6dfa1e4f3354d5ba40d0775191309a1f.fontdata"]
 
 [params]
 

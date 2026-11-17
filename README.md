@@ -22,7 +22,7 @@ The original single-row short/long version is kept on the `short-long-version` b
 
 The game opens on the title screen (`scripts/main_menu.gd`), on its own dark
 background with the music playing: "RED FLASH" across the top (the
-Shojumaru font, `TITLE_FONT`), her large on the left, running (her run
+Russo One font, `title_font`), her large on the left, running (her run
 animation, katana out behind her) with red lightning crackling
 over her and her katana and a big strike onto her now and then, and the
 buttons on the right. **Play** (or `Enter` / `Space` / any teleport key), the level
@@ -253,7 +253,7 @@ A bar above the ceiling row fills as you chain kills; filling it levels you up.
 - Master: "Martial Hero" asset pack (CC0, see `assets/sprites/master/License.txt`), his red scarf recoloured purple; his lightning is the Frostwindz pack recoloured purple.
 - Knight kill sound: "Samurai sword impact" from Mixkit (same licence), the impact only (the build-up cut off), in `assets/sounds/knight_kill.ogg`.
 - Clash sound: "Heavy sword smashes metal" from Mixkit (same licence as the other Mixkit sounds), the crash only, in `assets/sounds/clash.ogg`.
-- Title font: "Shojumaru" by Astigmatic (SIL Open Font License, see `assets/fonts/Shojumaru-OFL.txt`).
+- Title font: "Russo One" by Jovanny Lemonad (SIL Open Font License, see `assets/fonts/RussoOne-OFL.txt`).
 - Lightning effects: "Pixel Art Skill Animations - Lightning" by Frostwindz (https://frostwindz.itch.io/), recoloured red, in `assets/vfx`.
 - Kill sound: "Quick saber cut" from Mixkit (Mixkit free sound effects licence), trimmed to `assets/sounds/saber_cut.ogg`.
 - Death sound: "Sword slash swoosh" from Mixkit (same licence), slowed down with echoes and a reverb tail, with the hit of "Big cinematic impact" under it, in `assets/sounds/death_slash.ogg`.
