@@ -411,10 +411,12 @@ func _start_tutorial() -> void:
 ## A move she made during the tutorial: its prompt lights up; all three done ends it.
 func _tutorial_move(move: int) -> void:
 	var key: String = {Rules.Move.VERTICAL: "left", Rules.Move.FORWARD: "right", Rules.Move.DIAGONAL: "both"}.get(move, "")
-	if key == "" or _tutorial_moves.has(key):
+	if key == "":
+		return
+	hud.tutorial_done(key)   # (lights it, or pops it again: every time she makes that move)
+	if _tutorial_moves.has(key):
 		return
 	_tutorial_moves[key] = true
-	hud.tutorial_done(key)
 	if _tutorial_moves.size() < 3:
 		return
 	_tutorial = false
@@ -449,7 +451,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		# The pause screen: Resume / Options / (Flip Screen) / Main Menu. Keys:
 		# Up/Down pick, Left/Right (or Enter/Space) press; it opens on Resume,
 		# so pausing then Left or Right plays on at once. P / Esc resume too.
-		# A tap presses the button under it; a tap anywhere else resumes.
+		# A tap presses the button under it (a tap off them does nothing).
 		get_viewport().set_input_as_handled()
 		var pick := ""
 		if event is InputEventKey and event.pressed and not event.echo:
@@ -461,9 +463,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				KEY_LEFT, KEY_RIGHT, KEY_A, KEY_D, KEY_J, KEY_K, KEY_SHIFT, KEY_ENTER, KEY_KP_ENTER, KEY_SPACE: pick = hud.pause_selected()
 				KEY_P, KEY_ESCAPE: pick = "resume"
 		elif (event is InputEventScreenTouch or event is InputEventMouseButton) and event.pressed:
-			pick = hud.pause_button_at(_screen_pos(event))
-			if pick == "":
-				pick = "resume"
+			pick = hud.pause_button_at(_screen_pos(event))   # ("" off the buttons: nothing)
 		match pick:
 			"resume":
 				if Time.get_ticks_msec() - _paused_at_msec >= RESUME_GUARD * 1000.0:

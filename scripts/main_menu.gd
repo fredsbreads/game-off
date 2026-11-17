@@ -156,7 +156,7 @@ func handle(event: InputEvent, pos: Vector2) -> String:
 	if event is InputEventScreenTouch or event is InputEventMouseButton:
 		for i in ids.size():
 			var r := _button_rect(i)
-			if r.grow(8.0).has_point(pos):
+			if r.has_point(pos):   # (on the button itself)
 				_selected = i
 				# The start level selector: its left third steps back.
 				if ids[i] == "level" and pos.x < r.position.x + r.size.x / 3.0:

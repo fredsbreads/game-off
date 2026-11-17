@@ -445,7 +445,7 @@ func show_game_over(stats: Dictionary) -> void:
 
 
 func menu_button_contains(pos: Vector2) -> bool:
-	return _menu_button.visible and _menu_button.get_rect().grow(10.0).has_point(pos)
+	return _menu_button.visible and _menu_button.get_rect().has_point(pos)
 
 
 func _draw_menu_button() -> void:
@@ -465,7 +465,7 @@ func over_selected() -> String:
 
 ## The game-over button under a click, or "".
 func over_button_at(pos: Vector2) -> String:
-	if _retry_button.visible and _retry_button.get_rect().grow(10.0).has_point(pos):
+	if _retry_button.visible and _retry_button.get_rect().has_point(pos):
 		return "retry"
 	if menu_button_contains(pos):
 		return "menu"
@@ -537,11 +537,10 @@ func _draw_backdrop() -> void:
 			c.draw_line(Vector2(dx, sy + 10.0), Vector2(dx, sy + 78.0), Color(1, 1, 1, 0.15 * a), 1.0)
 	if _over_hint == "":
 		return
-	# "Tap to retry", breathing.
+	# "Tap anywhere to retry", steady.
 	var hy := sy + OVER_STATS_H + 26.0
 	var hw := font.get_string_size(_over_hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 20).x
-	var breathe := 0.6 + 0.3 * sin(_over_t * 3.0)
-	c.draw_string(font, Vector2((view.x - hw) / 2.0, hy), _over_hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color(1, 1, 1, breathe * a))
+	c.draw_string(font, Vector2((view.x - hw) / 2.0, hy), _over_hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color(1, 1, 1, 0.75 * a))
 
 
 ## A title in the title screen's red, with its soft glow.
@@ -560,9 +559,9 @@ func set_pause_button_visible(value: bool) -> void:
 	_pause_button.visible = value
 
 
-## A slightly larger area than the drawn button, so it's easy to hit.
+## The drawn button: a tap has to land on it.
 func pause_button_contains(pos: Vector2) -> bool:
-	return _pause_button.visible and _pause_button.get_rect().grow(12.0).has_point(pos)
+	return _pause_button.visible and _pause_button.get_rect().has_point(pos)
 
 
 ## can_flip: show the "Flip screen" button (upright phones only).
@@ -619,7 +618,7 @@ func pause_button_at(pos: Vector2) -> String:
 	if options.visible:
 		return ""
 	for b in pause_buttons():
-		if b.get_rect().grow(10.0).has_point(pos):
+		if b.get_rect().has_point(pos):
 			return _pause_id(b)
 	return ""
 
@@ -644,15 +643,15 @@ func _draw_pause_btn(b: Control, text: String) -> void:
 
 
 func options_button_contains(pos: Vector2) -> bool:
-	return _options_button.visible and not options.visible and _options_button.get_rect().grow(10.0).has_point(pos)
+	return _options_button.visible and not options.visible and _options_button.get_rect().has_point(pos)
 
 
 func pause_menu_button_contains(pos: Vector2) -> bool:
-	return _pause_menu_button.visible and not options.visible and _pause_menu_button.get_rect().grow(10.0).has_point(pos)
+	return _pause_menu_button.visible and not options.visible and _pause_menu_button.get_rect().has_point(pos)
 
 
 func flip_button_contains(pos: Vector2) -> bool:
-	return _flip_button.visible and _flip_button.get_rect().grow(10.0).has_point(pos)
+	return _flip_button.visible and _flip_button.get_rect().has_point(pos)
 
 
 func _draw_pause_button() -> void:
