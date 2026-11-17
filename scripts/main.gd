@@ -1435,16 +1435,20 @@ func _strikers(run_from := NAN) -> Array[Knight]:
 	return found.slice(0, 2)
 
 
-## One knight strikes from the front; two: the one further ahead from the
-## front, the other from behind her, at the same moment.
-## Each strikes from the side she's on: in front (ahead of the player, or
+## One knight strikes from in front, unless she's behind the player in the
+## player's row. Two strike at the same moment, one from each side.
+## Each of two strikes from the side she's on: in front (ahead of the player, or
 ## straight across), or from behind if the player's already past her. Two on
 ## the same side: the one in the player's row keeps it and the other (across
 ## or diagonal) comes round to the other side (both in one row: the nearer
 ## keeps it).
 func _knights_strike(ks: Array[Knight]) -> void:
 	if ks.size() == 1:
-		_knight_strikes(ks[0], _strike_side(ks[0]))
+		# Alone: from behind only if she's behind the player in the player's
+		# own row. From the other row (above or below), always from in front,
+		# even if the player has run on past her.
+		var k: Knight = ks[0]
+		_knight_strikes(k, -1.0 if k.row == player.row and k.tile_x < player.x else 1.0)
 		return
 	var a: Knight = ks[0]
 	var b: Knight = ks[1]

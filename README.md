@@ -90,8 +90,9 @@ run upside down.
   while one blinks away the other's standing there to hit. Each one's every
   blink is still one move from where you hit her, so you never need one to
   reach the other's next spot.
-  A teleporter that strikes comes from the side she's on: in front (ahead,
-  or straight across), or from behind once the player's past her. If two
+  A teleporter that strikes alone comes from in front, unless she's behind
+  the player in the player's own row (then from behind); one in the other
+  row always comes from in front, even once the player's run past her. If two
   would strike at once (a freeze running out, running on or past, or running
   into one), both do, each from her own side; both on one side: the one in
   the player's row keeps it and the other comes round to the other side (more
