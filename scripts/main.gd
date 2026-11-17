@@ -122,7 +122,9 @@ const AUTO_FINALE_FREEZE := 0.3  # its last kill holds this long (zoomed in, gre
 const AUTO_FINALE_CRACKLE := 0.05
 const AUTO_FINALE_IMPACT := 0.14  # the big strike lands on a frozen, white-hot frame this long
 const AUTO_FINALE_DUCK_DB := -22.0 # the music drops by this through the hold (silence before the bang)
-const AUTO_FINALE_DB := 1.0       # the thunder (the loudest thing in the game) # ...a crackle of lightning on her this often while it holds
+const AUTO_FINALE_DB := 1.0       # the thunder (the loudest thing in the game)
+const AUTO_FINALE_SHAKE := 14.0   # the bang's screen shake: strength (pixels)...
+const AUTO_FINALE_SHAKE_TIME := 0.4 # ...and seconds # ...a crackle of lightning on her this often while it holds
 const AUTO_FINALE_ZOOM := 0.25   # how much closer that hold is (0.25 = 25 %)
 var charge := 0                 # the meter (0..CHARGE_FULL)
 var _charged := false           # full: the next chainable kill sets it off
@@ -1080,7 +1082,7 @@ func _auto_finale_strike(grade: String) -> void:
 	hud.flash(Color(1.0, 1.0, 1.0, 0.9), 0.55)
 	cam.hold_zoom(body, 0.0, 3.0)
 	cam.punch(body, 0.15, 0.6)
-	cam.shake(0.6, 30.0)
+	cam.shake(AUTO_FINALE_SHAKE_TIME, AUTO_FINALE_SHAKE)
 	_auto_finale_sound.play()
 	_auto_finale_layer.pitch_scale = 0.85   # deeper than a knight's last hit
 	_auto_finale_layer.play()
