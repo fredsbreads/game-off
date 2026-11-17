@@ -44,6 +44,10 @@ var bar_room := INF
 const HOLD_AT_LEVEL := Patterns.KNIGHT_DEBUT_LEVEL - 1
 var _held := false
 var _knight_intro_done := false   # the debut level opens with a knight alone, once
+## Her debut waits while this is on (main.gd: while the power-up is charged
+## or playing), so it never plays through her; knight-free chains come instead.
+var debut_wait := false
+var _started := false
 var _cursor := RUNWAY_TILES        # where the next chain's first enemy goes
 var _cursor_row := Rules.Row.FLOOR # ...and its row (the row the last one ended in)
 var _rng := RandomNumberGenerator.new()
@@ -81,11 +85,18 @@ func ensure_generated(player_x: float) -> void:
 ## Levels 1-3: a weighted pick from that level's hand-made pool.
 ## Level 4+: a freshly generated chain.
 func _pick_pattern() -> Dictionary:
-	if level == Patterns.KNIGHT_DEBUT_LEVEL and not _knight_intro_done:
+	if not _started:
+		_started = true
+		_knight_intro_done = level > Patterns.KNIGHT_DEBUT_LEVEL   # a run started past it has no debut
+	# Her debut: the first chain from level 5 on (later, if the power-up held
+	# it back past then), and no knight before it.
+	if level >= Patterns.KNIGHT_DEBUT_LEVEL and not _knight_intro_done:
+		if debut_wait:
+			return Patterns.generate(level, _rng, false)
 		_knight_intro_done = true
 		return Patterns.knight_alone(_rng)
 	if level >= Patterns.FIRST_GENERATED_LEVEL:
-		return Patterns.generate(level, _rng)
+		return Patterns.generate(level, _rng, _knight_intro_done or level < Patterns.KNIGHT_DEBUT_LEVEL)
 	var pool := Patterns.pool_for_level(level)
 	var total := 0.0
 	for entry in pool:
@@ -138,6 +149,7 @@ func _append_pattern(pattern: Dictionary) -> void:
 		var enemy: Enemy
 		if group >= 0:
 			knight = Knight.new()
+			knight.debut = pattern["name"].begins_with("knight alone")
 			knight.path.append(Vector2(_cursor + e.x, row))
 			enemy = knight
 		else:
@@ -152,6 +164,20 @@ func _append_pattern(pattern: Dictionary) -> void:
 	var last: Vector2 = shape.back()
 	_cursor += last.x + Patterns.BREAK
 	_cursor_row = last_row
+
+
+## True while her debut is still to come at this level, or is laid but not
+## yet reached (so it can be moved, see main.gd _add_charge).
+func debut_pending() -> bool:
+	if level < Patterns.KNIGHT_DEBUT_LEVEL:
+		return false
+	if not _knight_intro_done:
+		return true
+	for e in enemies:
+		var k := e as Knight
+		if k and k.debut and k.alive and not k.engaged:
+			return true
+	return false
 
 
 ## No chain starts before x (tiles): a breather (after an auto-chain).
@@ -180,6 +206,8 @@ func set_enemies_off(off: bool, from_x: float) -> void:
 func rebuild_ahead(from_x: float) -> void:
 	while not sections.is_empty() and float(sections.back()["start"]) > from_x:
 		var section: Dictionary = sections.pop_back()
+		if section["name"].begins_with("knight alone"):
+			_knight_intro_done = false   # her debut was thrown away unmet: it's laid again
 		for enemy in section["enemies"]:
 			var e: Enemy = enemy
 			if is_instance_valid(e):

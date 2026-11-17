@@ -162,9 +162,10 @@ static func knight_chance(level: int) -> float:
 ## Chainable by construction: every step puts the next spot exactly under a
 ## marker, and no two things can be in one spot at the same time (see
 ## _overlaps). The validator runs the full solver check on samples.
-static func generate(level: int, rng: RandomNumberGenerator) -> Dictionary:
+## knights = false: no knights in it (before her debut).
+static func generate(level: int, rng: RandomNumberGenerator, knights := true) -> Dictionary:
 	var lengths := chain_length_range(level)
-	var chance := knight_chance(level)
+	var chance := knight_chance(level) if knights else 0.0
 	for _attempt in 40:
 		var n := rng.randi_range(lengths.x, lengths.y)
 		# Spend n spots: a plain enemy takes one, a knight her hits.

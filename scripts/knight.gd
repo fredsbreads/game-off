@@ -60,6 +60,9 @@ var path: Array[Vector2] = []
 var step_index := 0
 ## True once she's been hit (and not yet killed): she's in a duel with the player.
 var engaged := false
+## Her debut (the lone knight that opens level 5): the power-up never plays
+## through her, the player always meets her by hand.
+var debut := false
 ## True while the player is straight across from her: she's winding up to strike.
 var threat := false
 var warned := false   # she's already given her wind-up swish once

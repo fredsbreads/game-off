@@ -117,9 +117,12 @@ const CHARGE_GAIN := {"PERFECT": 2, "CLEAN": 1}
 const AUTO_STEP := 0.1          # seconds between her auto-chain hops
 const AUTO_DUEL_STEP := 0.32    # ...after a clash or a knight's last hit: the duel gets its weight
 const AUTO_GAP_TILES := 12.0    # extra empty run after an auto-chain
+const AUTO_FINALE_FREEZE := 0.45 # its last kill holds this long (zoomed in) before the big strike
+const AUTO_FINALE_ZOOM := 0.25   # how much closer that hold is (0.25 = 25 %)
 var charge := 0                 # the meter (0..CHARGE_FULL)
 var _charged := false           # full: the next chainable kill sets it off
 var _auto := false              # an auto-chain is playing
+var _finale_hold := false       # its last kill's freeze, before the big strike
 const LOSE_COLOUR_TIME := 0.3     # back to red when the streak breaks
 const FINISHER_ZOOM := 0.35
 const FINISHER_SIDE := 2.2          # tiles either side of the enemy she strikes from
@@ -354,7 +357,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				_request_fullscreen()
 				begin()
 		State.PLAYING:
-			if _auto:
+			if _auto or _finale_hold:
 				return   # the auto-chain plays itself
 			if player.cooldown > 0 and ((button == Rules.Move.FORWARD and _last_forward) or (button == Rules.Move.VERTICAL and _last_vertical)):
 				return   # same button again right after a teleport: ignored
@@ -806,8 +809,8 @@ func _teleport(move: int) -> void:
 			_pause_min = maxf(KILL_PAUSE_MIN, CLASH_REAPPEAR)   # the player can go as soon as the knight shows where she went
 		_hitstop = _pause_length if _pause_is_chain else KILL_HIT
 		_pause_elapsed = 0.0
-		if _pause_is_chain and _charged and not _auto:
-			_start_auto()
+		if _pause_is_chain and _charged and not _auto and not _has_debut(hit) and not _has_debut(targets):
+			_start_auto()   # (never on her debut knight: the player meets her by hand)
 		if _pause_is_chain:
 			if not _clashed and not _knight_felled:   # those have their own, bigger zoom
 				cam.punch(to)
@@ -961,6 +964,7 @@ func _add_charge(n: int) -> void:
 	if charge >= CHARGE_FULL:
 		_charged = true
 		player.charged = true
+		_sync_debut_wait()
 		_charge_sound.play()
 		var body := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row))
 		player.zap_fx.zap(body, 6, Vector2.ZERO, Vector2(26, 40), 6)
@@ -971,6 +975,7 @@ func _add_charge(n: int) -> void:
 func _start_auto() -> void:
 	_auto = true
 	_charged = false
+	_sync_debut_wait()
 	charge = 0
 	player.charged = false
 	player.auto_chain = true
@@ -989,6 +994,8 @@ func _auto_hop() -> void:
 		var tx: float = player.x + Rules.move_dx(move)
 		var trow: int = (1 - player.row) if Rules.move_flips_row(move) else player.row
 		for e in level.enemies_hit_by(move, tx, trow):
+			if e is Knight and (e as Knight).debut:
+				continue   # her debut: the auto-chain stops short of her
 			var engaged := e is Knight and (e as Knight).engaged
 			if (engaged and not best_knight) or (engaged == best_knight and e.tile_x < best_x - 0.01):
 				best_move = move
@@ -997,6 +1004,7 @@ func _auto_hop() -> void:
 	if best_move == Rules.Move.NONE:
 		_auto = false
 		player.auto_chain = false
+		_sync_debut_wait()
 		return
 	_hitstop = 0.0
 	_pressed_during_pause = true
@@ -1009,19 +1017,41 @@ func _auto_hop() -> void:
 	hud.flash(Color(0.85, 0.95, 1.0, 0.12), 0.08)
 
 
-## The auto-chain's end: a big strike of lightning onto her and thunder, the
-## chain counts (as she'd have played it), then a breather before the next.
+## The auto-chain's end: its last kill holds, zoomed in on her, then a big
+## strike of lightning onto her and thunder; the chain counts (as she'd have
+## played it), then a breather before the next.
 func _auto_finale(grade: String) -> void:
 	_auto = false
+	_finale_hold = true
+	_hitstop = AUTO_FINALE_FREEZE + 1.0   # (ended by the strike)
+	_pause_min = 999.0
+	_pause_is_chain = false
+	_chain_awaiting = false
+	_pause_elapsed = 0.0
+	player.hold_slash(AUTO_FINALE_FREEZE)
+	var body := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row))
+	cam.hold_zoom(body, AUTO_FINALE_ZOOM, 16.0)
+	cam.shake(0.1, 12.0)
+	hud.flash(Color(1, 1, 1, 0.3), 0.1)
+	get_tree().create_timer(AUTO_FINALE_FREEZE, false).timeout.connect(_auto_finale_strike.bind(grade))
+
+
+func _auto_finale_strike(grade: String) -> void:
+	_finale_hold = false
 	player.auto_chain = false
+	_hitstop = 0.0
+	_pause_min = KILL_PAUSE_MIN
+	if state != State.PLAYING:
+		return
 	var feet := Vector2(player.x * Rules.TILE, Rules.surface_y(player.row))
 	var up := -1.0 if player.row == Rules.Row.FLOOR else 1.0
 	fx.bolt(Fx.Bolt.BIG_STRIKE, feet + Vector2(0, up * (BIG_STRIKE_BURST_Y - 128.0) * 2.0), 0.0 if player.row == Rules.Row.FLOOR else PI, Vector2(1.8, 2.0), 7.0)
 	var body := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row))
-	fx.bolt(Fx.Bolt.RING, body, randf() * TAU, Vector2.ONE * 2.6, 12.0)
-	player.zap_fx.zap(body, 8, Vector2.ZERO, Vector2(30, 46), 8)
-	hud.flash(Color(0.9, 0.97, 1.0, 0.5), 0.35)
-	cam.shake(0.35, 18.0)
+	fx.bolt(Fx.Bolt.RING, body, randf() * TAU, Vector2.ONE * 3.2, 12.0)
+	player.zap_fx.zap(body, 12, Vector2.ZERO, Vector2(36, 54), 10)
+	hud.flash(Color(0.92, 0.98, 1.0, 0.7), 0.45)
+	cam.hold_zoom(body, 0.0, 3.0)
+	cam.shake(0.5, 26.0)
 	_auto_finale_sound.play()
 	_end_chain(grade)
 	# A breather: chains ahead are cleared (under the flash and the lightning)
@@ -1031,7 +1061,27 @@ func _auto_finale(grade: String) -> void:
 			fx.zap(Vector2(e.tile_x * Rules.TILE, Rules.body_center_y(e.row)), 2, Vector2.ZERO, Vector2(14, 26), 3)
 	level.rebuild_ahead(player.x + 1.0)
 	level.push_cursor(cam.left() / Rules.TILE + CameraRig.VIEW_TILES + AUTO_GAP_TILES)
+	_sync_debut_wait()
 	level.ensure_generated(player.x)
+
+
+## Her knight debut waits while the power-up is charged or playing (so it
+## never plays through her). If it's already laid but not on screen yet, it's
+## taken back (and comes later); see Level.debut_wait.
+func _sync_debut_wait() -> void:
+	var wait := _charged or _auto
+	if wait and not level.debut_wait and level.debut_pending():
+		level.debut_wait = true
+		level.rebuild_ahead(cam.left() / Rules.TILE + CameraRig.VIEW_TILES + 3.0)
+		level.ensure_generated(player.x)
+	level.debut_wait = wait
+
+
+func _has_debut(enemies: Array) -> bool:
+	for e in enemies:
+		if e is Knight and (e as Knight).debut:
+			return true
+	return false
 
 
 ## The flawless streak is over (an enemy got away, or a chain was dropped):

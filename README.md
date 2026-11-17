@@ -79,7 +79,10 @@ run upside down.
   If two knights would strike at once (a freeze running out, running on or
   past, or running into one), both do: the one further ahead from the front,
   the other from behind the player (more than two: the two nearest).
-  Level 5 opens with a knight alone (`KNIGHT_DEBUT_LEVEL`). From then on any
+  Level 5 opens with a knight alone (`KNIGHT_DEBUT_LEVEL`): her debut, always
+  met by hand. While the power-up is charged or playing it waits (knight-free
+  chains come instead, even past level 5) and comes once it's spent; the
+  auto-chain never plays through her. From then on any
   enemy in a generated chain is a knight with a 5% chance at level 5, +2% per
   level (`KNIGHT_CHANCE`, `KNIGHT_CHANCE_STEP` in `scripts/patterns.gd`). A chain's
   length counts every hit (a knight's 3-4 hits use up 3-4 of it), so knights
@@ -106,9 +109,12 @@ run upside down.
   chains end (CLEAN +1, PERFECT +2; full at 10; dropped and one-kill chains
   add nothing, and nothing drains it). Full = she's charged: her lightning
   ring loops around her (the "your move" freeze shows sparkles on her
-  instead), the meter flashes. Her next kill that has a chain
+  instead), the meter flashes. The meter is her red (her colour once she has
+  it). Her next kill that has a chain
   after it sets it off: the rest of that chain plays itself, perfectly and
-  fast (`AUTO_STEP` between hops), then a big lightning strike and thunder,
+  fast (`AUTO_STEP` between hops); its last kill holds, zoomed in
+  (`AUTO_FINALE_FREEZE`, `AUTO_FINALE_ZOOM`), then a big lightning strike, a
+  full-screen flash and thunder,
   the chain ahead is cleared and the next one comes in past the screen's
   edge (`AUTO_GAP_TILES`). Its kills count for the bar and the streak, but
   the streak finisher only plays at the end of a chain she played herself.

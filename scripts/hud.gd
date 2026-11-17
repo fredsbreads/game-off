@@ -80,12 +80,15 @@ var _progress_level: Label
 # The current flawless streak (kills in a row without letting one get away),
 # right of the bar.
 var _streak: Label
+var _streak_n: Label   # its number (gold from STREAK_GOLD_AT)
+const STREAK_GOLD_AT := 50   # (main.gd STREAK_REWARD)
+const STREAK_GOLD := Color(1.0, 0.82, 0.25)
 # The auto-chain power-up meter: a thin bar under the level bar.
 var _charge_bar: Control
 var _c_value := 0.0
 var _c_charged := false
 const CHARGE_BAR_H := 5.0
-const CHARGE_COLOR := Color(0.55, 0.85, 1.0)
+const CHARGE_COLOR := Color(0.95, 0.15, 0.2)   # her red (her colour once she has it: Palette.tint)
 var _p_bar := 0.0
 var _p_size := 1.0
 var _p_pending := 0.0
@@ -135,6 +138,8 @@ func _ready() -> void:
 	_streak = _label(20, Vector2.ZERO)
 	_streak.reparent(_progress)
 	_streak.add_theme_color_override("font_color", Color(1, 1, 1, 0.75))
+	_streak_n = _label(20, Vector2.ZERO)
+	_streak_n.reparent(_progress)
 
 	# Pause button, top-right. Drawn only; main.gd hit-tests taps against it
 	# (touch doesn't emulate mouse in this project, so Buttons won't see taps).
@@ -294,22 +299,28 @@ func set_charge(value: int, full: int, charged: bool) -> void:
 
 func _draw_charge() -> void:
 	var s := _charge_bar.size
+	var col := Palette.tint(CHARGE_COLOR)
 	_charge_bar.draw_rect(Rect2(Vector2.ZERO, s), Color(1, 1, 1, 0.12))
 	if _c_charged:
 		# Full: the whole bar crackles bright.
 		var pulse := 0.6 + 0.4 * sin(Time.get_ticks_msec() * 0.02)
-		_charge_bar.draw_rect(Rect2(Vector2.ZERO, s), Color(CHARGE_COLOR.lightened(0.4), pulse))
-		_charge_bar.draw_rect(Rect2(Vector2.ZERO, s).grow(2.0), Color(CHARGE_COLOR, 0.5 * pulse), false, 1.5)
+		_charge_bar.draw_rect(Rect2(Vector2.ZERO, s), Color(col.lightened(0.2), pulse))
+		_charge_bar.draw_rect(Rect2(Vector2.ZERO, s).grow(2.0), Color(col, 0.5 * pulse), false, 1.5)
 	elif _c_value > 0.0:
-		_charge_bar.draw_rect(Rect2(Vector2.ZERO, Vector2(s.x * _c_value, s.y)), Color(CHARGE_COLOR, 0.85))
+		_charge_bar.draw_rect(Rect2(Vector2.ZERO, Vector2(s.x * _c_value, s.y)), Color(col, 0.85))
 
 
 ## The current flawless streak, shown right of the bar.
 func set_streak(n: int) -> void:
-	_streak.text = "Streak %d" % n
-	# In her reward colour while she has it.
-	_streak.add_theme_color_override("font_color", Palette.swatch().lightened(0.25) if Palette.pink > 0.5 else Color(1, 1, 1, 0.75))
+	_streak.text = "Streak "
+	# In her reward colour while she has it; the number turns gold the
+	# instant the streak reaches the reward.
+	var col := Palette.swatch().lightened(0.25) if Palette.pink > 0.5 else Color(1, 1, 1, 0.75)
+	_streak.add_theme_color_override("font_color", col)
 	_streak.position = Vector2(PROGRESS_SIZE.x + 12.0, (PROGRESS_SIZE.y - _streak.get_minimum_size().y) / 2.0)
+	_streak_n.text = str(n)
+	_streak_n.add_theme_color_override("font_color", STREAK_GOLD if n >= STREAK_GOLD_AT else col)
+	_streak_n.position = _streak.position + Vector2(_streak.get_minimum_size().x, 0.0)
 
 
 func hide_progress() -> void:
