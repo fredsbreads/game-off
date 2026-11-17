@@ -275,7 +275,7 @@ func blink(beat := 0.0, her_pose := 0, reappear := -1.0) -> Vector2:
 		reappear = beat
 	if reappear > 0.0:
 		visible = false
-		get_tree().create_timer(reappear).timeout.connect(func() -> void:
+		get_tree().create_timer(reappear, false).timeout.connect(func() -> void:   # (waits while paused)
 			if is_instance_valid(self):
 				visible = true)
 	engaged = true

@@ -97,6 +97,9 @@ var _level_up := -1.0       # seconds into the level-up (-1 = none)
 var _bits: Array = []       # [pos, vel, life, max_life, colour]: sparks off the blade
 var _edge_timer := 0.0
 var _hit := 0.0   # 1 on a kill, easing to 0
+## The power-up's auto-chain playing (hud.gd set_auto): lightning crackles
+## over the whole katana until it's done.
+var auto_on := false
 var _blade_arcs: Array[PackedVector2Array] = []   # lightning on the katana (level-up / about to)
 
 var _charge := 0.0
@@ -128,8 +131,8 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	if not visible:
-		return
+	if not visible or get_tree().paused:
+		return   # (frozen with the game while paused)
 	if not _result.is_empty():
 		_result_t += delta
 		if _result_t < RESULT_ACT and _result["grade"] != "DROPPED":
@@ -266,6 +269,15 @@ func _strike_blade_arcs() -> void:
 		for n in 2:   # and along it
 			var x0 := _rng.randf_range(_hilt_left(), w - 80.0)
 			_blade_arcs.append(_zigzag(Vector2(x0, _centre(x0)), Vector2(x0 + 80.0, _centre(x0 + 80.0)), 8, 6.0))
+	elif auto_on:
+		for n in 3:   # around the whole katana
+			var x := _rng.randf_range(_hilt_left(), w)
+			var up := _rng.randf() < 0.5
+			var a := Vector2(x, _top(x) if up else _bottom(x))
+			var b := a + Vector2(_rng.randf_range(-30.0, 30.0), _rng.randf_range(-24.0, -10.0) if up else _rng.randf_range(10.0, 24.0))
+			_blade_arcs.append(_zigzag(a, b, 5, 6.0))
+		var x0 := _rng.randf_range(_hilt_left(), w - 70.0)   # and one along it
+		_blade_arcs.append(_zigzag(Vector2(x0, _centre(x0)), Vector2(x0 + 70.0, _centre(x0 + 70.0)), 7, 5.0))
 	elif _will_level():
 		for n in 2:
 			var x0 := _rng.randf_range(0.0, w - 50.0)

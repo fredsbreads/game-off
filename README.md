@@ -56,7 +56,9 @@ starts with a breather: the first enemy is off screen until about 2 seconds in
 (`RUNWAY_TILES` in `scripts/level.gd`).
 
 While the power-up's auto-chain plays itself, the screen's edges crackle
-with lightning in her colour; pressing anything then flares it
+with lightning in her colour and lightning crackles over the katana;
+pressing anything then flares it. Pausing freezes all of it, the finale's
+triple slash included
 (`scripts/auto_overlay.gd`).
 
 Her second colour is the Flawless Color picked in Options: the katana's

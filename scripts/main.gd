@@ -751,6 +751,7 @@ func _physics_process(delta: float) -> void:
 		_streak_shown = sweep
 	hud.set_streak(_streak_shown)
 	hud.auto_overlay.set_active(_auto or _finale_hold)
+	hud.set_auto(_auto or _finale_hold)   # (lightning on the katana while it plays itself)
 	if _auto or _finale_hold:
 		# The power-up playing: its bolt stays full until the finale's strike.
 		hud.set_charge(CHARGE_FULL, CHARGE_FULL, true, Palette.pink >= 1.0)
@@ -1049,7 +1050,7 @@ func _finisher(k: Enemy, grade: String) -> void:
 			poses.append(p)
 	var focus := Vector2(k.tile_x * Rules.TILE, Rules.body_center_y(k.row))
 	cam.hold_zoom(focus, FINISHER_ZOOM, 10.0, 0.5)   # centred on the enemy
-	var t := create_tween()
+	var t := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_STOP)   # (stops while paused)
 	t.tween_interval(_fin_hop)
 	t.tween_callback(_finisher_strike.bind(k, right_x, -1.0, poses[0], ""))
 	t.tween_interval(_fin_hop)
@@ -1268,7 +1269,7 @@ func _auto_finale(grade: String) -> void:
 		if p != player.last_pose():
 			poses.append(p)
 	cam.hold_zoom(Vector2(k.tile_x * Rules.TILE, Rules.body_center_y(k.row)), AUTO_FINALE_ZOOM, 16.0, 0.5)
-	var t := create_tween()
+	var t := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_STOP)   # (stops while paused)
 	t.tween_interval(AUTO_SLASH_HOP)
 	t.tween_callback(_auto_slash.bind(k, right_x, -1.0, poses[0]))
 	t.tween_interval(AUTO_SLASH_HOP)
@@ -1442,7 +1443,7 @@ func _break_streak() -> void:
 	if Palette.pink > 0.0 and not _finishing:
 		_lose_colour_sound.pitch_scale = _jitter()
 		_lose_colour_sound.play()
-		create_tween().tween_method(Palette.set_pink, Palette.pink, 0.0, LOSE_COLOUR_TIME)
+		create_tween().set_pause_mode(Tween.TWEEN_PAUSE_STOP).tween_method(Palette.set_pink, Palette.pink, 0.0, LOSE_COLOUR_TIME)
 
 
 func _finisher_done(k: Enemy, focus: Vector2) -> void:
@@ -1757,7 +1758,7 @@ func _clash(knight: Knight) -> void:
 		if is_instance_valid(knight) and state == State.PLAYING:
 			fx.strike(from, to, knight.lightning())   # exactly her teleport's strike, in her colour (the ninja's cyan)
 	if CLASH_REAPPEAR > 0.0:
-		get_tree().create_timer(CLASH_REAPPEAR).timeout.connect(reappear)
+		get_tree().create_timer(CLASH_REAPPEAR, false).timeout.connect(reappear)   # (waits while paused)
 	else:
 		reappear.call()
 
@@ -1853,7 +1854,7 @@ func _die(kind: String, killer: Enemy = null) -> void:
 	# Cut down while she had her reward colour: it fades back to red through
 	# the death moment.
 	if Palette.pink > 0.0:
-		create_tween().tween_method(Palette.set_pink, Palette.pink, 0.0, DEATH_LOSE_COLOUR)
+		create_tween().set_pause_mode(Tween.TWEEN_PAUSE_STOP).tween_method(Palette.set_pink, Palette.pink, 0.0, DEATH_LOSE_COLOUR)
 	for e in level.enemies:
 		e.clear_glint()   # no red glints lingering on the death moment
 		if e is Knight:
