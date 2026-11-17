@@ -67,7 +67,6 @@ const THREAD_WIDTH := 3.0
 const THREAD_JAG := 9.0           # pixels it wavers from the straight line (most in the middle)
 const THREAD_POINTS := 28
 const THREAD_FADE_IN := 0.12      # seconds
-const THREAD_PULSE_SPEED := 1.8   # pulses along it per second
 const THREAD_TRAIL_ALPHA := 0.5   # the line of the jump she just made: this much dimmer
 const SLASH_ARC_TINT := 0.12
 
@@ -124,6 +123,10 @@ var force_swing := -1
 var _thread_time := 0.0
 var _thread_fade := 0.0
 var _thread_seed := randf() * TAU
+var _bolt := PackedVector2Array()
+var _forks: Array[PackedVector2Array] = []
+var _bolt_timer := 0.0
+var _bolt_rng := RandomNumberGenerator.new()   # (its own: the look never touches the game's random numbers)
 var _arc: AnimatedSprite2D
 ## Where her body goes in a clash swing: a layer above the player (set by main.gd).
 static var front_parent: Node = null
@@ -460,8 +463,8 @@ func _update_next() -> void:
 	_next.global_scale = Vector2(sc, sc * (-1.0 if int(spot.y) == Rules.Row.CEILING else 1.0))
 
 
-## The thread to her next spot: a wavering line of energy in her colour,
-## fading in, with a pulse running along it toward where she'll blink.
+## The thread to her next spot: a crackling bolt in her colour, fading in,
+## with a spinning sigil where she'll land (see _draw_thread).
 func _update_thread(delta: float) -> void:
 	if _thread == null:
 		return
@@ -510,27 +513,68 @@ func _draw_thread() -> void:
 		_thread.draw_polyline(_trail_points, Color(1, 1, 1, 0.5 * tf), 1.0, true)
 	if _thread_points.size() < 2:
 		return
-	# Glow, then the colour, then a white-hot core.
-	_thread.draw_polyline(_thread_points, Color(c.r, c.g, c.b, 0.10 * f), THREAD_WIDTH * 4.0, true)
-	_thread.draw_polyline(_thread_points, Color(c.r, c.g, c.b, 0.22 * f), THREAD_WIDTH * 2.2, true)
-	_thread.draw_polyline(_thread_points, Color(c.r, c.g, c.b, 0.85 * f), THREAD_WIDTH, true)
-	_thread.draw_polyline(_thread_points, Color(1, 1, 1, 0.75 * f), maxf(THREAD_WIDTH * 0.35, 1.0), true)
-	# A pulse running toward her next spot (shows which way she'll go).
-	var u := fmod(_thread_time * THREAD_PULSE_SPEED, 1.0)
-	var k := u * float(_thread_points.size() - 1)
-	var i := mini(int(k), _thread_points.size() - 2)
-	var p := _thread_points[i].lerp(_thread_points[i + 1], k - float(i))
-	var pa := sin(u * PI) * f
-	_thread.draw_circle(p, THREAD_WIDTH * 3.0, Color(c.r, c.g, c.b, 0.25 * pa))
-	_thread.draw_circle(p, THREAD_WIDTH * 1.1, Color(1, 1, 1, 0.9 * pa))
-	# A soft glow where it lands.
+	# Her next spot: a crackling bolt to it, and a spinning sigil where she'll land.
+	_draw_lightning(c, f)
+	_draw_sigil(c, f)
+
+
+## The thread: a jagged bolt re-struck every few frames, with forks and sparks.
+func _draw_lightning(c: Color, f: float) -> void:
+	var a := _thread_points[0]
+	var b := _thread_points[_thread_points.size() - 1]
+	if _bolt_timer <= 0.0 or _bolt.size() < 2 or _bolt[0] != a or _bolt[_bolt.size() - 1] != b:   # (re-struck at once if she's moved)
+		_bolt_timer = 0.07
+		_bolt = _jagged(a, b, 12, 16.0)
+		_forks.clear()
+		for n in 2:
+			var i := _bolt_rng.randi_range(3, _bolt.size() - 4)
+			var dir := (b - a).normalized().rotated(_bolt_rng.randf_range(-1.1, 1.1))
+			_forks.append(_jagged(_bolt[i], _bolt[i] + dir * _bolt_rng.randf_range(30.0, 60.0), 4, 8.0))
+	for line in [_bolt] + _forks:
+		var main_line: bool = line == _bolt
+		var w := THREAD_WIDTH * (1.0 if main_line else 0.6)
+		_thread.draw_polyline(line, Color(c.r, c.g, c.b, 0.12 * f), w * 5.0, true)
+		_thread.draw_polyline(line, Color(c.r, c.g, c.b, 0.9 * f), w * 1.2, true)
+		_thread.draw_polyline(line, Color(1, 1, 1, 0.9 * f), maxf(w * 0.45, 1.0), true)
+	for n in 4:   # sparks spitting off it
+		var p := _bolt[_bolt_rng.randi_range(1, _bolt.size() - 2)] + Vector2(_bolt_rng.randf_range(-14, 14), _bolt_rng.randf_range(-14, 14))
+		_thread.draw_circle(p, _bolt_rng.randf_range(1.0, 2.2), Color(1, 1, 1, 0.8 * f))
+
+
+func _jagged(a: Vector2, b: Vector2, n: int, jag: float) -> PackedVector2Array:
+	var normal := (b - a).orthogonal().normalized()
+	var pts := PackedVector2Array()
+	for i in n + 1:
+		var t := float(i) / float(n)
+		var off := 0.0 if i == 0 or i == n else _bolt_rng.randf_range(-jag, jag) * (0.4 + sin(t * PI))
+		pts.append(a.lerp(b, t) + normal * off)
+	return pts
+
+
+## Where she'll land: a spinning ring of three arcs round a pulsing diamond,
+## dropping in from bigger as it appears.
+func _draw_sigil(c: Color, f: float) -> void:
 	var end := _thread_points[_thread_points.size() - 1]
-	var beat := 0.75 + 0.25 * sin(_thread_time * 9.0)
-	_thread.draw_circle(end, THREAD_WIDTH * 3.5, Color(c.r, c.g, c.b, 0.18 * f * beat))
-	_thread.draw_circle(end, THREAD_WIDTH * 1.4, Color(c.r, c.g, c.b, 0.6 * f * beat))
+	var grow := 1.0 + 1.2 * (1.0 - f)
+	var r := 20.0 * grow
+	var spin := _thread_time * 2.4
+	_thread.draw_circle(end, r * 1.2, Color(c.r, c.g, c.b, 0.08 * f))
+	for i in 3:
+		var a0 := spin + i * TAU / 3.0
+		_thread.draw_arc(end, r, a0, a0 + TAU / 3.0 * 0.6, 12, Color(c.r, c.g, c.b, 0.9 * f), 2.5, true)
+	for i in 4:   # ticks pointing in
+		var a1 := -spin * 0.7 + i * TAU / 4.0
+		var d := Vector2.RIGHT.rotated(a1)
+		_thread.draw_line(end + d * (r + 4.0), end + d * (r + 11.0), Color(1, 1, 1, 0.8 * f), 1.5, true)
+	var beat := 0.8 + 0.2 * sin(_thread_time * 9.0)
+	var dm := 7.0 * beat * grow
+	var diamond := PackedVector2Array([end + Vector2(0, -dm), end + Vector2(dm, 0), end + Vector2(0, dm), end + Vector2(-dm, 0), end + Vector2(0, -dm)])
+	_thread.draw_colored_polygon(diamond, Color(c.r, c.g, c.b, 0.5 * f))
+	_thread.draw_polyline(diamond, Color(1, 1, 1, 0.9 * f), 1.5, true)
 
 
 func _process(delta: float) -> void:
+	_bolt_timer -= delta
 	_update_next()
 	_update_thread(delta)
 	if _arc and _sprite:
