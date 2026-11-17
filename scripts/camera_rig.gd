@@ -13,7 +13,7 @@ const CATCH_UP_RATE := 14.0     # higher = faster catch-up (14 ~= 0.2 s)
 const VIEW_TILES := 16.0        # tiles visible across, on every device
 # Kill zoom punch: in quickly, then back out well before the pause ends,
 # so the full view is back while you decide.
-const PUNCH_ZOOM := 0.06        # 6 % closer at the peak
+const PUNCH_ZOOM := 0.03        # 3 % closer at the peak (a kill's zoom: kept small, it happens a lot)
 const PUNCH_IN := 0.05
 const PUNCH_OUT := 0.13
 
