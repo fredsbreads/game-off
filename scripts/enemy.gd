@@ -22,6 +22,9 @@ const ATTACK_FPS := 14.0
 # Start the attack on the slash frame, so it lands right as she touches him (the first
 # frames are a wind-up).
 const ATTACK_START_FRAME := 3
+# Where he stands when he cuts her down: this far ahead of her (tiles), so she's
+# at the edge of his slash (its arc reaches ~1.85 tiles).
+const GRUNT_KILL_DISTANCE := 1.9
 const OUTLINE_SHADER := preload("res://shaders/enemy_outline.gdshader")
 const GLINT_RATE := 12.0    # how fast the red outline fades in/out
 
@@ -122,9 +125,13 @@ func set_anim_speed(value: float) -> void:
 		_sprite.speed_scale = value
 
 
-## She ran into him: he cuts her down.
-func attack() -> void:
+## She ran into him: he cuts her down. `her_x` (tiles): he's shown standing
+## GRUNT_KILL_DISTANCE ahead of her, so she's at the edge of his swing (not inside it).
+func attack(her_x := NAN) -> void:
 	if alive and _sprite:
+		if not is_nan(her_x):
+			tile_x = her_x + GRUNT_KILL_DISTANCE
+			position.x = tile_x * Rules.TILE
 		_sprite.play("attack")
 		_sprite.frame = ATTACK_START_FRAME
 

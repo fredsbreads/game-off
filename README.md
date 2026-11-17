@@ -76,9 +76,13 @@ run upside down.
   you down. A teleport that drops a chain (MISSED) and lands you across from
   her gets the same warning and grace as running there. Same if a freeze
   ends with her hit but not finished and within a teleport (6 tiles) of you.
-  If two knights would strike at once (a freeze running out, running on or
-  past, or running into one), both do: the one further ahead from the front,
-  the other from behind the player (more than two: the two nearest).
+  A teleporter that strikes comes from the side she's on: in front (ahead,
+  or straight across), or from behind once the player's past her. If two
+  would strike at once (a freeze running out, running on or past, or running
+  into one), both do, each from her own side; both on one side: the one in
+  the player's row keeps it and the other comes round to the other side (more
+  than two: the two nearest). A plain enemy that cuts her down stands back at
+  the edge of his swing (`GRUNT_KILL_DISTANCE` in `scripts/enemy.gd`).
   Level 5 opens with a knight alone (`KNIGHT_DEBUT_LEVEL`): her debut, always
   met by hand. While the power-up is charged or playing it waits (knight-free
   chains come instead, even past level 5) and comes once it's spent; the
@@ -192,7 +196,7 @@ A bar above the ceiling row fills as you chain kills; filling it levels you up.
 
 - Background music: "Suspense Tension Building" by Monume (Pixabay), in `assets/music/background.ogg`: the quiet intro plays once, then the body loops (seven 16 s phrases, a 1 s crossfade baked into the end of the file); the quiet fade-out is cut (`MUSIC_*` in `scripts/main.gd`).
 - Enemy: "Martial Hero 3" asset pack (CC0, see `assets/sprites/martial_hero/License.txt`).
-- Knight: "Hero Knight" asset pack (CC0, see `assets/sprites/hero_knight/License.txt`); her lightning is the Frostwindz pack recoloured green.
+- Knight: "Hero Knight" asset pack (CC0, see `assets/sprites/hero_knight/License.txt`), the red on her chest recoloured a muted green; her lightning is the Frostwindz pack recoloured green.
 - Knight wind-up sound: "Sword blade swish" from Mixkit (same licence), in `assets/sounds/knight_warn.ogg`.
 - Ninja: "Martial Hero 2" asset pack (CC0, see `assets/sprites/ninja/License.txt`), his red mask recoloured to his clothes' blue; his lightning is the Frostwindz pack recoloured cyan.
 - Knight kill sound: "Samurai sword impact" from Mixkit (same licence), the impact only (the build-up cut off), in `assets/sounds/knight_kill.ogg`.

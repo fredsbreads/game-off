@@ -782,7 +782,7 @@ func _step() -> void:
 				_warn_sound.play(WARN_PEAK)
 				_die("knight", k)
 			else:
-				touching[0].attack()   # he cuts her down
+				touching[0].attack(player.x)   # he cuts her down (from the edge of his swing)
 				_die("hit", touching[0])
 			return
 
@@ -1392,16 +1392,46 @@ func _strikers(run_from := NAN) -> Array[Knight]:
 
 ## One knight strikes from the front; two: the one further ahead from the
 ## front, the other from behind her, at the same moment.
+## Each strikes from the side she's on: in front (ahead of the player, or
+## straight across), or from behind if the player's already past her. Two on
+## the same side: the one in the player's row keeps it and the other (across
+## or diagonal) comes round to the other side (both in one row: the nearer
+## keeps it).
 func _knights_strike(ks: Array[Knight]) -> void:
 	if ks.size() == 1:
-		_knight_strikes(ks[0])
+		_knight_strikes(ks[0], _strike_side(ks[0]))
 		return
-	var front: Knight = ks[0] if ks[0].tile_x >= ks[1].tile_x else ks[1]
-	var back: Knight = ks[1] if front == ks[0] else ks[0]
-	var from := back.pounce(player.x, player.row, -1.0)
-	fx.strike(from, Vector2(back.tile_x * Rules.TILE, Rules.body_center_y(back.row)), back.lightning(), KILL_STRIKE_FPS)
-	_second_killer = back
-	_knight_strikes(front)
+	var a: Knight = ks[0]
+	var b: Knight = ks[1]
+	var sa := _strike_side(a)
+	var sb := _strike_side(b)
+	if sa == sb:
+		var a_keeps: bool
+		if (a.row == player.row) != (b.row == player.row):
+			a_keeps = a.row == player.row
+		else:
+			a_keeps = absf(a.tile_x - player.x) <= absf(b.tile_x - player.x)
+		if a_keeps:
+			sb = -sa
+		else:
+			sa = -sb
+	# The one in front is the main killer (the death freeze holds on her).
+	var main_k: Knight = a if sa > 0.0 else b
+	var other: Knight = b if main_k == a else a
+	var other_side := sb if other == b else sa
+	var from := other.pounce(player.x, player.row, other_side)
+	fx.strike(from, Vector2(other.tile_x * Rules.TILE, Rules.body_center_y(other.row)), other.lightning(), KILL_STRIKE_FPS)
+	_second_killer = other
+	_knight_strikes(main_k, sa if main_k == a else sb)
+
+
+## 1: she strikes from in front of the player (ahead, or straight across);
+## -1: from behind (the player's already past her).
+func _strike_side(k: Knight) -> float:
+	var dx := k.tile_x - player.x
+	if k.row != player.row:
+		return -1.0 if Rules.knight_passed(dx) else 1.0   # (still straight across: in front)
+	return -1.0 if dx < 0.0 else 1.0
 
 
 ## True if a ninja strikes now: one straight in front of her in her row that
@@ -1467,8 +1497,8 @@ func _update_knight_threats() -> void:
 		_warn_sound.stop()
 
 
-func _knight_strikes(k: Knight) -> void:
-	var from := k.pounce(player.x, player.row)
+func _knight_strikes(k: Knight, side := 1.0) -> void:
+	var from := k.pounce(player.x, player.row, side)
 	# Slower than a teleport, so it's still there through the death freeze.
 	fx.strike(from, Vector2(k.tile_x * Rules.TILE, Rules.body_center_y(k.row)), k.lightning(), KILL_STRIKE_FPS)
 	# The knight's swish lands with the slash: skip to its peak if it isn't there yet.

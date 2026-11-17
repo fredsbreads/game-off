@@ -374,7 +374,7 @@ func _on_animation_finished() -> void:
 		super()
 
 
-func attack() -> void:
+func attack(_her_x := NAN) -> void:
 	if alive and _sprite:
 		_sprite.play("attack")
 		_sprite.frame = art["attack_start"]
