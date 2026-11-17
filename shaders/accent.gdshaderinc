@@ -48,7 +48,7 @@ vec3 accent(vec3 c, float sx) {
 	}
 	float from_red = min(hsv.x, 1.0 - hsv.x);   // hue distance from red (0..0.5)
 	float w = (1.0 - smoothstep(0.05, 0.11, from_red)) * smoothstep(0.12, 0.3, hsv.y);
-	// accent_hue < 0: her own red (the "Red (Original)" choice): reds stay as they are.
+	// accent_hue < 0: her own red (the "Red (No Shift)" choice): reds stay as they are.
 	vec3 pink = accent_hue < 0.0 ? c : accent_hsv2rgb(vec3(accent_hue, min(1.0, hsv.y * accent_sat), min(1.0, hsv.z * accent_val)));
 	float swept = smoothstep(accent_wipe - 0.002, accent_wipe + 0.002, sx);
 	vec3 out_c = mix(c, pink, w * accent_pink * swept);

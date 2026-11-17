@@ -141,7 +141,7 @@ func _value_text(key: String) -> String:
 	var v: Variant = Settings.get_value(key)
 	match key:
 		"colour":
-			return ("Default (%s)" % Palette.display_name(Palette.COLOUR)) if v == "default" else Palette.display_name(String(v))
+			return ("%s (Default)" % Palette.display_name(Palette.COLOUR)) if v == "default" else Palette.display_name(String(v))
 		"music", "sfx", "shake":
 			return "Off" if float(v) <= 0.001 else "%d%%" % roundi(float(v) * 100.0)
 		"flashes":
