@@ -847,6 +847,15 @@ func _physics_process(delta: float) -> void:
 		(Rules.CEILING_Y - cam.top()) * to_screen)
 
 
+## The flawless count and the katana (its level and bar) on screen now, both
+## on the same frame (not one of them on the next frame's update).
+func _show_counts() -> void:
+	hud.set_streak(_streak_shown)
+	var to_screen := get_viewport_rect().size.x / (CameraRig.VIEW_TILES * Rules.TILE)
+	hud.set_progress(progression.level, progression.bar, progression.bar_size(), chain_points,
+		(Rules.CEILING_Y - cam.top()) * to_screen)
+
+
 func _update_pause_visuals() -> void:
 	if state == State.DYING:
 		_update_death_visuals()
@@ -1217,7 +1226,7 @@ func _finisher_level_up(grade: String) -> void:
 	# The flawless count goes up now, with the level-up's sound and the
 	# katana's bump (not after the hold that follows).
 	_streak_shown = sweep
-	hud.set_streak(_streak_shown)
+	_show_counts()
 
 
 ## Testing colours: the C key switches her level-10 colour to the next one
@@ -1428,6 +1437,9 @@ func _auto_finale_strike(grade: String, k: Enemy) -> void:
 	_auto_ending = true
 	_end_chain(grade)   # (adds no charge: the meter starts again from empty)
 	_auto_ending = false
+	# The flawless count and the katana's level go up together, with the bang.
+	_streak_shown = sweep
+	_show_counts()
 	# The bang lands on a short frozen frame.
 	_hitstop = AUTO_FINALE_IMPACT
 	_pause_min = AUTO_FINALE_IMPACT
