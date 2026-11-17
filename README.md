@@ -103,7 +103,8 @@ run upside down.
   sword) with an alert (the knight's swish, higher: `NINJA_ALERT_PITCH`). Run
   on there for 0.6 s (`NINJA_AGGRO_DELAY` in `scripts/rules.gd`), or let a
   freeze run out with him there, and he teleports to her and cuts her down;
-  once he's alerted, coming back into his reach brings him at once. Level 10
+  once he's alerted, coming back into his reach brings him at once, and he
+  stays in his stance to show it. Level 10
   opens with a ninja alone, like the knight's debut at 5 (it waits for the
   power-up the same way). After that a teleporter is a ninja 25% of the time
   at level 10, +5% a level, up to 50% (`NINJA_SHARE*`): he takes knights'

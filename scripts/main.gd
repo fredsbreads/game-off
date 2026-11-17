@@ -1453,8 +1453,8 @@ func _update_knight_threats() -> void:
 				var snd := _ninja_alert_sound if k.forward_aggro else _warn_sound
 				snd.pitch_scale = _jitter() * (NINJA_ALERT_PITCH if k.forward_aggro else 1.0)
 				snd.play()
-		elif not across and k.threat:
-			k.calm()
+		elif not across and k.threat and not (k.forward_aggro and k.alerted):
+			k.calm()   # (a ninja who's alerted stays in his stance: coming back isn't safe)
 		any = any or across
 	if not any and _warn_sound.playing and state == State.PLAYING:
 		_warn_sound.stop()
