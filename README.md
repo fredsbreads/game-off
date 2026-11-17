@@ -162,7 +162,9 @@ run upside down.
   instead), the meter flashes. The meter is her red (her colour once she has
   it). Her next kill that has a chain
   after it sets it off: the rest of that chain plays itself, perfectly and
-  fast (`AUTO_STEP` between hops; the nearest enemy each time, one straight
+  fast (`AUTO_STEP` between hops; after the first clash with a teleporter it
+  lingers longer, `AUTO_DUEL_STEP`, and a bit less after her later ones and her
+  last hit, `AUTO_DUEL_STEP_AGAIN`; the nearest enemy each time, one straight
   across first, and a plain enemy before a knight level with him so her hits
   come one after another); its last kill gets the streak
   finisher's three slashes at full speed (`AUTO_SLASH_HOP`, `AUTO_SLASH_TO_BANG`),
@@ -182,6 +184,8 @@ run upside down.
   `scripts/palette.gd` (default `"yellow"`; every name is in `COLOURS`
   there). The pause screen's **Color** button steps through them (saved);
   on a keyboard, **C** does too and shows the name (off with `CYCLE_KEY`).
+- **Screen shake** is scaled down globally by `SHAKE_SCALE` (0.5) in
+  `scripts/camera_rig.gd` (1 = every shake as tuned).
 - Score, distance and the kill counter are tracked but **not shown** for now
   (kills, level reached and the best Flawless Streak (No Survivors) are on
   the game-over screen).

@@ -99,9 +99,14 @@ func hold_zoom(focus_world: Vector2, amount: float, rate: float = 12.0, screen_f
 		_hold_frac = screen_frac
 
 
+## Every screen shake in the game is scaled by this (1 = as tuned; lower is
+## gentler on the eyes over a long run).
+const SHAKE_SCALE := 0.5
+
+
 func shake(duration: float, strength: float) -> void:
 	_shake_time = maxf(_shake_time, duration)
-	_shake_strength = maxf(_shake_strength, strength)
+	_shake_strength = maxf(_shake_strength, strength * SHAKE_SCALE)
 
 
 func _punch_amount() -> float:

@@ -90,6 +90,7 @@ var _warn_sound: AudioStreamPlayer   # a knight winding up to strike
 const KILL_STRIKE_FPS := 5.0         # the knight's teleport onto the player lingers (normal: 18)
 const WARN_PEAK := 0.33              # seconds into it where the swish peaks
 var _clashed := false                # this teleport hit a knight who blinked away
+var _first_clash := false            # this clash was the first with her (the auto-chain lingers on it)
 var _knight_felled := false          # this teleport finished a knight off
 var _felled_knight: Knight = null
 var _last_felled: Enemy = null   # the last enemy killed (the finisher plays on them)
@@ -135,7 +136,8 @@ const STREAK_REWARD := 50
 const CHARGE_FULL := 10
 const CHARGE_GAIN := {"PERFECT": 2, "CLEAN": 1}
 const AUTO_STEP := 0.1          # seconds between her auto-chain hops
-const AUTO_DUEL_STEP := 0.32    # ...after a clash or a knight's last hit: the duel gets its weight
+const AUTO_DUEL_STEP := 0.32    # ...after the first clash with a teleporter: the duel gets its weight
+const AUTO_DUEL_STEP_AGAIN := 0.18   # ...after her later clashes and her last hit (still more than a hop)
 const AUTO_GAP_TILES := 12.0    # extra empty run after an auto-chain
 const AUTO_FINALE_FREEZE := 0.3  # (no last enemy to slash: the last kill holds this long, crackling, before the big strike)
 const AUTO_FINALE_CRACKLE := 0.05 # ...a crackle of lightning on her this often while it holds
@@ -625,7 +627,11 @@ func _physics_process(delta: float) -> void:
 				_bot_acts_in_pause()
 				_hitstop -= delta
 				_pause_elapsed += delta
-				var auto_wait := AUTO_DUEL_STEP if (_clashed or _knight_felled) else AUTO_STEP
+				var auto_wait := AUTO_STEP
+				if _clashed:
+					auto_wait = AUTO_DUEL_STEP if _first_clash else AUTO_DUEL_STEP_AGAIN
+				elif _knight_felled:
+					auto_wait = AUTO_DUEL_STEP_AGAIN
 				if _auto and not _finishing and _pause_elapsed >= auto_wait:
 					_auto_hop()
 					return
@@ -1633,6 +1639,7 @@ func _kill(e: Enemy) -> void:
 ## A hit on a knight that doesn't finish her: swords clash, the knight flashes
 ## and blinks (green lightning) to her next spot, under one of the player's markers.
 func _clash(knight: Knight) -> void:
+	_first_clash = knight.step_index == 0   # (before she blinks on)
 	_clashed = true
 	player.hold_slash(CLASH_BEAT)   # her big slash stays up through the beat
 	var from := knight.blink(CLASH_BEAT, player.last_pose(), CLASH_REAPPEAR)
