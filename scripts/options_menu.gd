@@ -160,7 +160,7 @@ func _row_rect(i: int) -> Rect2:
 
 
 func _draw() -> void:
-	draw_rect(Rect2(Vector2.ZERO, size), Color(0.02, 0.02, 0.03, 0.88))
+	draw_rect(Rect2(Vector2.ZERO, size), Color(0.05, 0.05, 0.07, 1.0))   # solid: nothing from the screen under it shows through
 	var font := ThemeDB.fallback_font
 	var title := "OPTIONS"
 	var tw := font.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, 36).x
