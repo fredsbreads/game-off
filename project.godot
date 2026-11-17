@@ -58,6 +58,10 @@ environment/defaults/default_clear_color=Color(0.11, 0.12, 0.16, 1)
 
 [shader_globals]
 
+accent2={
+"type": "color",
+"value": Color(1, 0.9, 0.17, 1)
+}
 accent_pink={
 "type": "float",
 "value": 0.0

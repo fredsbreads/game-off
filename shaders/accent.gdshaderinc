@@ -30,12 +30,22 @@ vec3 accent_hsv2rgb(vec3 c) {
 	return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
 }
 
+// Her second colour (the Flawless Color picked in Options, Palette.secondary):
+// her katana's yellow hilt takes it, always.
+global uniform vec4 accent2;
+
 // `sx`: the pixel's screen x (SCREEN_UV.x).
 vec3 accent(vec3 c, float sx) {
+	vec3 hsv = accent_rgb2hsv(c);
+	// The hilt: strong yellows (only her katana has them) become her second
+	// colour, keeping their shading.
+	if (hsv.x > 0.10 && hsv.x < 0.19 && hsv.y > 0.6 && hsv.z > 0.7) {
+		vec3 k = accent_rgb2hsv(accent2.rgb);
+		return accent_hsv2rgb(vec3(k.x, k.y, min(1.0, k.z * hsv.z / 0.97)));
+	}
 	if (accent_pink <= 0.0) {
 		return c;
 	}
-	vec3 hsv = accent_rgb2hsv(c);
 	float from_red = min(hsv.x, 1.0 - hsv.x);   // hue distance from red (0..0.5)
 	float w = (1.0 - smoothstep(0.05, 0.11, from_red)) * smoothstep(0.12, 0.3, hsv.y);
 	// accent_hue < 0: her own red (the "Red (Original)" choice): reds stay as they are.

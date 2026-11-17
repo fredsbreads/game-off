@@ -55,7 +55,8 @@ with lightning in her colour; pressing anything then flares it
 (`scripts/auto_overlay.gd`).
 
 Her second colour is the Flawless Color picked in Options: the katana's
-grip, the PERFECT text, the gold of PERFECT and of a level-up on the
+grip, her own katana's hilt (in every sprite, through the accent shader),
+the PERFECT text, the gold of PERFECT and of a level-up on the
 katana, the bolt while golden and the streak at its reward all use it
 (`Palette.secondary()`). If she dies with her reward colour, it fades back
 to red through the death.

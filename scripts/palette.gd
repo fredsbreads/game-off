@@ -83,6 +83,7 @@ static func use_colour(name: String) -> void:
 	RenderingServer.global_shader_parameter_set("accent_hue", float(_hsv[0]))
 	RenderingServer.global_shader_parameter_set("accent_sat", float(_hsv[1]))
 	RenderingServer.global_shader_parameter_set("accent_val", float(_hsv[2]))
+	RenderingServer.global_shader_parameter_set("accent2", secondary())   # (her katana's hilt)
 
 
 ## The next colour in COLOURS (the C key). Returns its name.

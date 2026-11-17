@@ -64,6 +64,7 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	material = Palette.sprite_material()   # (her katana's hilt in her second colour, as in the game)
 	visible = false
 	_rng.randomize()
 	var g := Gradient.new()
