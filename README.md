@@ -99,7 +99,7 @@ run upside down.
   In the freeze after a clash (not in the power-up's auto-chain), a wavering
   line of energy in her colour, with a pulse running along it, runs from her
   to where she'll blink next, and a dimmer one lingers along the jump she just
-  made (`THREAD_TRAIL_ALPHA`) (`THREAD_*` in
+  made, until the player teleports anywhere else (`THREAD_TRAIL_ALPHA`) (`THREAD_*` in
   `scripts/knight.gd`; a silhouette there instead, `SHOW_NEXT`, is off: it
   read as a target). Her swings' arcs stay white with a 2-pixel outline in her colour
   (`SLASH_OUTLINE_PX`, `SLASH_ARC_TINT`).

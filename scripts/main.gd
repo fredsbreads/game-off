@@ -817,6 +817,11 @@ func _step() -> void:
 
 
 func _teleport(move: int) -> void:
+	# She's going somewhere else: a duel's lingering trail goes (a clash below
+	# shows the new one).
+	for e in level.enemies:
+		if e is Knight:
+			(e as Knight).show_trail = false
 	var from := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row))
 	var from_feet := Vector2(player.x * Rules.TILE, Rules.surface_y(player.row))
 	var from_row := player.row

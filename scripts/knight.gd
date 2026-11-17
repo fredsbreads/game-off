@@ -116,6 +116,11 @@ var thread := false
 var _thread: Node2D = null
 var _thread_points := PackedVector2Array()
 var _trail_points := PackedVector2Array()   # the jump she just made (from her last spot)
+## The trail of her last jump shows only until the player teleports elsewhere
+## (set by blink(); main.gd clears it on any other teleport).
+var show_trail := false
+## (Testing) which clash swing to use; -1 = the usual choice.
+var force_swing := -1
 var _thread_time := 0.0
 var _thread_fade := 0.0
 var _thread_seed := randf() * TAU
@@ -271,6 +276,7 @@ func blink(beat := 0.0, her_pose := 0, reappear := -1.0) -> Vector2:
 			if is_instance_valid(self):
 				visible = true)
 	engaged = true
+	show_trail = true
 	step_index += 1
 	tile_x = path[step_index].x
 	row = int(path[step_index].y)
@@ -291,7 +297,12 @@ func _leave_ghost(beat := 0.0, her_pose := 0) -> void:
 		return
 	var by_pose: Array = art["by_pose"]
 	var answer: Dictionary = by_pose[clampi(her_pose, 0, by_pose.size() - 1)]
-	if art.get("swing_mix", false):
+	if force_swing >= 0:
+		for entry in by_pose:
+			if int(entry["swing"]) == force_swing:
+				answer = entry
+				break
+	elif art.get("swing_mix", false):
 		# Either swing, half and half: the first pose that answers with it.
 		var want: int = randi() % (art["swings"] as Array).size()
 		for entry in by_pose:
@@ -400,7 +411,7 @@ func pounce(her_x: float, her_row: int, side := 1.0) -> Vector2:
 func slash(her_x: float, side := 1.0) -> void:
 	threat = false
 	# Far enough off that her arc lands on the player rather than her standing inside the player.
-	tile_x = her_x + KILL_DISTANCE * side
+	tile_x = her_x + float(art.get("kill_distance", KILL_DISTANCE)) * side
 	scale.x = side   # behind her: turned round to face her
 	_place()
 	if _sprite:
@@ -447,7 +458,7 @@ func _update_thread(delta: float) -> void:
 	if _thread == null:
 		return
 	var has_next := step_index + 1 < path.size()
-	var has_prev := step_index > 0
+	var has_prev := step_index > 0 and show_trail
 	var show := thread and alive and not _slashing and (has_next or has_prev)
 	if not show:
 		_thread.visible = false
