@@ -23,7 +23,7 @@ const VALUE_W := 330.0   # the value's part of a row (on the right)
 const BUTTON_W := 300.0  # an action row's button (centred)
 
 const STEPS_VOLUME := [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
-const STEPS_SHAKE := [1.0, 0.5, 0.0]   # Full, Soft, Off
+const STEPS_SHAKE := [0.0, 0.5, 1.0]   # None, Soft, Full (left to right; it goes round)
 
 # key, label (actions have no key; their label is the button text)
 const ROWS := [
@@ -146,10 +146,11 @@ func _step(i: int, dir: int) -> void:
 
 func _values(key: String) -> Array:
 	match key:
-		"colour": return ["default"] + Palette.COLOURS.keys()
+		"colour":   # (the default's own colour isn't listed again under its name)
+			return ["default"] + Palette.COLOURS.keys().filter(func(k: String) -> bool: return k != Palette.COLOUR)
 		"music", "sfx": return STEPS_VOLUME
 		"shake": return STEPS_SHAKE
-		"flashes": return [1.0, Settings.FLASH_SOFT, 0.0]
+		"flashes": return [0.0, Settings.FLASH_SOFT, 1.0]   # None, Soft, Full
 	return []
 
 
@@ -169,7 +170,7 @@ func _value_text(key: String) -> String:
 		"colour":
 			return ("%s (Default)" % Palette.display_name(Palette.COLOUR)) if v == "default" else Palette.display_name(String(v))
 		"shake":
-			return "Full" if float(v) >= 0.99 else ("Off" if float(v) <= 0.001 else "Soft")
+			return "Full" if float(v) >= 0.99 else ("None" if float(v) <= 0.001 else "Soft")
 		"music", "sfx":
 			return "Off" if float(v) <= 0.001 else "%d%%" % roundi(float(v) * 100.0)
 		"flashes":

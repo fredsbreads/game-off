@@ -25,6 +25,8 @@ static func load_all() -> void:
 	var cfg := ConfigFile.new()
 	cfg.load(SAVE_PATH)   # (missing on a first visit: every value stays default)
 	colour = String(cfg.get_value("settings", "colour", DEFAULTS["colour"]))
+	if colour == Palette.COLOUR:
+		colour = "default"   # (the default's own colour, picked by name before it was dropped from the list)
 	music = float(cfg.get_value("settings", "music", DEFAULTS["music"]))
 	sfx = float(cfg.get_value("settings", "sfx", DEFAULTS["sfx"]))
 	shake = float(cfg.get_value("settings", "shake", DEFAULTS["shake"]))
