@@ -7,7 +7,8 @@ extends Control
 ##
 ## Tap a row's value (or the row) to step it: the left part steps back, the
 ## rest steps on. Keys: Up/Down (W/S) pick a row, Left/Right (A/D) change it,
-## Enter/Space steps it or presses it, Esc/O/P go back.
+## Enter/Space steps it or presses it, Esc/O/P go back. The teleport keys
+## work like Left/Right (J, A, Left Shift; K, D, Right Shift).
 
 signal closed
 ## A setting just changed (main plays a sound to preview the sound volume).
@@ -70,11 +71,16 @@ func _process(_delta: float) -> void:
 func handle(event: InputEvent, pos: Vector2) -> void:
 	if event is InputEventKey:
 		_keyboard = true
-		match event.physical_keycode:
+		var code: int = event.physical_keycode if event.physical_keycode != 0 else event.keycode
+		# The teleport keys work like Left/Right: J, A, Left Shift step back;
+		# K, D, Right Shift step on.
+		var left_shift: bool = code == KEY_SHIFT and event.location == KEY_LOCATION_LEFT
+		match code:
 			KEY_UP, KEY_W: _selected = posmod(_selected - 1, _rows.size())
 			KEY_DOWN, KEY_S: _selected = posmod(_selected + 1, _rows.size())
-			KEY_LEFT, KEY_A: _step(_selected, -1)
-			KEY_RIGHT, KEY_D, KEY_ENTER, KEY_KP_ENTER, KEY_SPACE: _step(_selected, 1)
+			KEY_LEFT, KEY_A, KEY_J: _step(_selected, -1)
+			KEY_SHIFT: _step(_selected, -1 if left_shift else 1)
+			KEY_RIGHT, KEY_D, KEY_K, KEY_ENTER, KEY_KP_ENTER, KEY_SPACE: _step(_selected, 1)
 			KEY_ESCAPE, KEY_O, KEY_P, KEY_BACKSPACE: close()
 		queue_redraw()
 		return

@@ -114,7 +114,9 @@ func _button_text(id: String) -> String:
 func handle(event: InputEvent, pos: Vector2) -> String:
 	var ids := _buttons()
 	if event is InputEventKey:
-		match event.physical_keycode:
+		# (physical code, or the key's code where the browser gives none)
+		var code: int = event.physical_keycode if event.physical_keycode != 0 else event.keycode
+		match code:
 			KEY_UP:
 				_keyboard = true
 				_selected = posmod(_selected - 1, ids.size())

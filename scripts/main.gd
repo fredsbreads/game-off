@@ -410,10 +410,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		var pick := ""
 		if event is InputEventKey and event.pressed and not event.echo:
-			match event.physical_keycode:
+			var code: int = event.physical_keycode if event.physical_keycode != 0 else event.keycode
+			match code:
 				KEY_UP, KEY_W: hud.pause_move(-1)
 				KEY_DOWN, KEY_S: hud.pause_move(1)
-				KEY_LEFT, KEY_RIGHT, KEY_A, KEY_D, KEY_ENTER, KEY_KP_ENTER, KEY_SPACE: pick = hud.pause_selected()
+				# Left/Right and the other teleport keys (J, K, A, D, Shifts) press it.
+				KEY_LEFT, KEY_RIGHT, KEY_A, KEY_D, KEY_J, KEY_K, KEY_SHIFT, KEY_ENTER, KEY_KP_ENTER, KEY_SPACE: pick = hud.pause_selected()
 				KEY_P, KEY_ESCAPE: pick = "resume"
 		elif (event is InputEventScreenTouch or event is InputEventMouseButton) and event.pressed:
 			pick = hud.pause_button_at(_screen_pos(event))
