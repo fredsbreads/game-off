@@ -34,8 +34,8 @@ const MASTER_ART := {
 		{"swing": 1, "gap": 2.9},
 		{"swing": 0, "gap": 1.9},
 	],
-	"swing_mix": true,
-	"kill_distance": 3.6,   # (the knight's 2.6, a tile further: his killing blow from further off)   # each clash: either swing, half and half (not by her pose)
+	"swing_mix": true,   # each clash: either swing, half and half (not by her pose)
+	"kill_distance": 3.1,   # tiles ahead of her he strikes from (the knight's 2.6, half a tile further)
 	"windup_anim": "stance", "windup_frame": 0,
 	"engaged_anim": "stance", "engaged_frame": 0,   # after a clash: his stance too
 	"attack_start": 3,
