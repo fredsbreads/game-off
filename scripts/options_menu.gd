@@ -25,12 +25,12 @@ const STEPS_SHAKE := [0.0, 0.25, 0.5, 0.75, 1.0]
 
 # key, label (actions have no key; their label is the button text)
 var _rows := [
-	{"key": "colour", "label": "Flawless colour"},
+	{"key": "colour", "label": "Flawless Color"},
 	{"key": "music", "label": "Music"},
-	{"key": "sfx", "label": "Sound effects"},
-	{"key": "shake", "label": "Screen shake"},
-	{"key": "flashes", "label": "Screen flashes"},
-	{"action": "reset", "label": "Reset to defaults"},
+	{"key": "sfx", "label": "Sound Effects"},
+	{"key": "shake", "label": "Screen Shake"},
+	{"key": "flashes", "label": "Screen Flashes"},
+	{"action": "reset", "label": "Reset To Defaults"},
 	{"action": "back", "label": "Back"},
 ]
 var _selected := 0
