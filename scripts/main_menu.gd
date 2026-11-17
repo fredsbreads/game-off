@@ -108,6 +108,8 @@ func _buttons() -> Array[String]:
 	var b: Array[String] = ["play"]
 	if level_choice:
 		b.append("level")
+	if Hud.rotated:   # (a phone held upright)
+		b.append("flip")
 	b.append("options")
 	return b
 
@@ -116,6 +118,7 @@ func _button_text(id: String) -> String:
 	match id:
 		"play": return "PLAY"
 		"level": return "Start At Level %d" % start_level
+		"flip": return "Flip Screen"
 		"options": return "Options"
 	return ""
 
@@ -124,7 +127,7 @@ func _button_text(id: String) -> String:
 
 ## A fresh press while the menu is open; `pos` = its game-screen position
 ## (taps and clicks only). Returns "play", "level", "level_back" (a left key
-## on the level button: the level before), "options" or "".
+## on the level button: the level before), "flip", "options" or "".
 func handle(event: InputEvent, pos: Vector2) -> String:
 	var ids := _buttons()
 	if event is InputEventKey:

@@ -221,6 +221,7 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	rotated = OS.has_feature("web") and int(JavaScriptBridge.eval("window.redFlashRotated === true ? 1 : 0", true)) == 1
 	_rotate.visible = needs_portrait()
 	var view := get_viewport().get_visible_rect().size
 	if _rotate.visible:
@@ -260,6 +261,17 @@ func _process(delta: float) -> void:
 
 ## True on a touch device (phone, tablet): instructions say "Tap"; else they
 ## name keys. (Checked once.)
+## True while the game is shown turned (a phone held upright): the screens
+## then offer "Flip Screen". Updated every frame (see _process).
+static var rotated := false
+
+
+## Turns the game 180 degrees (upright phones; remembered by the page).
+static func flip_screen() -> void:
+	if OS.has_feature("web"):
+		JavaScriptBridge.eval("window.redFlashSetFlip(!window.redFlashFlip)", true)
+
+
 static var _touch := -1
 static func is_touch() -> bool:
 	if _touch < 0:

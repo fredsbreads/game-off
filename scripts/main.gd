@@ -459,6 +459,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			"level_back":   # (a left key: the level before)
 				hud.menu.keep_level_picked()
 				_choose_start_level(-1)
+			"flip":   # (upright phones) turns the game 180 degrees
+				Hud.flip_screen()
 			"options":
 				_start_music()   # (so its volume can be heard while it's set)
 				hud.open_options(false)

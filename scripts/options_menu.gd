@@ -25,7 +25,7 @@ const STEPS_VOLUME := [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
 const STEPS_SHAKE := [0.0, 0.25, 0.5, 0.75, 1.0]
 
 # key, label (actions have no key; their label is the button text)
-var _rows := [
+const ROWS := [
 	{"key": "colour", "label": "Flawless Color"},
 	{"key": "music", "label": "Music"},
 	{"key": "sfx", "label": "Sound Effects"},
@@ -34,6 +34,8 @@ var _rows := [
 	{"action": "reset", "label": "Reset To Defaults"},
 	{"action": "back", "label": "Back"},
 ]
+const FLIP_ROW := {"action": "flip", "label": "Flip Screen"}   # (upright phones, above Reset)
+var _rows: Array = ROWS.duplicate()
 var _selected := 0
 ## Set by hud.gd: true over the game (see-through), false over the title screen.
 var see_through := false
@@ -48,6 +50,9 @@ func _ready() -> void:
 
 
 func open() -> void:
+	_rows = ROWS.duplicate()
+	if Hud.rotated:
+		_rows.insert(_rows.size() - 2, FLIP_ROW)
 	_selected = 0
 	_keyboard = true
 	visible = true
@@ -104,6 +109,8 @@ func _step(i: int, dir: int) -> void:
 			"reset":
 				Settings.reset()
 				changed.emit("reset")
+			"flip":
+				Hud.flip_screen()
 			"back":
 				close()
 		return
