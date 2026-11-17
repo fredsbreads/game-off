@@ -56,8 +56,10 @@ var _on_pause_screen := false
 ## The Options screen itself (main.gd passes it presses while it's open).
 var options: OptionsMenu
 # The start screen's "Start at level" choice (1 or 5).
-var _level_button: Control
-var _start_level := 1
+# The game-over screen's "Main menu" button (a retry goes straight into a run).
+var _menu_button: Control
+## The title screen (main.gd passes it presses while it's open).
+var menu: MainMenu
 var _enemies_off_label: Label
 var _enemies_off := false
 var _message_before_pause := ""
@@ -181,17 +183,19 @@ func _ready() -> void:
 	_options_button.visible = false
 	_options_button.draw.connect(_draw_options_button)
 	add_child(_options_button)
-	_level_button = Control.new()
-	_level_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_level_button.size = FLIP_BUTTON_SIZE
-	_level_button.visible = false
-	_level_button.draw.connect(_draw_level_button)
-	add_child(_level_button)
+	_menu_button = Control.new()
+	_menu_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_menu_button.size = FLIP_BUTTON_SIZE
+	_menu_button.visible = false
+	_menu_button.draw.connect(_draw_menu_button)
+	add_child(_menu_button)
 	_enemies_off_label = _label(20, Vector2(20, 14))
 	_enemies_off_label.text = "NO ENEMIES (N)"
 	_enemies_off_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.6))
 	_enemies_off_label.visible = false
 
+	menu = MainMenu.new()
+	add_child(menu)
 	options = OptionsMenu.new()
 	add_child(options)   # over everything but the "turn your phone" screen
 
@@ -247,9 +251,7 @@ func _process(delta: float) -> void:
 	for b in shown:
 		b.position = Vector2(x, view.y * 0.5 + 55.0)
 		x += FLIP_BUTTON_SIZE.x + gap
-	_level_button.position = Vector2((view.x - FLIP_BUTTON_SIZE.x) / 2.0, view.y * 0.5 + 55.0)
-	if not _on_pause_screen:   # the start screen: under the level choice (if it's there)
-		_options_button.position = _level_button.position + Vector2(0, (FLIP_BUTTON_SIZE.y + 14.0) if _level_button.visible else 0.0)
+	_menu_button.position = Vector2((view.x - FLIP_BUTTON_SIZE.x) / 2.0, view.y - FLIP_BUTTON_SIZE.y - 24.0)
 
 
 ## True on a phone/tablet held sideways in the browser: play is upright there.
@@ -285,7 +287,7 @@ func set_stats(score: int, distance: float, kills: int, chain: int, chain_fracti
 ## `pending` kills shown in grey after it. ceiling_y = the ceiling's screen y;
 ## the bar sits in the middle of the band above it.
 func set_progress(level: int, bar: float, bar_size: float, pending: int, ceiling_y: float) -> void:
-	_progress.visible = true
+	_progress.visible = not menu.visible   # (hidden behind the title screen)
 	_p_bar = bar
 	_p_size = maxf(bar_size, 0.001)
 	_p_pending = pending
@@ -420,38 +422,6 @@ func _draw_result() -> void:
 			_progress.draw_rect(Rect2(base, 0, kills, s.y), PROGRESS_PENDING.lerp(PROGRESS_FILL, p))
 
 
-## The start screen's level choice: shown with the start message.
-func show_level_choice(level: int) -> void:
-	_start_level = level
-	_level_button.visible = true
-	_level_button.queue_redraw()
-
-
-func level_button_contains(pos: Vector2) -> bool:
-	return _level_button.visible and _level_button.get_rect().grow(10.0).has_point(pos)
-
-
-func _draw_level_button() -> void:
-	var s := FLIP_BUTTON_SIZE
-	_level_button.draw_rect(Rect2(Vector2.ZERO, s), Color(1, 1, 1, 0.12))
-	_level_button.draw_rect(Rect2(Vector2.ZERO, s), Color(1, 1, 1, 0.7), false, 2.0)
-	var font := ThemeDB.fallback_font
-	var text := "Start at level %d" % _start_level
-	var size := 26
-	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
-	_level_button.draw_string(font, Vector2((s.x - w) / 2.0, s.y / 2.0 + size * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color.WHITE)
-
-
-func show_start(best: int) -> void:
-	var lines := "left tap - shift\n"
-	lines += "right tap - forward\n"
-	lines += "tap both - shift + forward"
-	if SHOW_SCORE_UI and best > 0:
-		lines += "\n\nBest: %d" % best
-	_message.text = lines
-	_message.visible = true
-
-
 func show_game_over(stats: Dictionary) -> void:
 	var lines := "GAME OVER\n\n"
 	if SHOW_DISTANCE_UI:
@@ -468,6 +438,22 @@ func show_game_over(stats: Dictionary) -> void:
 	lines += "Press or tap to retry"
 	_message.text = lines
 	_message.visible = true
+	_menu_button.visible = true
+
+
+func menu_button_contains(pos: Vector2) -> bool:
+	return _menu_button.visible and _menu_button.get_rect().grow(10.0).has_point(pos)
+
+
+func _draw_menu_button() -> void:
+	var s := FLIP_BUTTON_SIZE
+	_menu_button.draw_rect(Rect2(Vector2.ZERO, s), Color(1, 1, 1, 0.12))
+	_menu_button.draw_rect(Rect2(Vector2.ZERO, s), Color(1, 1, 1, 0.7), false, 2.0)
+	var font := ThemeDB.fallback_font
+	var text := "Main menu (M)"
+	var size := 26
+	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+	_menu_button.draw_string(font, Vector2((s.x - w) / 2.0, s.y / 2.0 + size * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color.WHITE)
 
 
 func set_pause_button_visible(value: bool) -> void:
@@ -522,11 +508,6 @@ func options_button_contains(pos: Vector2) -> bool:
 	return _options_button.visible and not options.visible and _options_button.get_rect().grow(10.0).has_point(pos)
 
 
-## The start screen's Options button (shown with the start message).
-func set_options_button_visible(value: bool) -> void:
-	_options_button.visible = value
-
-
 func _draw_options_button() -> void:
 	var s := FLIP_BUTTON_SIZE
 	_options_button.draw_rect(Rect2(Vector2.ZERO, s), Color(1, 1, 1, 0.12))
@@ -564,7 +545,7 @@ func _draw_pause_button() -> void:
 
 func hide_message() -> void:
 	_message.visible = false
-	_level_button.visible = false
+	_menu_button.visible = false
 	_options_button.visible = false
 
 

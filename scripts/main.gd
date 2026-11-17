@@ -339,12 +339,13 @@ func _ready() -> void:
 	level.ensure_generated(player.x)
 	cam.snap(player.x)
 	best_score = _load_best()
-	hud.show_start(best_score)
-	hud.set_options_button_visible(true)
 	_prewarm()
-	if LEVEL_CHOICE:
-		hud.show_level_choice(progression.level)
 	hud.set_enemies_off(Level.enemies_off)   # practice mode stays on across retries
+	if _retry:
+		_retry = false
+		begin()   # a retry goes straight into the run
+	else:
+		hud.menu.open(progression.level, LEVEL_CHOICE)
 
 
 func score() -> int:
@@ -352,6 +353,7 @@ func score() -> int:
 
 
 func begin() -> void:
+	hud.menu.close()
 	state = State.PLAYING
 	player.running = true
 	_start_music()
@@ -409,6 +411,26 @@ func _unhandled_input(event: InputEvent) -> void:
 	if LEVEL_CHOICE and state == State.READY and _start_level_input(event):
 		get_viewport().set_input_as_handled()
 		return
+	if state == State.READY and hud.menu.visible:
+		get_viewport().set_input_as_handled()
+		if not (event is InputEventKey or event is InputEventScreenTouch or event is InputEventMouseButton):
+			return
+		match hud.menu.handle(event, Vector2.ZERO if event is InputEventKey else _screen_pos(event)):
+			"play":
+				if not hud.needs_portrait():
+					_request_fullscreen()
+					begin()
+			"level":
+				_choose_start_level(0)
+			"options":
+				_start_music()   # (so its volume can be heard while it's set)
+				hud.options.open()
+		return
+	if state == State.OVER and _state_time >= RETRY_DELAY and (_is_menu_key(event) \
+			or ((event is InputEventScreenTouch or event is InputEventMouseButton) and hud.menu_button_contains(_screen_pos(event)))):
+		get_viewport().set_input_as_handled()
+		get_tree().reload_current_scene()   # back to the title screen
+		return
 	var button := _button_from_event(event)
 	if button == Rules.Move.NONE:
 		return
@@ -435,10 +457,20 @@ func _unhandled_input(event: InputEvent) -> void:
 			_hitstop = minf(_hitstop, maxf(_pause_min - _pause_elapsed, 0.0))
 		State.OVER:
 			if _state_time >= RETRY_DELAY:
+				_retry = true
 				get_tree().reload_current_scene()
 
 
-## The Options button (start screen, pause screen), or the O key.
+## Set just before a retry reloads the scene: the new run starts at once
+## instead of on the title screen.
+static var _retry := false
+
+
+func _is_menu_key(event: InputEvent) -> bool:
+	return event is InputEventKey and event.pressed and event.physical_keycode == KEY_M
+
+
+## The Options button (pause screen), or the O key (title or pause screen).
 func _is_options_press(event: InputEvent) -> bool:
 	if event is InputEventKey:
 		return event.pressed and event.physical_keycode == KEY_O
@@ -1902,15 +1934,12 @@ func _load_setting(key: String, default: Variant) -> Variant:
 	return cfg.get_value("settings", key, default)
 
 
-## The start screen's level choice: tap its button (or L) to switch between
-## the start levels, or press 1 / 5 / 0 (10). The run is rebuilt at that level.
-## Returns true if the event was that.
+## The title screen's level choice: its button (or L) steps through the
+## start levels, or press 1 / 5 / 0 (10). The run is rebuilt at that level.
+## Returns true if the event was a key for it.
 func _start_level_input(event: InputEvent) -> bool:
-	var tap: bool = (event is InputEventScreenTouch or event is InputEventMouseButton) and event.pressed
 	var want := -1
-	if tap and hud.level_button_contains(_screen_pos(event)):
-		want = 0
-	elif event is InputEventKey and event.pressed:
+	if event is InputEventKey and event.pressed:
 		match event.physical_keycode:
 			KEY_L: want = 0
 			KEY_1: want = 1
@@ -1918,6 +1947,12 @@ func _start_level_input(event: InputEvent) -> bool:
 			KEY_0: want = 10
 	if want < 0:
 		return false
+	_choose_start_level(want)
+	return true
+
+
+## want: a level, or 0 = the next one in START_LEVELS.
+func _choose_start_level(want: int) -> void:
 	if want == 0:   # the next one
 		want = START_LEVELS[(START_LEVELS.find(progression.level) + 1) % START_LEVELS.size()]
 	var cfg := ConfigFile.new()
@@ -1927,4 +1962,3 @@ func _start_level_input(event: InputEvent) -> bool:
 	if want != progression.level:
 		# A fresh run at that level (after this input is done with).
 		get_tree().reload_current_scene.call_deferred()
-	return true

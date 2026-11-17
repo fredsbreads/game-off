@@ -20,10 +20,17 @@ The original single-row short/long version is kept on the `short-long-version` b
 | Vertical teleport (straight across to the other row) | `←` / `↑` / `J` / `A` / `W` / `Left Shift` | tap the left half |
 | Diagonal teleport (forward 6 + other row) | both at once | tap both halves at once |
 
+The game opens on the title screen (`scripts/main_menu.gd`): "RED FLASH" in
+red with lightning crackling round it and a big strike now and then, over the
+level dimmed. **Play** (or `Enter` / `Space` / any teleport key), the level
+chooser (below), **Options** (`O`); `↑` / `↓` pick a button. After a death,
+any press retries straight into a new run; **Main menu** (`M`) goes back to
+the title screen.
+
 Pause with `P` / `Esc` or the button in the top-right corner; any key or tap resumes.
 The game also pauses itself when the window or app loses focus.
 
-Options: the **Options** button on the start screen and the pause screen
+Options: the **Options** button on the title screen and the pause screen
 (or `O`): her flawless colour (or the default), music and sound-effect
 volume, screen shake, soft screen flashes, and reset to defaults. Tap a
 value's left part to step back, anywhere else on the row to step on; keys:
@@ -282,6 +289,7 @@ scripts/
   hud.gd                progression bar, messages, rotate-device overlay, flash
   settings.gd           the player's options, saved; the Music / SFX audio buses
   options_menu.gd       the Options screen
+  main_menu.gd          the title screen
   debug_tools.gd        bot / soak test / screenshots (only with command-line args)
 tools/validate_patterns.gd
 ```
@@ -323,10 +331,10 @@ It prints `SOAK OK` if it reaches the distance, or `SOAK FAIL` with the chunk it
 died in. Other options are listed at the top of `scripts/debug_tools.gd`
 (`--autostart`, `--shots=DIR` for screenshots, `--level=N` to start at a level).
 
-The start screen has a **Start at level 1 / 5 / 10 / 15** button (tap it, or
+The title screen has a **Start at level 1 / 5 / 10 / 15** button (tap it, or
 press L, 1, 5 or 0): 5 goes straight to the knight's debut, 10 to the ninja's,
 15 (tap or L only) to the master's. It's
 switched on and off with `LEVEL_CHOICE` at the top of `scripts/main.gd` (off:
-no button, every run starts at level 1, e.g. for playtesters). The pause
-screen has a **Color** button that steps through her reward colours. Both
-choices are saved between visits (`user://save.cfg`).
+no button, every run starts at level 1, e.g. for playtesters). Her reward
+colour is on the Options screen. Both choices are saved between visits
+(`user://save.cfg`).
