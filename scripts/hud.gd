@@ -50,6 +50,7 @@ var _backdrop_mode := "pause"   # "pause" or "over"
 var _band := Rect2()            # the band (set in _process)
 var _over_stats: Array = []     # [[value, label], ...] on the game-over screen
 var _over_hint := ""
+var _over_start_note := ""   # e.g. "Started At 5" (under the level; empty from level 1)
 var _over_t := 0.0              # seconds the game-over screen has shown
 ## On a computer the game-over screen has buttons only: New Run (picked
 ## first) over Main Menu. (On touch screens a tap anywhere starts a new run.)
@@ -60,7 +61,7 @@ const FLIP_BUTTON_SIZE := Vector2(300, 58)   # (as the title screen's buttons)
 const BAND_PAD := 30.0
 const PAUSE_TITLE_H := 92.0
 const OVER_TITLE_H := 96.0
-const OVER_STATS_H := 92.0
+const OVER_STATS_H := 104.0   # (room for "Started At N" under the level)
 const OVER_HINT_H := 48.0
 # Practice mode toggle on the pause screen (N on a keyboard), plus a small
 # note in the corner while enemies are off.
@@ -401,6 +402,9 @@ func show_game_over(stats: Dictionary) -> void:
 		_message.visible = true
 		return
 	_over_stats = [[stats["kills"], "KILLS"], [stats["level"], "LEVEL"], [stats["best_sweep"], "PEAK FLAWLESS"]]
+	# A run that didn't start at level 1 says where it did, under its level.
+	var start: int = stats.get("start_level", 1)
+	_over_start_note = "Started At %d" % start if start > 1 else ""
 	_over_hint = "Tap Anywhere To Retry" if is_touch() else ""
 	_over_sel = 0
 	_retry_button.visible = not is_touch()
@@ -502,6 +506,9 @@ func _draw_backdrop() -> void:
 		var lw := font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
 		c.draw_string(font, Vector2(cx - lw / 2.0, sy + 20.0), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(1, 1, 1, 0.55 * a))   # (the label over its number)
 		c.draw_string(font, Vector2(cx - vw / 2.0, sy + 72.0), value, HORIZONTAL_ALIGNMENT_LEFT, -1, 46, Color(1, 1, 1, a))
+		if label == "LEVEL" and _over_start_note != "":
+			var nw := font.get_string_size(_over_start_note, HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x
+			c.draw_string(font, Vector2(cx - nw / 2.0, sy + 94.0), _over_start_note, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color(MainMenu.TITLE_RED.lightened(0.25), 0.9 * a))
 		if i > 0:   # thin dividers between them
 			var dx := x0 + col_w * i
 			c.draw_line(Vector2(dx, sy + 10.0), Vector2(dx, sy + 78.0), Color(1, 1, 1, 0.15 * a), 1.0)

@@ -20,6 +20,7 @@ const START_LEVELS := [1, 5, 10, 15]
 ## The start level picked on the title screen: kept through this visit (back
 ## to the title screen, retries) but not saved, so the game always opens on 1.
 static var _session_start_level := 1
+var _run_start_level := 1
 # Every kill gets a short hit freeze (invert flash).
 const KILL_HIT := 0.06
 # If another enemy is under any marker where you land, the
@@ -381,6 +382,7 @@ func score() -> int:
 
 
 func begin() -> void:
+	_run_start_level = progression.level   # (the death screen says if it wasn't 1)
 	hud.menu.close()
 	state = State.PLAYING
 	player.running = true
@@ -1955,7 +1957,7 @@ func _game_over() -> void:
 		best_score = final_score
 		_save_best(best_score)
 	hud.show_game_over({
-		"distance": distance, "kills": kills, "best_chain": best_chain, "perfect_chains": perfect_chains, "best_sweep": best_sweep, "level": progression.level,
+		"distance": distance, "kills": kills, "best_chain": best_chain, "perfect_chains": perfect_chains, "best_sweep": best_sweep, "level": progression.level, "start_level": _run_start_level,
 		"score": final_score, "best": best_score, "new_best": new_best,
 	})
 
