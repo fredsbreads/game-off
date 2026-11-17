@@ -246,8 +246,9 @@ func set_progress(level: int, bar: float, bar_size: float, pending: int, ceiling
 
 
 ## The power-up meter: value out of full; charged = full and ready.
-func set_charge(value: int, full: int, charged: bool) -> void:
-	_top.set_charge(value, full, charged)
+## boosted: golden (her PERFECT chains charge double).
+func set_charge(value: int, full: int, charged: bool, boosted := false) -> void:
+	_top.set_charge(value, full, charged, boosted)
 
 
 ## The current flawless streak.

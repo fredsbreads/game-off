@@ -69,6 +69,13 @@ var _result_t := 0.0
 var _charge := 0.0
 var _charged := false
 var _charge_pop := 0.0
+## Golden (she has her reward colour): her PERFECT chains charge double
+## (main.gd CHARGE_GOLDEN_PERFECT). The bolt shows it: gold glow and rim,
+## gold sparks rising, an "x2" badge, and a bigger pop with a ring per gain.
+var _boosted := false
+var _boost_ring := 0.0
+var _sparks: Array = []   # [position, velocity, life]
+var _spark_timer := 0.0
 var _arcs: Array[PackedVector2Array] = []
 var _arc_timer := 0.0
 var _rng := RandomNumberGenerator.new()   # (the look only: never the game's random numbers)
@@ -96,6 +103,8 @@ func _process(delta: float) -> void:
 			pulse()
 	_pop = maxf(_pop - delta / POP_TIME, 0.0)
 	_charge_pop = maxf(_charge_pop - delta / 0.2, 0.0)
+	_boost_ring = maxf(_boost_ring - delta / 0.45, 0.0)
+	_update_sparks(delta)
 	if _break_t >= 0.0:
 		_break_t += delta
 		if _break_t > BREAK_TIME:
@@ -116,12 +125,15 @@ func set_progress(lv: int, bar: float, bar_size: float, pending: int) -> void:
 	level = _result["level"] if not _result.is_empty() else lv
 
 
-func set_charge(value: int, full: int, charged: bool) -> void:
+func set_charge(value: int, full: int, charged: bool, boosted := false) -> void:
 	var v := clampf(float(value) / float(full), 0.0, 1.0)
 	if v > _charge + 0.001:
 		_charge_pop = 1.0
+		if boosted:
+			_boost_ring = 1.0
 	_charge = v
 	_charged = charged
+	_boosted = boosted
 
 
 func set_streak(n: int) -> void:
@@ -324,10 +336,51 @@ func _strike_arcs() -> void:
 		_arcs.append(pts)
 
 
+func _update_sparks(delta: float) -> void:
+	for sp in _sparks:
+		sp[0] += sp[1] * delta
+		sp[2] -= delta
+	_sparks = _sparks.filter(func(sp: Array) -> bool: return sp[2] > 0.0)
+	if not _boosted:
+		return
+	_spark_timer -= delta
+	while _spark_timer <= 0.0:
+		_spark_timer += 0.05
+		var o := _bolt_origin()
+		var p := o + Vector2(_rng.randf_range(4.0, BOLT_SIZE.x - 4.0), _rng.randf_range(BOLT_SIZE.y * 0.4, BOLT_SIZE.y))
+		_sparks.append([p, Vector2(_rng.randf_range(-8.0, 8.0), _rng.randf_range(-70.0, -40.0)), _rng.randf_range(0.35, 0.6)])
+
+
+func _draw_boost(o: Vector2, s: float) -> void:
+	var gold := STREAK_GOLD
+	var beat := 0.7 + 0.3 * sin(Time.get_ticks_msec() * 0.009)
+	for k in 3:   # a gold aura behind it
+		draw_colored_polygon(_bolt_poly(o, s * (1.3 + 0.18 * k)), Color(gold, 0.07 * beat))
+	if _boost_ring > 0.0:   # a ring bursting out with each gain
+		var c := o + BOLT_SIZE / 2.0
+		draw_arc(c, 18.0 + 30.0 * (1.0 - _boost_ring), 0.0, TAU, 36, Color(gold, 0.9 * _boost_ring), 2.5, true)
+
+
+func _draw_boost_front(o: Vector2) -> void:
+	var gold := STREAK_GOLD
+	for sp in _sparks:   # gold sparks rising off it
+		var a: float = clampf(sp[2] / 0.3, 0.0, 1.0)
+		draw_rect(Rect2(sp[0] - Vector2(1.5, 1.5), Vector2(3, 3)), Color(gold.lightened(0.3), a))
+	# The badge: double charge.
+	var beat := 1.0 + 0.08 * sin(Time.get_ticks_msec() * 0.009) + 0.25 * _charge_pop
+	var at := o + Vector2(BOLT_SIZE.x - 2.0, 6.0)
+	draw_set_transform(at, -0.12, Vector2.ONE * beat)
+	draw_string_outline(FONT, Vector2(0, 0), "x2", HORIZONTAL_ALIGNMENT_LEFT, -1, 18, 5, Color(0.12, 0.07, 0.0, 0.9))
+	draw_string(FONT, Vector2(0, 0), "x2", HORIZONTAL_ALIGNMENT_LEFT, -1, 18, gold)
+	draw_set_transform(Vector2.ZERO)
+
+
 func _draw_bolt() -> void:
 	var col := Palette.tint(CHARGE_COLOR)
 	var o := _bolt_origin()
-	var s := 1.0 + 0.15 * _charge_pop
+	var s := 1.0 + (0.3 if _boosted else 0.15) * _charge_pop
+	if _boosted:
+		_draw_boost(o, s)
 	var poly := _bolt_poly(o, s)
 	if _charged:
 		var pulse := 0.65 + 0.35 * sin(Time.get_ticks_msec() * 0.012)
@@ -340,7 +393,8 @@ func _draw_bolt() -> void:
 			draw_polyline(arc, Color(col, 0.9), 2.0, true)
 			draw_polyline(arc, Color(1, 1, 1, 0.9), 1.0, true)
 	else:
-		draw_colored_polygon(poly, Color(1, 1, 1, 0.08))
+		# The empty part: dark while golden, so the fill stands out against the glow.
+		draw_colored_polygon(poly, Color(0.05, 0.03, 0.0, 0.6) if _boosted else Color(1, 1, 1, 0.08))
 		if _charge > 0.0:
 			var top := lerpf(poly_bottom(poly), poly_top(poly), _charge)
 			var part := _below(poly, top)
@@ -348,7 +402,12 @@ func _draw_bolt() -> void:
 				draw_colored_polygon(part, Color(col, 0.9))
 	var closed := poly.duplicate()
 	closed.append(poly[0])
-	draw_polyline(closed, Color(1, 1, 1, 0.9) if _charged else Color(col.lightened(0.3), 0.75), 1.5, true)
+	if _boosted and not _charged:
+		draw_polyline(closed, Color(STREAK_GOLD, 0.95), 2.5, true)   # a gold rim
+	else:
+		draw_polyline(closed, Color(1, 1, 1, 0.9) if _charged else Color(col.lightened(0.3), 0.75), 1.5, true)
+	if _boosted:
+		_draw_boost_front(o)
 
 
 func poly_top(poly: PackedVector2Array) -> float:

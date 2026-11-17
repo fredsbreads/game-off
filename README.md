@@ -164,7 +164,9 @@ run upside down.
   level 20 the three are equally common (the 30% cap still holds).
 - **The top bar** (`scripts/top_bar.gd`), centred above the ceiling: the
   power-up meter as a lightning bolt that fills from the bottom and crackles
-  once it's full; the level; the level bar as a katana whose blade fills from
+  once it's full (while she's golden, PERFECT chains charge double: the bolt
+  glows gold with a gold rim, gold sparks rise off it, an "x2" badge sits on
+  it, and each gain pops bigger with a gold ring); the level; the level bar as a katana whose blade fills from
   the guard to the tip (grey: this chain's kills so far; gold: PERFECT's
   bonus growing in; grey pieces breaking off: a dropped chain's lost half);
   and the Flawless Streak, which pops with every kill (bigger, with a ring, at
