@@ -115,6 +115,19 @@ run upside down.
   power-up the same way). After that a teleporter is a ninja 25% of the time
   at level 10, +5% a level, up to 50% (`NINJA_SHARE*`): he takes knights'
   places, so teleporters don't get more common.
+- **The master** (from level 15, `scripts/master.gd`), a man: everything the
+  ninja does, he does too (5-6 hits: `MASTER_HITS_MIN/MAX`; purple lightning,
+  his scarf purple), and he also watches diagonally: the instant she could
+  teleport to him diagonally (other row, under her diagonal marker) he drops
+  into his stance (run frame 5) with an alert (lower: `alert_pitch`), and
+  holds it; the instant he's in the other row in front of her, nearer than
+  that but not yet straight across, he strikes (`Rules.master_diag_ahead`,
+  `master_diag_too_close`). Straight across, the knight's rule holds. After a
+  clash he waits in Attack2's first frame. Level 15 opens with a master alone
+  (the same as the other debuts). From level 15 a teleporter is a master 20%
+  of the time, rising to a third by level 20 (`MASTER_SHARE`,
+  `MASTER_FULL_LEVEL`); the rest are knights and ninjas, half and half. So from
+  level 20 the three are equally common (the 30% cap still holds).
 - **The streak reward**: the Flawless Streak (shown right of the level bar)
   counts kills in a row, knight hits included, without letting an enemy get
   away or dropping a chain (TOO SLOW / MISSED); either one resets it. At 50
@@ -199,7 +212,8 @@ A bar above the ceiling row fills as you chain kills; filling it levels you up.
 - Enemy: "Martial Hero 3" asset pack (CC0, see `assets/sprites/martial_hero/License.txt`).
 - Knight: "Hero Knight" asset pack (CC0, see `assets/sprites/hero_knight/License.txt`), the red on her chest recoloured a muted green; her lightning is the Frostwindz pack recoloured green.
 - Knight wind-up sound: "Sword blade swish" from Mixkit (same licence), in `assets/sounds/knight_warn.ogg`.
-- Ninja: "Martial Hero 2" asset pack (CC0, see `assets/sprites/ninja/License.txt`), his red mask recoloured blue and his blue clothes a muted slate; his lightning is the Frostwindz pack recoloured cyan.
+- Ninja: "Martial Hero 2" asset pack (CC0, see `assets/sprites/ninja/License.txt`), his red mask recoloured cyan (his lightning's colour) and his blue clothes a muted slate; his lightning is the Frostwindz pack recoloured cyan.
+- Master: "Martial Hero" asset pack (CC0, see `assets/sprites/master/License.txt`), his red scarf recoloured purple; his lightning is the Frostwindz pack recoloured purple.
 - Knight kill sound: "Samurai sword impact" from Mixkit (same licence), the impact only (the build-up cut off), in `assets/sounds/knight_kill.ogg`.
 - Clash sound: "Heavy sword smashes metal" from Mixkit (same licence as the other Mixkit sounds), the crash only, in `assets/sounds/clash.ogg`.
 - Lightning effects: "Pixel Art Skill Animations - Lightning" by Frostwindz (https://frostwindz.itch.io/), recoloured red, in `assets/vfx`.
@@ -234,6 +248,7 @@ scripts/
   enemy.gd              enemy sprite (idle, death animation)
   knight.gd             the knight: several hits, blinks between landing spots
   ninja.gd              the ninja: the knight, plus he watches straight ahead
+  master.gd             the master: the ninja, plus he watches diagonally
   palette.gd            her colour: red, her reward colour with a flawless streak
   camera_rig.gd         follow with fast catch-up after teleports, screen shake
   fx.gd                 trails, rings, slashes, particles, floating text
@@ -279,8 +294,9 @@ It prints `SOAK OK` if it reaches the distance, or `SOAK FAIL` with the chunk it
 died in. Other options are listed at the top of `scripts/debug_tools.gd`
 (`--autostart`, `--shots=DIR` for screenshots, `--level=N` to start at a level).
 
-The start screen has a **Start at level 1 / 5 / 10** button (tap it, or press
-L, 1, 5 or 0): 5 goes straight to the knight's debut, 10 to the ninja's. It's
+The start screen has a **Start at level 1 / 5 / 10 / 15** button (tap it, or
+press L, 1, 5 or 0): 5 goes straight to the knight's debut, 10 to the ninja's,
+15 (tap or L only) to the master's. It's
 switched on and off with `LEVEL_CHOICE` at the top of `scripts/main.gd` (off:
 no button, every run starts at level 1, e.g. for playtesters). The pause
 screen has a **Color** button that steps through her reward colours. Both

@@ -58,6 +58,9 @@ const KNIGHT_HITS_MAX := 4
 # The ninja takes more: 4-5 hits.
 const NINJA_HITS_MIN := 4
 const NINJA_HITS_MAX := 5
+# The master takes more still: 5-6.
+const MASTER_HITS_MIN := 5
+const MASTER_HITS_MAX := 6
 
 # Scoring.
 const KILL_POINTS := 100        # multiplied by the chain count
@@ -107,6 +110,19 @@ static func ninja_ahead(ninja_x: float, ninja_row: int, x: float, row: int) -> b
 static func ninja_too_close(ninja_x: float, ninja_row: int, x: float, row: int) -> bool:
 	var d := ninja_x - x
 	return ninja_row == row and d > 0.0 and d <= move_dx(Move.FORWARD) - kill_zone(Move.FORWARD).x
+
+
+## The master also watches diagonally (see master.gd): "ahead" while he's in
+## the other row under her diagonal marker; "too close" once he's in the other
+## row in front of her, nearer than that but not yet straight across (where
+## her across teleport reaches him: the knight's rule).
+static func master_diag_ahead(master_x: float, master_row: int, x: float, row: int) -> bool:
+	return master_row != row and in_kill_zone(Move.DIAGONAL, master_x, x + move_dx(Move.DIAGONAL))
+
+
+static func master_diag_too_close(master_x: float, master_row: int, x: float, row: int) -> bool:
+	var d := master_x - x
+	return master_row != row and d >= kill_zone(Move.VERTICAL).y and d <= move_dx(Move.DIAGONAL) - kill_zone(Move.DIAGONAL).x
 
 
 ## True if the player is straight across from a knight (at knight_x in

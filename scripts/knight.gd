@@ -89,6 +89,7 @@ var warned := false   # she's already given her wind-up swish once
 ## marker), and `alerted` once he's given his alert (coming back under it
 ## after that brings him at once).
 var forward_aggro := false
+var diag_aggro := false   # the master: diagonally too (see master.gd)
 var ahead := false
 var alerted := false
 var _slashing := false   # the killing blow: green outline held
@@ -103,6 +104,20 @@ func _part_material(part: int) -> ShaderMaterial:
 	m.set_shader_parameter("white_part", part)
 	return m
 const WINDUP_FRAME := 1             # sword raised, from her attack animation
+
+
+## (The ninja, the master) she could teleport to him by a move he watches:
+## forward, and the master's diagonal too.
+func watching(her_x: float, her_row: int) -> bool:
+	return (forward_aggro and Rules.ninja_ahead(tile_x, row, her_x, her_row)) \
+			or (diag_aggro and Rules.master_diag_ahead(tile_x, row, her_x, her_row))
+
+
+## (The ninja, the master) she's in front of him but too close to reach him by
+## a move he watches: he strikes.
+func too_close(her_x: float, her_row: int) -> bool:
+	return (forward_aggro and Rules.ninja_too_close(tile_x, row, her_x, her_row)) \
+			or (diag_aggro and Rules.master_diag_too_close(tile_x, row, her_x, her_row))
 
 
 ## Her lightning's colour (Fx: "green"; the ninja's "cyan").

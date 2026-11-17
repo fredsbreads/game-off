@@ -66,9 +66,18 @@ const NINJA_DEBUT_LEVEL := 10
 const NINJA_SHARE := 0.25
 const NINJA_SHARE_STEP := 0.05
 const NINJA_SHARE_MAX := 0.5
-# A ninja's group number in a chain's `knights` list is NINJA_GROUP or more
-# (a knight's is under it): see is_ninja_group().
+# Masters (see master.gd): his debut level opens with one alone; from then on
+# a teleporter is a master with MASTER_SHARE at the debut level, rising
+# evenly to a third by MASTER_FULL_LEVEL (and staying there). The rest are
+# knights and ninjas as above (from level 15, half and half).
+const MASTER_DEBUT_LEVEL := 15
+const MASTER_SHARE := 0.2
+const MASTER_FULL_LEVEL := 20
+# A teleporter's group number in a chain's `knights` list: a knight's is
+# under NINJA_GROUP, a ninja's NINJA_GROUP or more, a master's MASTER_GROUP
+# or more (a master has every ninja rule too): see is_ninja_group().
 const NINJA_GROUP := 1000
+const MASTER_GROUP := 2000
 # A knight's blinks: to any of her three landing spots, but never back to a
 # spot she's been on (so never across twice in a row, see _overlaps).
 const KNIGHT_STEPS := ["F", "V", "D"]
@@ -173,8 +182,21 @@ static func ninja_share(level: int) -> float:
 	return minf(NINJA_SHARE + NINJA_SHARE_STEP * (level - NINJA_DEBUT_LEVEL), NINJA_SHARE_MAX)
 
 
+## The share of teleporters that are masters.
+static func master_share(level: int) -> float:
+	if level < MASTER_DEBUT_LEVEL:
+		return 0.0
+	var t := clampf(float(level - MASTER_DEBUT_LEVEL) / float(MASTER_FULL_LEVEL - MASTER_DEBUT_LEVEL), 0.0, 1.0)
+	return lerpf(MASTER_SHARE, 1.0 / 3.0, t)
+
+
+## A ninja or a master (they both watch straight ahead).
 static func is_ninja_group(group: int) -> bool:
 	return group >= NINJA_GROUP
+
+
+static func is_master_group(group: int) -> bool:
+	return group >= MASTER_GROUP
 
 
 ## A random chain for a generated level: a length from chain_length_range,
@@ -188,11 +210,12 @@ static func is_ninja_group(group: int) -> bool:
 ## marker, and no two things can be in one spot at the same time (see
 ## _overlaps). The validator runs the full solver check on samples.
 ## knights = false: no knights in it (before her debut); ninjas = false: no
-## ninjas (before his).
-static func generate(level: int, rng: RandomNumberGenerator, knights := true, ninjas := true) -> Dictionary:
+## ninjas (before his); masters = false: no masters.
+static func generate(level: int, rng: RandomNumberGenerator, knights := true, ninjas := true, masters := true) -> Dictionary:
 	var lengths := chain_length_range(level)
 	var chance := knight_chance(level) if knights else 0.0
 	var share := ninja_share(level) if ninjas else 0.0
+	var mshare := master_share(level) if masters else 0.0
 	for _attempt in 40:
 		var n := rng.randi_range(lengths.x, lengths.y)
 		# Spend n spots: a plain enemy takes one, a knight her hits.
@@ -200,8 +223,13 @@ static func generate(level: int, rng: RandomNumberGenerator, knights := true, ni
 		var left := n
 		while left > 0:
 			if left >= Rules.KNIGHT_HITS_MIN and rng.randf() < chance:
-				# A ninja (4-5 hits) if there's room for one, else a knight (3-4).
-				if left >= Rules.NINJA_HITS_MIN and rng.randf() < share:
+				# A master (5-6 hits), a ninja (4-5) or a knight (3-4), each only
+				# if there's room for it (else the next one down).
+				if left >= Rules.MASTER_HITS_MIN and rng.randf() < mshare:
+					var mh := mini(rng.randi_range(Rules.MASTER_HITS_MIN, Rules.MASTER_HITS_MAX), left)
+					hits.append(-1000 - mh)
+					left -= mh
+				elif left >= Rules.NINJA_HITS_MIN and rng.randf() < share:
 					var nh := mini(rng.randi_range(Rules.NINJA_HITS_MIN, Rules.NINJA_HITS_MAX), left)
 					hits.append(-nh)
 					left -= nh
@@ -234,6 +262,16 @@ static func knight_alone(rng: RandomNumberGenerator) -> Dictionary:
 	return {}
 
 
+## A lone master (the start of his debut level).
+static func master_alone(rng: RandomNumberGenerator) -> Dictionary:
+	for _attempt in 40:
+		var built := _build([-1000 - rng.randi_range(Rules.MASTER_HITS_MIN, Rules.MASTER_HITS_MAX)], rng)
+		if not built.is_empty():
+			built["name"] = "master alone: %s" % built["steps"]
+			return built
+	return {}
+
+
 ## A lone ninja (the start of his debut level).
 static func ninja_alone(rng: RandomNumberGenerator) -> Dictionary:
 	for _attempt in 40:
@@ -253,6 +291,7 @@ static func _build(hits: Array[int], rng: RandomNumberGenerator) -> Dictionary:
 	var tokens: PackedStringArray = []
 	var group := 0
 	var ninja_group := NINJA_GROUP
+	var master_group := MASTER_GROUP
 	for i in hits.size():
 		if i > 0:
 			var token := _free_step(GENERATED_STEPS, enemies, rng)
@@ -263,17 +302,21 @@ static func _build(hits: Array[int], rng: RandomNumberGenerator) -> Dictionary:
 		if absi(hits[i]) <= 1:
 			knights.append(-1)
 			continue
-		var ninja := hits[i] < 0
-		var g := ninja_group if ninja else group
+		var master := hits[i] <= -1000
+		var ninja := hits[i] < 0 and not master
+		var count := (-hits[i] - 1000) if master else absi(hits[i])
+		var g := master_group if master else (ninja_group if ninja else group)
 		knights.append(g)
-		tokens.append("N(" if ninja else "K(")
-		for h in absi(hits[i]) - 1:
+		tokens.append("M(" if master else ("N(" if ninja else "K("))
+		for h in count - 1:
 			var blink := _free_step(KNIGHT_STEPS, enemies, rng)
 			enemies.append(_apply(enemies.back(), blink))
 			knights.append(g)
 			tokens.append(blink.to_lower())
 		tokens.append(")")
-		if ninja:
+		if master:
+			master_group += 1
+		elif ninja:
 			ninja_group += 1
 		else:
 			group += 1

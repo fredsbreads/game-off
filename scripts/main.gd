@@ -13,9 +13,10 @@ const START_X := 3.0
 # >>> The start screen's level chooser: true = shown (for testing), false =
 # hidden and every run starts at level 1 (for playtesters). <<<
 const LEVEL_CHOICE := true
-# The levels it offers (5: straight to the knight's debut, 10: the ninja's);
+# The levels it offers (5: straight to the knight's debut, 10: the ninja's,
+# 15: the master's);
 # the pick is kept between visits.
-const START_LEVELS := [1, 5, 10]
+const START_LEVELS := [1, 5, 10, 15]
 # Every kill gets a short hit freeze (invert flash).
 const KILL_HIT := 0.06
 # If another enemy is under any marker where you land, the
@@ -1381,8 +1382,8 @@ func _strikers(run_from := NAN) -> Array[Knight]:
 			continue
 		var fighting := k.engaged and Rules.knight_in_reach(k.tile_x - player.x)
 		var passed := not is_nan(run_from) and Rules.knight_runs_past(k.tile_x, k.row, run_from, player.x, player.row)
-		var ahead := k.forward_aggro and not k.engaged and (Rules.ninja_ahead(k.tile_x, k.row, player.x, player.row) \
-				or Rules.ninja_too_close(k.tile_x, k.row, player.x, player.row))
+		var ahead := k.forward_aggro and not k.engaged and (k.watching(player.x, player.row) \
+				or k.too_close(player.x, player.row))
 		if fighting or passed or ahead or Rules.knight_across(k.tile_x, k.row, player.x, player.row):
 			found.append(k)
 	found.sort_custom(func(a: Knight, b: Knight) -> bool:
@@ -1444,11 +1445,11 @@ func _ninja_strikes(running := true) -> bool:
 		var k := e as Knight
 		if k == null or not k.alive or not k.forward_aggro or k.engaged:
 			continue
-		if Rules.ninja_too_close(k.tile_x, k.row, player.x, player.row):
+		if k.too_close(player.x, player.row):
 			strike = true
 		if not running:
 			continue
-		var now := Rules.ninja_ahead(k.tile_x, k.row, player.x, player.row)
+		var now := k.watching(player.x, player.row)
 		if now and not k.ahead and k.alerted:
 			strike = true   # she left his reach after his alert, and came back
 		k.ahead = now
@@ -1461,7 +1462,7 @@ func _knight_across() -> Knight:
 		var k := e as Knight
 		if k and k.alive and Rules.knight_across(k.tile_x, k.row, player.x, player.row):
 			return k
-		if k and k.alive and k.forward_aggro and not k.engaged and Rules.ninja_ahead(k.tile_x, k.row, player.x, player.row):
+		if k and k.alive and k.forward_aggro and not k.engaged and k.watching(player.x, player.row):
 			return k   # (a ninja: straight ahead of her)
 	return null
 
@@ -1479,7 +1480,7 @@ func _update_knight_threats() -> void:
 				and Rules.knight_across(k.tile_x, k.row, player.x, player.row)
 		# A ninja also watches straight ahead (see ninja.gd).
 		var ahead := state == State.PLAYING and k.forward_aggro and not k.engaged \
-				and Rules.ninja_ahead(k.tile_x, k.row, player.x, player.row)
+				and k.watching(player.x, player.row)
 		if ahead:
 			k.alerted = true
 		across = across or ahead
@@ -1488,7 +1489,7 @@ func _update_knight_threats() -> void:
 			if not k.warned:   # the swish only the first time the knight is aggroed
 				k.warned = true
 				var snd := _ninja_alert_sound if k.forward_aggro else _warn_sound
-				snd.pitch_scale = _jitter() * (NINJA_ALERT_PITCH if k.forward_aggro else 1.0)
+				snd.pitch_scale = _jitter() * (k.art.get("alert_pitch", NINJA_ALERT_PITCH) if k.forward_aggro else 1.0)
 				snd.play()
 		elif not across and k.threat and not (k.forward_aggro and k.alerted):
 			k.calm()   # (a ninja who's alerted stays in his stance: coming back isn't safe)

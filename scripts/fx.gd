@@ -26,7 +26,7 @@ const BOLT_SHEETS := [
 ]
 const BOLT_FRAMES := [4, 4, 5, 5, 4, 8]
 # The teleporters' lightning: the same strikes and sparks, the knight's green,
-# the ninja's cyan. A bolt's `green` argument: false (hers), true or "green",
+# the ninja's cyan, the master's purple. A bolt's `green` argument: false (hers), true or "green",
 # or "cyan".
 const BOLT_SHEETS_TINTED := {
 	"green": {
@@ -36,6 +36,10 @@ const BOLT_SHEETS_TINTED := {
 	"cyan": {
 		Bolt.STRIKE: preload("res://assets/vfx/lightning_3_cyan.png"),
 		Bolt.SPARKS: preload("res://assets/vfx/lightning_6_cyan.png"),
+	},
+	"purple": {
+		Bolt.STRIKE: preload("res://assets/vfx/lightning_3_purple.png"),
+		Bolt.SPARKS: preload("res://assets/vfx/lightning_6_purple.png"),
 	},
 }
 

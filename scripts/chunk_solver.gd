@@ -25,7 +25,8 @@ extends RefCounted
 ##   7. a ninja (knight group >= Patterns.NINJA_GROUP) straight in front of you
 ##      in your row but too close to teleport to: he strikes (after running,
 ##      or where a teleport lands); and once he's seen you under your forward
-##      marker, coming back under it does at once
+##      marker, coming back under it does at once (a master, group >=
+##      Patterns.MASTER_GROUP: the same for her diagonal, in the other row)
 ## (both checked after running, so chaining on from a kill never triggers it;
 ## teleporting past a knight is fine).
 ##
@@ -163,6 +164,8 @@ static func _ninja_too_close(enemies: Array[Vector2], mask: int, x: float, row: 
 			continue   # hit already: the knight rules
 		if Rules.ninja_too_close(enemies[i].x, int(enemies[i].y), x, row):
 			return true
+		if Patterns.is_master_group(g) and Rules.master_diag_too_close(enemies[i].x, int(enemies[i].y), x, row):
+			return true
 	return false
 
 
@@ -179,7 +182,7 @@ static func _ninjas_ahead(enemies: Array[Vector2], mask: int, x: float, row: int
 		if i > 0 and int(knights[i - 1]) == g:
 			continue   # hit already: he's fighting her (the knight rules)
 		var e := enemies[i]
-		if Rules.ninja_ahead(e.x, int(e.y), x, row):
+		if Rules.ninja_ahead(e.x, int(e.y), x, row) or (Patterns.is_master_group(g) and Rules.master_diag_ahead(e.x, int(e.y), x, row)):
 			bits |= 1 << i
 	return bits
 
