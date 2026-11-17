@@ -347,10 +347,12 @@ func _ready() -> void:
 	else:
 		hud.menu.open(progression.level, LEVEL_CHOICE)
 		if not debug:
-			# The music plays on the title screen too. (In a browser it can't be
-			# heard until the first press: the page's audio wake script then
-			# lets it start.)
-			_start_music()
+			# The music plays on the title screen too. Deferred: the scene is
+			# still being set up here, and the music lives on the root (it
+			# carries on through retries), which can't take a child yet. (In a
+			# browser that blocks sound until the first click or key, it's heard
+			# from that press: the page's audio wake script resumes it.)
+			_start_music.call_deferred()
 
 
 func score() -> int:
