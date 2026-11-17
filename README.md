@@ -109,8 +109,7 @@ run upside down.
   don't make chains longer.
   In the freeze after a clash (not in the power-up's auto-chain), a crackling
   bolt of lightning in her colour (forks and sparks, re-struck every few
-  frames) runs from her to where she'll blink next, with a spinning sigil
-  (three arcs round a pulsing diamond) on that spot, and a dimmer wavering line lingers along the jump she just
+  frames) runs from her to where she'll blink next, and a dimmer wavering line lingers along the jump she just
   made, until the player teleports anywhere else (`THREAD_TRAIL_ALPHA`) (`THREAD_*` in
   `scripts/knight.gd`; a silhouette there instead, `SHOW_NEXT`, is off: it
   read as a target). Her swings' arcs stay white with a 2-pixel outline in her colour

@@ -463,8 +463,8 @@ func _update_next() -> void:
 	_next.global_scale = Vector2(sc, sc * (-1.0 if int(spot.y) == Rules.Row.CEILING else 1.0))
 
 
-## The thread to her next spot: a crackling bolt in her colour, fading in,
-## with a spinning sigil where she'll land (see _draw_thread).
+## The thread to her next spot: a crackling bolt in her colour, fading in
+## (see _draw_thread).
 func _update_thread(delta: float) -> void:
 	if _thread == null:
 		return
@@ -513,9 +513,8 @@ func _draw_thread() -> void:
 		_thread.draw_polyline(_trail_points, Color(1, 1, 1, 0.5 * tf), 1.0, true)
 	if _thread_points.size() < 2:
 		return
-	# Her next spot: a crackling bolt to it, and a spinning sigil where she'll land.
+	# Her next spot: a crackling bolt to it.
 	_draw_lightning(c, f)
-	_draw_sigil(c, f)
 
 
 ## The thread: a jagged bolt re-struck every few frames, with forks and sparks.
@@ -549,28 +548,6 @@ func _jagged(a: Vector2, b: Vector2, n: int, jag: float) -> PackedVector2Array:
 		var off := 0.0 if i == 0 or i == n else _bolt_rng.randf_range(-jag, jag) * (0.4 + sin(t * PI))
 		pts.append(a.lerp(b, t) + normal * off)
 	return pts
-
-
-## Where she'll land: a spinning ring of three arcs round a pulsing diamond,
-## dropping in from bigger as it appears.
-func _draw_sigil(c: Color, f: float) -> void:
-	var end := _thread_points[_thread_points.size() - 1]
-	var grow := 1.0 + 1.2 * (1.0 - f)
-	var r := 20.0 * grow
-	var spin := _thread_time * 2.4
-	_thread.draw_circle(end, r * 1.2, Color(c.r, c.g, c.b, 0.08 * f))
-	for i in 3:
-		var a0 := spin + i * TAU / 3.0
-		_thread.draw_arc(end, r, a0, a0 + TAU / 3.0 * 0.6, 12, Color(c.r, c.g, c.b, 0.9 * f), 2.5, true)
-	for i in 4:   # ticks pointing in
-		var a1 := -spin * 0.7 + i * TAU / 4.0
-		var d := Vector2.RIGHT.rotated(a1)
-		_thread.draw_line(end + d * (r + 4.0), end + d * (r + 11.0), Color(1, 1, 1, 0.8 * f), 1.5, true)
-	var beat := 0.8 + 0.2 * sin(_thread_time * 9.0)
-	var dm := 7.0 * beat * grow
-	var diamond := PackedVector2Array([end + Vector2(0, -dm), end + Vector2(dm, 0), end + Vector2(0, dm), end + Vector2(-dm, 0), end + Vector2(0, -dm)])
-	_thread.draw_colored_polygon(diamond, Color(c.r, c.g, c.b, 0.5 * f))
-	_thread.draw_polyline(diamond, Color(1, 1, 1, 0.9 * f), 1.5, true)
 
 
 func _process(delta: float) -> void:
