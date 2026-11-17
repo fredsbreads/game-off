@@ -16,6 +16,9 @@ const TITLE := "RED FLASH"
 var title_font: Font = preload("res://assets/fonts/RussoOne-Regular.ttf")
 const TITLE_SIZE := 100
 const TITLE_RED := Color(1.0, 0.22, 0.29)
+## "RED FLASH" itself: her hair's red as it shows on screen (the buttons and
+## the other screens keep TITLE_RED).
+const TITLE_TEXT_RED := Color8(234, 8, 4)
 const BG_TOP := Color(0.07, 0.04, 0.06)
 const BG_BOTTOM := Color(0.02, 0.01, 0.02)
 const BUTTON_SIZE := Vector2(300, 58)
@@ -328,10 +331,9 @@ func _draw_title() -> void:
 	var base := Vector2(r.position.x, _title_baseline())
 	for i in 12:   # a soft glow
 		var o := Vector2.RIGHT.rotated(i * TAU / 12.0) * 6.0
-		draw_string(title_font, base + o, TITLE, HORIZONTAL_ALIGNMENT_LEFT, -1, TITLE_SIZE, Color(TITLE_RED, 0.06))
-	var fill := TITLE_RED   # steady: it doesn't flicker or flash
-	draw_string(title_font, base, TITLE, HORIZONTAL_ALIGNMENT_LEFT, -1, TITLE_SIZE, fill)
-	draw_string(title_font, base + Vector2(0, -2), TITLE, HORIZONTAL_ALIGNMENT_LEFT, -1, TITLE_SIZE, Color(1, 0.65, 0.68, 0.3))
+		draw_string(title_font, base + o, TITLE, HORIZONTAL_ALIGNMENT_LEFT, -1, TITLE_SIZE, Color(TITLE_TEXT_RED, 0.06))
+	# Steady (it doesn't flicker or flash), in her hair's red with no highlight.
+	draw_string(title_font, base, TITLE, HORIZONTAL_ALIGNMENT_LEFT, -1, TITLE_SIZE, TITLE_TEXT_RED)
 
 
 func _draw_button(i: int) -> void:
