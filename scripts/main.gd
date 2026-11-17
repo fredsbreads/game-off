@@ -118,19 +118,23 @@ const CHARGE_GAIN := {"PERFECT": 2, "CLEAN": 1}
 const AUTO_STEP := 0.1          # seconds between her auto-chain hops
 const AUTO_DUEL_STEP := 0.32    # ...after a clash or a knight's last hit: the duel gets its weight
 const AUTO_GAP_TILES := 12.0    # extra empty run after an auto-chain
-const AUTO_FINALE_FREEZE := 0.3  # its last kill holds this long (zoomed in, grey, crackling) before the big strike
-const AUTO_FINALE_CRACKLE := 0.05
+const AUTO_FINALE_FREEZE := 0.3  # (no last enemy to slash: the last kill holds this long, crackling, before the big strike)
+const AUTO_FINALE_CRACKLE := 0.05 # ...a crackle of lightning on her this often while it holds
+const AUTO_SLASH_HOP := 0.13     # the finish's three slashes (the streak finisher's, at full speed): seconds between them
+const AUTO_SLASH_TO_BANG := 0.12 # ...and from the third to the big strike
 const AUTO_FINALE_IMPACT := 0.14  # the big strike lands on a frozen, white-hot frame this long
 const AUTO_FINALE_DUCK_DB := -22.0 # the music drops by this through the hold (silence before the bang)
 const AUTO_FINALE_DB := 1.0       # the thunder (the loudest thing in the game)
 const AUTO_FINALE_SHAKE := 14.0   # the bang's screen shake: strength (pixels)...
-const AUTO_FINALE_SHAKE_TIME := 0.4 # ...and seconds # ...a crackle of lightning on her this often while it holds
+const AUTO_FINALE_SHAKE_TIME := 0.4 # ...and seconds
 const AUTO_FINALE_ZOOM := 0.25   # how much closer that hold is (0.25 = 25 %)
 var charge := 0                 # the meter (0..CHARGE_FULL)
 var _charged := false           # full: the next chainable kill sets it off
 var _auto := false              # an auto-chain is playing
 var _finale_hold := false       # its last kill's freeze, before the big strike
 var _finale_crackle := 0.0
+var _finale_home_x := 0.0
+var _finale_slashing := false   # the finish's three slashes are playing (no crackle)
 var _auto_ending := false       # the auto-chain's own result is being counted (adds no charge)
 const LOSE_COLOUR_TIME := 0.3     # back to red when the streak breaks
 const FINISHER_ZOOM := 0.35
@@ -641,7 +645,7 @@ func _update_pause_visuals() -> void:
 	text_fx.frozen = fx.frozen
 	# Lit markers drain during the "your move" freeze as the time runs out.
 	player.marker_fill = clampf(_hitstop / _pause_length, 0.0, 1.0) if chain_pause else 1.0
-	if _finale_hold:
+	if _finale_hold and not _finale_slashing:
 		_finale_crackle -= get_physics_process_delta_time()
 		if _finale_crackle <= 0.0:
 			_finale_crackle = AUTO_FINALE_CRACKLE
@@ -1063,14 +1067,75 @@ func _auto_finale(grade: String) -> void:
 	cam.shake(0.1, 12.0)
 	_duck_music(MUSIC_DB + AUTO_FINALE_DUCK_DB, 0.12)
 	hud.flash(Color(1, 1, 1, 0.3), 0.1)
-	get_tree().create_timer(AUTO_FINALE_FREEZE, false).timeout.connect(_auto_finale_strike.bind(grade))
+	var k := _last_felled
+	if not is_instance_valid(k):
+		get_tree().create_timer(AUTO_FINALE_FREEZE, false).timeout.connect(_auto_finale_strike.bind(grade, null))
+		return
+	# The three slashes of the streak finisher, at full speed: her hit has
+	# landed (pose one, left of the enemy), she blinks to his other side, then
+	# back; he stays standing through them and falls with the big strike.
+	_finale_slashing = true
+	player.cinematic = true
+	k.take_hit()
+	var left_x := k.tile_x - FINISHER_SIDE
+	var right_x := k.tile_x + FINISHER_SIDE
+	_finale_home_x = player.x   # (back here under the big strike's flash)
+	player.x = left_x
+	player.strike(player.last_pose())
+	player.hold_slash(AUTO_SLASH_HOP)
+	var poses: Array = []
+	for p in Player.ATTACK_COUNT:
+		if p != player.last_pose():
+			poses.append(p)
+	cam.hold_zoom(Vector2(k.tile_x * Rules.TILE, Rules.body_center_y(k.row)), AUTO_FINALE_ZOOM, 16.0, 0.5)
+	var t := create_tween()
+	t.tween_interval(AUTO_SLASH_HOP)
+	t.tween_callback(_auto_slash.bind(k, right_x, -1.0, poses[0]))
+	t.tween_interval(AUTO_SLASH_HOP)
+	t.tween_callback(_auto_slash.bind(k, left_x, 1.0, poses[1]))
+	t.tween_interval(AUTO_SLASH_TO_BANG)
+	t.tween_callback(_auto_finale_strike.bind(grade, k))
 
 
-func _auto_finale_strike(grade: String) -> void:
+## One of the finish's blinks: to to_x, facing `face`, in `pose` (the streak
+## finisher's, at full speed).
+func _auto_slash(k: Enemy, to_x: float, face: float, pose: int) -> void:
+	if state != State.PLAYING:
+		return
+	var from := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row))
+	var from_feet := Vector2(player.x * Rules.TILE, Rules.surface_y(player.row))
+	var dir := signf(to_x - player.x)
+	player.x = to_x
+	player.facing = face
+	fx.strike(from, Vector2(to_x * Rules.TILE, Rules.body_center_y(player.row)))
+	player.strike_from(from_feet)
+	player.strike(pose)
+	player.hold_slash(AUTO_SLASH_HOP)
+	_play_strike(true)
+	hud.flash(FINISHER_STRIKE_FLASH, 0.1)
+	if is_instance_valid(k):
+		var pos := Vector2(k.tile_x * Rules.TILE, Rules.body_center_y(k.row))
+		blood_fx.blood(pos, dir, 24, BLOOD_BURST, 1.0 if k.row == Rules.Row.CEILING else -1.0)
+		fx.kill_burst(pos, 6)
+		k.take_hit()
+		k.modulate = Color(2.5, 2.5, 2.5)
+		k.create_tween().tween_property(k, "modulate", Color.WHITE, 0.1)
+	cam.shake(0.1, 10.0)
+	_kill_sound.pitch_scale = _jitter()
+	_kill_sound.play()
+
+
+func _auto_finale_strike(grade: String, k: Enemy) -> void:
 	_finale_hold = false
+	_finale_slashing = false
+	player.cinematic = false
+	player.facing = 1.0
 	player.auto_chain = false
 	_hitstop = 0.0
 	_pause_min = KILL_PAUSE_MIN
+	if is_instance_valid(k):
+		k.fall()   # now the last one falls
+		player.x = _finale_home_x
 	if state != State.PLAYING:
 		return
 	var feet := Vector2(player.x * Rules.TILE, Rules.surface_y(player.row))

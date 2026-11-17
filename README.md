@@ -112,7 +112,9 @@ run upside down.
   instead), the meter flashes. The meter is her red (her colour once she has
   it). Her next kill that has a chain
   after it sets it off: the rest of that chain plays itself, perfectly and
-  fast (`AUTO_STEP` between hops); its last kill holds, zoomed in
+  fast (`AUTO_STEP` between hops); its last kill gets the streak
+  finisher's three slashes at full speed (`AUTO_SLASH_HOP`, `AUTO_SLASH_TO_BANG`),
+  zoomed in
   (`AUTO_FINALE_FREEZE`, `AUTO_FINALE_ZOOM`, `AUTO_FINALE_CRACKLE`; the music
   drops away through it, `AUTO_FINALE_DUCK_DB`), then the bang on a short
   frozen white frame (`AUTO_FINALE_IMPACT`), its thunder the loudest sound
