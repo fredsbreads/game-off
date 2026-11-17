@@ -78,3 +78,7 @@ accent_val={
 "type": "float",
 "value": 1.0
 }
+
+[gui]
+
+theme/custom_font="res://assets/fonts/RussoOne-Regular.ttf"

@@ -35,16 +35,31 @@ The game also pauses itself when the window or app loses focus.
 
 Options: the **Options** button on the title screen and the pause screen
 (or `O`): her flawless colour (or the default), music and sound-effect
-volume, screen shake, soft screen flashes, and reset to defaults. Tap a
+volume, screen shake, soft screen flashes, and reset to defaults. Over the
+title screen it's solid; from the pause screen it's see-through, so a colour
+shows on the game as it's picked. Tap a
 value's left part to step back, anywhere else on the row to step on; keys:
 Up/Down pick, Left/Right change, Esc goes back. Saved at once
 (`user://save.cfg`; in a browser that's the browser's storage for the site,
 so it lasts until the player clears it). See `scripts/settings.gd` and
 `scripts/options_menu.gd`.
 
-Practice mode: `N` (or the "Enemies" button on the pause screen) removes
-every enemy so you can play around with the teleports. Press again and they
-spawn again just off screen. It stays on across retries.
+Everything uses one font, Russo One (`main.gd GAME_FONT`, and the project's
+theme font). Instructions match the device: "Tap" on phones and tablets, keys
+on a computer (`Hud.is_touch()`); short labels are in Title Case. The run
+starts with a breather: the first enemy is off screen until about 2 seconds in
+(`RUNWAY_TILES` in `scripts/level.gd`).
+
+While the power-up's auto-chain plays itself, the screen's edges crackle
+with lightning in her colour, "AUTO" slams in at the centre, and an "AUTO"
+tag stays at the bottom; pressing anything then flares them
+(`scripts/auto_overlay.gd`).
+
+Her second colour is the Flawless Color picked in Options: the katana's
+grip, the PERFECT text, the gold of PERFECT and of a level-up on the
+katana, the bolt while golden and the streak at its reward all use it
+(`Palette.secondary()`). If she dies with her reward colour, it fades back
+to red through the death.
 
 The three katana markers show exactly where each teleport lands. On the ceiling you
 run upside down.

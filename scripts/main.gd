@@ -57,6 +57,7 @@ const DEATH_FLASH := Color(1, 1, 1, 0.4)
 const DEATH_FLASH_TIME := 0.15
 const DEATH_ZOOM_RATE := 7.0      # how fast the camera pushes in (lower = slower, smoother)
 const DEATH_GREY_IN := 0.15       # seconds for the world to fade to grey
+const DEATH_LOSE_COLOUR := 1.2    # seconds her reward colour takes to fade back to red as she dies
 var _killer: Enemy = null
 var _second_killer: Enemy = null   # two knights at once: the one behind her
 var _death_focus := Vector2.ZERO
@@ -225,6 +226,21 @@ var _state_time := 0.0
 var _paused_at_msec := 0
 
 
+## One font for the whole game (Russo One): set before the HUD and the menus
+## are built, so every label and every drawn word uses it. (The little ツ on
+## the "turn your phone" screen comes from a fallback font.)
+const GAME_FONT := preload("res://assets/fonts/RussoOne-Regular.ttf")
+const SHRUG_FONT := preload("res://assets/fonts/NotoSansJP-shrug.ttf")
+
+
+func _enter_tree() -> void:
+	if not ThemeDB.fallback_font is FontVariation or (ThemeDB.fallback_font as FontVariation).base_font != GAME_FONT:
+		var f := FontVariation.new()
+		f.base_font = GAME_FONT
+		f.fallbacks = [SHRUG_FONT]
+		ThemeDB.fallback_font = f
+
+
 func _ready() -> void:
 	# Main and the HUD keep running while the game is paused (to read the
 	# resume press and show the pause screen); the world stops.
@@ -341,7 +357,6 @@ func _ready() -> void:
 	cam.snap(player.x)
 	best_score = _load_best()
 	_prewarm()
-	hud.set_enemies_off(Level.enemies_off)   # practice mode stays on across retries
 	if _retry:
 		_retry = false
 		begin()   # a retry goes straight into the run
@@ -385,7 +400,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		if state == State.READY:
 			_start_music()   # (so its volume can be heard while it's set)
-		hud.options.open()
+		hud.open_options(state != State.READY)
 		return
 	if get_tree().paused:
 		# The "Flip screen" button (upright phones) turns the game 180 degrees.
@@ -394,19 +409,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 			JavaScriptBridge.eval("window.redFlashSetFlip(!window.redFlashFlip)", true)
 			return
-		if (tap and hud.enemies_button_contains(_screen_pos(event))) or _is_enemies_key(event):
-			get_viewport().set_input_as_handled()
-			_toggle_enemies()
-			return
 		# Any other key, click or tap resumes (it doesn't also teleport).
 		if _is_press(event):
 			get_viewport().set_input_as_handled()
 			if Time.get_ticks_msec() - _paused_at_msec >= RESUME_GUARD * 1000.0:
 				_set_paused(false)
-		return
-	if _is_enemies_key(event):
-		get_viewport().set_input_as_handled()
-		_toggle_enemies()
 		return
 	if Palette.CYCLE_KEY and event is InputEventKey and event.pressed and event.physical_keycode == KEY_C:
 		get_viewport().set_input_as_handled()
@@ -432,12 +439,19 @@ func _unhandled_input(event: InputEvent) -> void:
 				_choose_start_level(0)
 			"options":
 				_start_music()   # (so its volume can be heard while it's set)
-				hud.options.open()
+				hud.open_options(false)
 		return
 	if state == State.OVER and _state_time >= RETRY_DELAY and (_is_menu_key(event) \
 			or ((event is InputEventScreenTouch or event is InputEventMouseButton) and hud.menu_button_contains(_screen_pos(event)))):
 		get_viewport().set_input_as_handled()
 		get_tree().reload_current_scene()   # back to the title screen
+		return
+	if state == State.OVER and event is InputEventKey and event.pressed:
+		# Any key retries ("Press Any Key To Retry").
+		get_viewport().set_input_as_handled()
+		if _state_time >= RETRY_DELAY:
+			_retry = true
+			get_tree().reload_current_scene()
 		return
 	var button := _button_from_event(event)
 	if button == Rules.Move.NONE:
@@ -450,6 +464,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				begin()
 		State.PLAYING:
 			if _auto or _finale_hold:
+				hud.auto_overlay.poke()   # (shows it's playing itself)
 				return   # the auto-chain plays itself
 			if player.cooldown > 0 and ((button == Rules.Move.FORWARD and _last_forward) or (button == Rules.Move.VERTICAL and _last_vertical)):
 				return   # same button again right after a teleport: ignored
@@ -586,24 +601,6 @@ func _request_fullscreen() -> void:
 
 ## Left half of the screen = vertical, right half = forward.
 ## Returns Rules.Move.FORWARD, Rules.Move.VERTICAL or Rules.Move.NONE.
-func _is_enemies_key(event: InputEvent) -> bool:
-	return event is InputEventKey and event.pressed and event.physical_keycode == KEY_N
-
-
-## Practice mode: no enemies (or back on: they spawn just off screen).
-func _toggle_enemies() -> void:
-	var off := not Level.enemies_off
-	level.set_enemies_off(off, cam.left() / Rules.TILE + CameraRig.VIEW_TILES + 1.0)
-	hud.set_enemies_off(off)
-	if off:
-		# Drop any chain in progress without grading it.
-		chain = 0
-		_chain_awaiting = false
-		_pressed_during_pause = false
-		_chain_killed.clear()
-		_hitstop = 0.0
-
-
 func _button_from_event(event: InputEvent) -> int:
 	if event is InputEventScreenTouch and event.pressed:
 		return _button_for_screen_x(_screen_pos(event).x)
@@ -734,6 +731,7 @@ func _physics_process(delta: float) -> void:
 	if not (_finishing or _finale_hold):
 		_streak_shown = sweep
 	hud.set_streak(_streak_shown)
+	hud.auto_overlay.set_active(_auto or _finale_hold)
 	if _auto or _finale_hold:
 		# The power-up playing: its bolt stays full until the finale's strike.
 		hud.set_charge(CHARGE_FULL, CHARGE_FULL, true, Palette.pink >= 1.0)
@@ -1758,7 +1756,7 @@ func _play_pending_cut() -> void:
 		_kill_sound.play()
 
 const GRADE_COLORS := {
-	"PERFECT": Color(1.0, 0.85, 0.3), "CLEAN": Color(1, 1, 1),
+	"PERFECT": Color(1.0, 0.85, 0.3), "CLEAN": Color(1, 1, 1),   # (PERFECT is shown in Palette.secondary())
 	"DROPPED": Color(0.65, 0.65, 0.7), "SINGLE": Color(1, 1, 1),
 }
 
@@ -1807,7 +1805,7 @@ func _end_chain(grade: String, word: String = "") -> void:
 			var above := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row) - Rules.TILE * 1.4)
 			if player.row == Rules.Row.CEILING:
 				above.y += Rules.TILE * 2.8
-			text_fx.text(above, word if word != "" else grade, 30, GRADE_COLORS[grade], Rules.RUN_SPEED * Rules.TILE, GRADE_TEXT_LIFE,
+			text_fx.text(above, word if word != "" else grade, 30, (Palette.secondary() if grade == "PERFECT" else GRADE_COLORS[grade]), Rules.RUN_SPEED * Rules.TILE, GRADE_TEXT_LIFE,
 					-1.0 if player.row == Rules.Row.CEILING else 1.0)   # drift away from her row
 		if levelled:
 			level.level = progression.level
@@ -1833,6 +1831,10 @@ func _die(kind: String, killer: Enemy = null) -> void:
 	player.running = false
 	player.die(kind)
 	_death_sound.play()
+	# Cut down while she had her reward colour: it fades back to red through
+	# the death moment.
+	if Palette.pink > 0.0:
+		create_tween().tween_method(Palette.set_pink, Palette.pink, 0.0, DEATH_LOSE_COLOUR)
 	for e in level.enemies:
 		e.clear_glint()   # no red glints lingering on the death moment
 		if e is Knight:

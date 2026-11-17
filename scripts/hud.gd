@@ -33,8 +33,6 @@ var _rotate_sprite: AnimatedSprite2D
 # Phones held sideways get this message instead of the game (in the
 # browser, upright play is the intended way; see export_presets.cfg).
 const PORTRAIT_MESSAGE := "Play in Portrait Mode.\nLock your Rotation.\n(Mobile browsers are weird ¯\\_(ツ)_/¯)"
-# The default font has no ツ; this 2 KB font supplies just that character.
-const SHRUG_FONT := preload("res://assets/fonts/NotoSansJP-shrug.ttf")
 var _flash: ColorRect
 # The level-10 colour change: a glowing band sweeping across the screen.
 var _sweep: Control
@@ -49,7 +47,6 @@ var _flip_button: Control
 const FLIP_BUTTON_SIZE := Vector2(300, 64)
 # Practice mode toggle on the pause screen (N on a keyboard), plus a small
 # note in the corner while enemies are off.
-var _enemies_button: Control
 # Opens the Options screen (on the start screen and the pause screen).
 var _options_button: Control
 var _on_pause_screen := false
@@ -60,8 +57,9 @@ var options: OptionsMenu
 var _menu_button: Control
 ## The title screen (main.gd passes it presses while it's open).
 var menu: MainMenu
-var _enemies_off_label: Label
-var _enemies_off := false
+## The power-up's auto-chain on screen (scripts/auto_overlay.gd).
+var auto_overlay: AutoOverlay
+var _pause_can_flip := false
 var _message_before_pause := ""
 var _message_visible_before_pause := false
 
@@ -123,12 +121,6 @@ func _ready() -> void:
 	_message.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 
 	add_child(_flip_button)   # above the pause message
-	_enemies_button = Control.new()
-	_enemies_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_enemies_button.size = FLIP_BUTTON_SIZE
-	_enemies_button.visible = false
-	_enemies_button.draw.connect(_draw_enemies_button)
-	add_child(_enemies_button)
 	_options_button = Control.new()
 	_options_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_options_button.size = FLIP_BUTTON_SIZE
@@ -141,15 +133,14 @@ func _ready() -> void:
 	_menu_button.visible = false
 	_menu_button.draw.connect(_draw_menu_button)
 	add_child(_menu_button)
-	_enemies_off_label = _label(20, Vector2(20, 14))
-	_enemies_off_label.text = "NO ENEMIES (N)"
-	_enemies_off_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.6))
-	_enemies_off_label.visible = false
 
+	auto_overlay = AutoOverlay.new()
+	add_child(auto_overlay)
 	menu = MainMenu.new()
 	add_child(menu)
 	options = OptionsMenu.new()
-	add_child(options)   # over everything but the "turn your phone" screen
+	add_child(options)
+	options.closed.connect(_on_options_closed)   # over everything but the "turn your phone" screen
 
 	_rotate = _rect(Color(0.05, 0.05, 0.07, 1))
 	_rotate.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -158,9 +149,10 @@ func _ready() -> void:
 	_rotate_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_rotate_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_rotate_label.text = PORTRAIT_MESSAGE
+	# The game's font has no ツ: this label's falls back to a tiny one that does.
 	var font := FontVariation.new()
-	font.base_font = ThemeDB.fallback_font
-	font.fallbacks = [SHRUG_FONT]
+	font.base_font = preload("res://assets/fonts/RussoOne-Regular.ttf")
+	font.fallbacks = [preload("res://assets/fonts/NotoSansJP-shrug.ttf")]
 	_rotate_label.add_theme_font_override("font", font)
 	# Her falling animation beside the message.
 	_rotate_sprite = AnimatedSprite2D.new()
@@ -193,7 +185,7 @@ func _process(delta: float) -> void:
 	# The pause screen's buttons, side by side under the message (so they fit
 	# on an upright phone too).
 	var shown: Array[Control] = []
-	for b in [_flip_button, _enemies_button, _options_button]:
+	for b in [_flip_button, _options_button]:
 		if b.visible and _on_pause_screen:
 			shown.append(b)
 	var gap := 16.0
@@ -203,6 +195,36 @@ func _process(delta: float) -> void:
 		b.position = Vector2(x, view.y * 0.5 + 55.0)
 		x += FLIP_BUTTON_SIZE.x + gap
 	_menu_button.position = Vector2((view.x - FLIP_BUTTON_SIZE.x) / 2.0, view.y - FLIP_BUTTON_SIZE.y - 24.0)
+
+
+## True on a touch device (phone, tablet): instructions say "Tap"; else they
+## name keys. (Checked once.)
+static var _touch := -1
+static func is_touch() -> bool:
+	if _touch < 0:
+		if OS.has_feature("web"):
+			_touch = int(JavaScriptBridge.eval("(('ontouchstart' in window) || navigator.maxTouchPoints > 0) ? 1 : 0", true))
+		else:
+			_touch = 1 if OS.has_feature("mobile") or DisplayServer.is_touchscreen_available() else 0
+	return _touch == 1
+
+
+## Opens the Options screen. over_game: from the pause screen, see-through
+## (the game shows behind it, so a colour can be seen as it's picked; the
+## pause screen's own text and buttons step aside while it's open).
+func open_options(over_game: bool) -> void:
+	options.see_through = over_game
+	if over_game:
+		_message.visible = false
+		_pause_dim.visible = false
+		_flip_button.visible = false
+		_options_button.visible = false
+	options.open()
+
+
+func _on_options_closed() -> void:
+	if _on_pause_screen:
+		show_paused(true, _pause_can_flip)
 
 
 ## True on a phone/tablet held sideways in the browser: play is upright there.
@@ -285,14 +307,14 @@ func show_game_over(stats: Dictionary) -> void:
 		lines += "Distance  %d m\n" % int(stats["distance"])
 	if not SHOW_SCORE_UI:
 		lines += "Kills  %d\n" % stats["kills"]
-		lines += "Level reached  %d\n" % stats["level"]
-		lines += "Flawless Streak (No Survivors)  %d\n" % stats["best_sweep"]
+		lines += "Level Reached  %d\n" % stats["level"]
+		lines += "Best Flawless Streak  %d\n" % stats["best_sweep"]
 	if SHOW_SCORE_UI:
 		lines += "Kills  %d      Best chain  x%d\n\n" % [stats["kills"], stats["best_chain"]]
 		lines += "Score  %d\n" % stats["score"]
 		lines += ("NEW BEST!\n" if stats["new_best"] else "Best  %d\n" % stats["best"])
 	lines += "\n"
-	lines += "Press or tap to retry"
+	lines += "Tap To Retry" if is_touch() else "Press Any Key To Retry"
 	_message.text = lines
 	_message.visible = true
 	_menu_button.visible = true
@@ -307,7 +329,7 @@ func _draw_menu_button() -> void:
 	_menu_button.draw_rect(Rect2(Vector2.ZERO, s), Color(1, 1, 1, 0.12))
 	_menu_button.draw_rect(Rect2(Vector2.ZERO, s), Color(1, 1, 1, 0.7), false, 2.0)
 	var font := ThemeDB.fallback_font
-	var text := "Main menu (M)"
+	var text := "Main Menu"
 	var size := 26
 	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
 	_menu_button.draw_string(font, Vector2((s.x - w) / 2.0, s.y / 2.0 + size * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color.WHITE)
@@ -327,38 +349,18 @@ func show_paused(paused: bool, can_flip: bool = false) -> void:
 	_pause_dim.visible = paused
 	_pause_button.visible = not paused
 	_flip_button.visible = paused and can_flip
-	_enemies_button.visible = paused
-	_on_pause_screen = paused
+	_pause_can_flip = can_flip
 	_options_button.visible = paused
 	if paused:
-		_message_before_pause = _message.text
-		_message_visible_before_pause = _message.visible
-		_message.text = "PAUSED\n\nPress any key or tap to resume"
+		if not _on_pause_screen:   # (not again on coming back from Options)
+			_message_before_pause = _message.text
+			_message_visible_before_pause = _message.visible
+		_message.text = "PAUSED\n\n" + ("Tap To Resume" if is_touch() else "Press Any Key To Resume")
 		_message.visible = true
 	else:
 		_message.text = _message_before_pause
 		_message.visible = _message_visible_before_pause
-
-
-func set_enemies_off(off: bool) -> void:
-	_enemies_off = off
-	_enemies_off_label.visible = off
-	_enemies_button.queue_redraw()
-
-
-func enemies_button_contains(pos: Vector2) -> bool:
-	return _enemies_button.visible and _enemies_button.get_rect().grow(10.0).has_point(pos)
-
-
-func _draw_enemies_button() -> void:
-	var s := FLIP_BUTTON_SIZE
-	_enemies_button.draw_rect(Rect2(Vector2.ZERO, s), Color(1, 1, 1, 0.12))
-	_enemies_button.draw_rect(Rect2(Vector2.ZERO, s), Color(1, 1, 1, 0.7), false, 2.0)
-	var font := ThemeDB.fallback_font
-	var text := "Enemies: off" if _enemies_off else "Enemies: on"
-	var size := 26
-	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
-	_enemies_button.draw_string(font, Vector2((s.x - w) / 2.0, s.y / 2.0 + size * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color.WHITE)
+	_on_pause_screen = paused
 
 
 func options_button_contains(pos: Vector2) -> bool:
@@ -370,7 +372,7 @@ func _draw_options_button() -> void:
 	_options_button.draw_rect(Rect2(Vector2.ZERO, s), Color(1, 1, 1, 0.12))
 	_options_button.draw_rect(Rect2(Vector2.ZERO, s), Color(1, 1, 1, 0.7), false, 2.0)
 	var font := ThemeDB.fallback_font
-	var text := "Options (O)"
+	var text := "Options"
 	var size := 26
 	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
 	_options_button.draw_string(font, Vector2((s.x - w) / 2.0, s.y / 2.0 + size * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color.WHITE)
@@ -385,7 +387,7 @@ func _draw_flip_button() -> void:
 	_flip_button.draw_rect(Rect2(Vector2.ZERO, s), Color(1, 1, 1, 0.12))
 	_flip_button.draw_rect(Rect2(Vector2.ZERO, s), Color(1, 1, 1, 0.7), false, 2.0)
 	var font := ThemeDB.fallback_font
-	var text := "Flip screen"
+	var text := "Flip Screen"
 	var size := 26
 	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
 	_flip_button.draw_string(font, Vector2((s.x - w) / 2.0, s.y / 2.0 + size * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color.WHITE)

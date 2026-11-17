@@ -34,6 +34,8 @@ var _rows := [
 	{"action": "back", "label": "Back"},
 ]
 var _selected := 0
+## Set by hud.gd: true over the game (see-through), false over the title screen.
+var see_through := false
 ## Shown with the keyboard highlight only once a key has been used.
 var _keyboard := false
 
@@ -160,7 +162,9 @@ func _row_rect(i: int) -> Rect2:
 
 
 func _draw() -> void:
-	draw_rect(Rect2(Vector2.ZERO, size), Color(0.05, 0.05, 0.07, 1.0))   # solid: nothing from the screen under it shows through
+	# Solid over the title screen; see-through over the game (from the pause
+	# screen), so a colour shows on the game as it's picked.
+	draw_rect(Rect2(Vector2.ZERO, size), Color(0.05, 0.05, 0.07, 0.55 if see_through else 1.0))
 	var font := ThemeDB.fallback_font
 	var title := "OPTIONS"
 	var tw := font.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, 36).x

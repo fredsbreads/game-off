@@ -21,7 +21,8 @@ const BG_BOTTOM := Color(0.02, 0.01, 0.02)
 const BUTTON_SIZE := Vector2(300, 58)
 const BUTTON_GAP := 14.0
 const LABEL_SIZE := 26
-const HINT := "left tap: shift    right tap: forward    both: shift + forward"
+const HINT_TOUCH := "Left Tap: Shift    Right Tap: Forward    Both: Shift + Forward"
+const HINT_KEYS := "Left Arrow / A: Shift    Right Arrow / D: Forward    Both: Shift + Forward"
 
 ## Her: running (the run sheet, as in the game), at a whole-number scale
 ## (crisp pixels).
@@ -100,8 +101,8 @@ func _buttons() -> Array[String]:
 func _button_text(id: String) -> String:
 	match id:
 		"play": return "PLAY"
-		"level": return "Start at level %d (L)" % start_level
-		"options": return "Options (O)"
+		"level": return "Start At Level %d" % start_level
+		"options": return "Options"
 	return ""
 
 
@@ -276,8 +277,8 @@ func _draw() -> void:
 	for i in _buttons().size():
 		_draw_button(i)
 	var f := ThemeDB.fallback_font
-	var hw := f.get_string_size(HINT, HORIZONTAL_ALIGNMENT_LEFT, -1, 18).x
-	draw_string(f, Vector2((size.x - hw) / 2.0, size.y - 20.0), HINT, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color(1, 1, 1, 0.5))
+	var hw := f.get_string_size((HINT_TOUCH if Hud.is_touch() else HINT_KEYS), HORIZONTAL_ALIGNMENT_LEFT, -1, 18).x
+	draw_string(f, Vector2((size.x - hw) / 2.0, size.y - 20.0), (HINT_TOUCH if Hud.is_touch() else HINT_KEYS), HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color(1, 1, 1, 0.5))
 
 
 func _draw_her() -> void:

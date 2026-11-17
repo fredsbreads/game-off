@@ -15,6 +15,13 @@ extends Control
 
 const FONT := preload("res://assets/fonts/RussoOne-Regular.ttf")
 
+
+## The game's second colour: the Flawless Color picked in Options (yellow by
+## default). The grip, the gold of PERFECT and of a level-up, the bolt while
+## golden and the streak at its reward all use it.
+static func _sec() -> Color:
+	return Palette.secondary()
+
 # The blade.
 const BLADE := Vector2(330, 16)
 const TIP := 24.0            # the point (kissaki): pixels at the end where the edge sweeps up to the spine
@@ -26,8 +33,6 @@ const TAPER := 0.15          # the blade narrows this much (of its width) from t
 const STEEL := Color(0.92, 0.94, 1.0, 0.95)       # counted
 const PENDING := Color(0.6, 0.62, 0.68, 0.8)      # this chain's kills, not yet counted
 const EMPTY := Color(0.55, 0.6, 0.7, 0.16)
-const BONUS := Color(1.0, 0.85, 0.3)              # PERFECT's extra half, growing in
-const READY := Color(1.0, 0.82, 0.3)              # this chain's kills, once they'd fill it (a level-up coming)
 const CRUMBLE := Color(0.62, 0.64, 0.7)           # a dropped chain's lost half, breaking off
 const CRUMBLE_PIECE := 9.0
 const CRUMBLE_FALL := 20.0
@@ -43,7 +48,6 @@ const HABAKI := 0.0   # (no collar: the blade starts right at the guard)
 const TSUBA := Vector2(7, 36)
 const TSUKA := 150.0
 const KASHIRA := 6.0
-const HILT_YELLOW := Color(1.0, 0.9, 0.15)
 const HILT_BLACK := Color(0.03, 0.03, 0.04)
 const WRAP_STEP := 15.0       # one diamond's length (pixels)
 
@@ -70,7 +74,6 @@ const CHARGE_COLOR := Color(0.95, 0.15, 0.2)   # her red (her colour once she ha
 
 # The flawless streak, right of the tip.
 const STREAK_GOLD_AT := 50   # (main.gd STREAK_REWARD)
-const STREAK_GOLD := Color(1.0, 0.82, 0.25)
 const STREAK_MILESTONES := [10, 25]   # bigger pops (and every 25 after)
 const POP_TIME := 0.18
 const BREAK_TIME := 0.6
@@ -281,7 +284,7 @@ func _zigzag(a: Vector2, b: Vector2, n: int, jag: float) -> PackedVector2Array:
 
 func _draw_blade_arcs() -> void:
 	for arc in _blade_arcs:
-		draw_polyline(arc, Color(STREAK_GOLD, 0.35), 5.0, true)
+		draw_polyline(arc, Color(_sec(), 0.35), 5.0, true)
 		draw_polyline(arc, Color(1, 0.97, 0.85, 0.95), 1.6, true)
 
 
@@ -294,7 +297,7 @@ func _edge_sparks() -> void:
 		var p := Vector2(x, _rng.randf_range(_top(x), _bottom(x)))
 		var v := Vector2(_rng.randf_range(20.0, 90.0), _rng.randf_range(-120.0, -30.0))
 		var life := _rng.randf_range(0.25, 0.45)
-		_bits.append([p, v, life, life, BONUS if _result["grade"] == "PERFECT" else Color.WHITE])
+		_bits.append([p, v, life, life, _sec() if _result["grade"] == "PERFECT" else Color.WHITE])
 
 
 ## Where the fill's growing edge is right now (pixels along the blade), or -1.
@@ -394,7 +397,7 @@ func _draw_blade() -> void:
 				# This chain will level up once it's done: its part glows gold and
 				# pulses, and lightning crackles along the blade (_draw_blade_arcs).
 				var beat := 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.012)
-				_fill(filled, filled + pending, READY.lerp(Color(1, 1, 0.9), 0.35 * beat))
+				_fill(filled, filled + pending, _sec().lerp(Color(1, 1, 0.9), 0.35 * beat))
 			else:
 				_fill(filled, filled + pending, PENDING)
 		if filled > 0.0:
@@ -421,10 +424,10 @@ func _draw_blade() -> void:
 	outline.append(outline[0])
 	if _level_up >= 0.0:
 		var glow := 1.0 - clampf(_level_up / LEVEL_UP_TIME, 0.0, 1.0)
-		draw_polyline(outline, Color(STREAK_GOLD, 0.55 * glow), 10.0 * glow + 2.0, true)
+		draw_polyline(outline, Color(_sec(), 0.55 * glow), 10.0 * glow + 2.0, true)
 	elif _will_level():
 		var beat := 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.012)
-		draw_polyline(outline, Color(STREAK_GOLD, 0.25 + 0.3 * beat), 5.0 + 3.0 * beat, true)
+		draw_polyline(outline, Color(_sec(), 0.25 + 0.3 * beat), 5.0 + 3.0 * beat, true)
 	if _pulse > 0.0:
 		draw_polyline(outline, Color(1, 1, 1, 0.35 * _pulse), 6.0 * _pulse + 2.0, true)
 	draw_polyline(outline, Color(1, 1, 1, 0.4 + 0.6 * _pulse), 1.5, true)
@@ -454,7 +457,7 @@ func _draw_result() -> void:
 			_fill(base, base + kills, PENDING.lerp(STEEL, p))
 			var extra := maxf(gain - kills, 0.0) * p
 			if extra > 0.0:
-				_fill(base + kills, base + kills + extra, BONUS.lerp(STEEL, hold))
+				_fill(base + kills, base + kills + extra, _sec().lerp(STEEL, hold))
 		"DROPPED":
 			# The kept half turns solid while the lost half breaks off and falls.
 			_fill(base, base + gain, PENDING.lerp(STEEL, p))
@@ -498,8 +501,8 @@ func _draw_hilt() -> void:
 		var cm := _centre(xm)
 		# A black band crossing from each corner to the middle, top and bottom.
 		# (They meet in the middle, so the black left between is a row of solid diamonds.)
-		draw_colored_polygon(PackedVector2Array([Vector2(x, c0 - h / 2.0), Vector2(x1, c1 - h / 2.0), Vector2(xm, cm + 0.5)]), HILT_YELLOW)
-		draw_colored_polygon(PackedVector2Array([Vector2(x, c0 + h / 2.0), Vector2(x1, c1 + h / 2.0), Vector2(xm, cm - 0.5)]), HILT_YELLOW)
+		draw_colored_polygon(PackedVector2Array([Vector2(x, c0 - h / 2.0), Vector2(x1, c1 - h / 2.0), Vector2(xm, cm + 0.5)]), _sec())
+		draw_colored_polygon(PackedVector2Array([Vector2(x, c0 + h / 2.0), Vector2(x1, c1 + h / 2.0), Vector2(xm, cm - 0.5)]), _sec())
 		x = x1
 	var outline := _band(grip0, guard_x, h)
 	outline.append(outline[0])
@@ -527,7 +530,7 @@ func _draw_whole_glow() -> void:
 		if flash > 0.0:
 			draw_colored_polygon(grip, Color(1, 1, 1, 0.8 * flash))
 		var glow := 1.0 - clampf(_level_up / LEVEL_UP_TIME, 0.0, 1.0)
-		draw_polyline(outline, Color(STREAK_GOLD, 0.55 * glow), 10.0 * glow + 2.0, true)
+		draw_polyline(outline, Color(_sec(), 0.55 * glow), 10.0 * glow + 2.0, true)
 	if _hit > 0.0:
 		draw_colored_polygon(grip, Color(1, 1, 1, 0.18 * _hit))
 		_fill(0.0, BLADE.x, Color(1, 1, 1, 0.18 * _hit))
@@ -600,7 +603,7 @@ func _update_sparks(delta: float) -> void:
 
 
 func _draw_boost(o: Vector2, s: float) -> void:
-	var gold := STREAK_GOLD
+	var gold := _sec()
 	var beat := 0.7 + 0.3 * sin(Time.get_ticks_msec() * 0.009)
 	for k in 3:   # a gold aura behind it
 		draw_colored_polygon(_bolt_poly(o, s * (1.3 + 0.18 * k)), Color(gold, 0.07 * beat))
@@ -610,7 +613,7 @@ func _draw_boost(o: Vector2, s: float) -> void:
 
 
 func _draw_boost_front(o: Vector2) -> void:
-	var gold := STREAK_GOLD
+	var gold := _sec()
 	for sp in _sparks:   # gold sparks rising off it
 		var a: float = clampf(sp[2] / 0.3, 0.0, 1.0)
 		draw_rect(Rect2(sp[0] - Vector2(1.5, 1.5), Vector2(3, 3)), Color(gold.lightened(0.3), a))
@@ -644,7 +647,7 @@ func _draw_bolt() -> void:
 	var closed := poly.duplicate()
 	closed.append(poly[0])
 	if _boosted and not _charged:
-		draw_polyline(closed, Color(STREAK_GOLD, 0.95), 2.5, true)   # a gold rim
+		draw_polyline(closed, Color(_sec(), 0.95), 2.5, true)   # a gold rim
 	else:
 		draw_polyline(closed, Color(1, 1, 1, 0.9) if _charged else Color(col.lightened(0.3), 0.75), 1.5, true)
 	if _boosted:
@@ -672,9 +675,20 @@ func poly_bottom(poly: PackedVector2Array) -> float:
 
 func _streak_colour(n: int) -> Color:
 	if n >= STREAK_GOLD_AT:
-		return STREAK_GOLD
+		return _sec()
 	# In her reward colour while she has it.
 	return Palette.swatch().lightened(0.25) if Palette.pink > 0.5 else Color.WHITE
+
+
+## Where the number's centre goes under "FLAWLESS" (x: the caption's left):
+## streak_align 0 = left-aligned with it, 1 = right-aligned, 2 = centred.
+static var streak_align := 0
+func _streak_number_x(x: float, w: float) -> float:
+	var cw := FONT.get_string_size("FLAWLESS", HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x
+	match streak_align:
+		1: return x + cw - w / 2.0
+		2: return x + cw / 2.0
+	return x + w / 2.0
 
 
 func _draw_streak() -> void:
@@ -685,7 +699,7 @@ func _draw_streak() -> void:
 	var fs := 30
 	var text := str(_streak)
 	var w := FONT.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
-	var centre := Vector2(x + w / 2.0, mid + 7.0)
+	var centre := Vector2(_streak_number_x(x, w), mid + 7.0)
 	# The pop: bigger right after a kill (more at a milestone), easing back.
 	var pop := ease(_pop, 2.0) * (0.6 if _pop_big else 0.3)
 	if _break_t < 0.0 or _break_t > 0.25:
@@ -704,7 +718,7 @@ func _draw_streak() -> void:
 		var drop := 60.0 * t * t
 		var red := Color(1.0, 0.25, 0.3, 1.0 - t)
 		for side in [-1.0, 1.0]:
-			var piece_at := Vector2(x + ow / 2.0 + shake + side * 8.0 * t, mid + 7.0 + drop * (1.0 if side < 0.0 else 1.2))
+			var piece_at := Vector2(_streak_number_x(x, ow) + shake + side * 8.0 * t, mid + 7.0 + drop * (1.0 if side < 0.0 else 1.2))
 			draw_set_transform(piece_at, side * 0.6 * t, Vector2.ONE)
 			draw_string(FONT, Vector2(-ow / 2.0, fs * 0.35), old, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(red, red.a * 0.6))
 		draw_set_transform(Vector2.ZERO)
@@ -734,7 +748,7 @@ func _draw() -> void:
 	var lv_w := FONT.get_string_size(lv, HORIZONTAL_ALIGNMENT_LEFT, -1, LEVEL_SIZE).x
 	var lv_at := Vector2(_hilt_left() - GAP_LEVEL - lv_w / 2.0, BLADE.y / 2.0)
 	draw_set_transform(lv_at, 0.0, Vector2.ONE * (1.0 + 0.28 * swell))
-	var lv_col := Color(1, 1, 1, 0.85).lerp(STREAK_GOLD, clampf(1.0 - _level_up / LEVEL_UP_TIME, 0.0, 1.0) if _level_up >= 0.0 else 0.0)
+	var lv_col := Color(1, 1, 1, 0.85).lerp(_sec(), clampf(1.0 - _level_up / LEVEL_UP_TIME, 0.0, 1.0) if _level_up >= 0.0 else 0.0)
 	draw_string(FONT, Vector2(-lv_w / 2.0, LEVEL_SIZE * 0.36), lv, HORIZONTAL_ALIGNMENT_LEFT, -1, LEVEL_SIZE, lv_col)
 	var c := Vector2((_hilt_left() + BLADE.x) / 2.0, BLADE.y / 2.0)
 	var sc := 1.0 + 0.08 * swell + 0.025 * _hit
