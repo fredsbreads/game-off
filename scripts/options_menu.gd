@@ -23,7 +23,7 @@ const VALUE_W := 330.0   # the value's part of a row (on the right)
 const BUTTON_W := 300.0  # an action row's button (centred)
 
 const STEPS_VOLUME := [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
-const STEPS_SHAKE := [0.0, 0.25, 0.5, 0.75, 1.0]
+const STEPS_SHAKE := [1.0, 0.5, 0.0]   # Full, Soft, Off
 
 # key, label (actions have no key; their label is the button text)
 const ROWS := [
@@ -134,8 +134,8 @@ func _step(i: int, dir: int) -> void:
 	var at := values.find(Settings.get_value(key))
 	if at == -1:   # (a saved value between steps: the nearest one)
 		at = _nearest(values, Settings.get_value(key))
-	# Colours and flashes go round; volumes and shake stop at their ends.
-	var to := posmod(at + dir, values.size()) if key in ["colour", "flashes"] else clampi(at + dir, 0, values.size() - 1)
+	# Colours, flashes and shake go round; volumes stop at their ends.
+	var to := posmod(at + dir, values.size()) if key in ["colour", "flashes", "shake"] else clampi(at + dir, 0, values.size() - 1)
 	if to == at:
 		return
 	Settings.set_value(key, values[to])
@@ -168,7 +168,9 @@ func _value_text(key: String) -> String:
 	match key:
 		"colour":
 			return ("%s (Default)" % Palette.display_name(Palette.COLOUR)) if v == "default" else Palette.display_name(String(v))
-		"music", "sfx", "shake":
+		"shake":
+			return "Full" if float(v) >= 0.99 else ("Off" if float(v) <= 0.001 else "Soft")
+		"music", "sfx":
 			return "Off" if float(v) <= 0.001 else "%d%%" % roundi(float(v) * 100.0)
 		"flashes":
 			return "Full" if float(v) >= 0.99 else ("None" if float(v) <= 0.001 else "Soft")
