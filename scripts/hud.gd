@@ -382,14 +382,14 @@ func show_game_over(stats: Dictionary) -> void:
 		lines += "Score  %d\n" % stats["score"]
 		lines += ("NEW BEST!\n" if stats["new_best"] else "Best  %d\n" % stats["best"])
 	lines += "\n"
-	lines += "Tap To Retry" if is_touch() else "Press Any Key To Retry"
+	lines += "Tap Anywhere To Retry" if is_touch() else "Press Any Key To Retry"
 	_menu_button.visible = true
 	if SHOW_SCORE_UI or SHOW_DISTANCE_UI:   # (the old text screen)
 		_message.text = lines
 		_message.visible = true
 		return
 	_over_stats = [[stats["kills"], "KILLS"], [stats["level"], "LEVEL"], [stats["best_sweep"], "PEAK FLAWLESS"]]
-	_over_hint = "Tap To Retry" if is_touch() else ""
+	_over_hint = "Tap Anywhere To Retry" if is_touch() else ""
 	_over_sel = 0
 	_retry_button.visible = not is_touch()
 	_redraw_over_buttons()
