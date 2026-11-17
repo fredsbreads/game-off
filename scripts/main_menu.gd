@@ -41,7 +41,7 @@ const HER_CRACKLE_EVERY := Vector2(0.02, 0.07)
 ## Small bolts off the title.
 const TITLE_CRACKLE_EVERY := Vector2(0.12, 0.4)
 const CRACKLE_LIFE := 0.13
-## Now and then a big strike from above onto her; she and the title flash.
+## Now and then a big strike from above onto her (her glow flares; the title stays steady).
 const STRIKE_EVERY := Vector2(2.0, 4.0)
 const STRIKE_LIFE := 0.24
 
@@ -298,11 +298,10 @@ func _run_frame() -> int:
 func _draw_title() -> void:
 	var r := _title_rect()
 	var base := Vector2(r.position.x, _title_baseline())
-	var flicker := 0.85 + 0.15 * sin(_t * 23.0) * sin(_t * 7.0)
 	for i in 12:   # a soft glow
 		var o := Vector2.RIGHT.rotated(i * TAU / 12.0) * 6.0
-		draw_string(title_font, base + o, TITLE, HORIZONTAL_ALIGNMENT_LEFT, -1, TITLE_SIZE, Color(TITLE_RED, 0.06 * flicker))
-	var fill := TITLE_RED.lerp(Color(1, 0.95, 0.95), _flash * 0.8)
+		draw_string(title_font, base + o, TITLE, HORIZONTAL_ALIGNMENT_LEFT, -1, TITLE_SIZE, Color(TITLE_RED, 0.06))
+	var fill := TITLE_RED   # steady: it doesn't flicker or flash
 	draw_string(title_font, base, TITLE, HORIZONTAL_ALIGNMENT_LEFT, -1, TITLE_SIZE, fill)
 	draw_string(title_font, base + Vector2(0, -2), TITLE, HORIZONTAL_ALIGNMENT_LEFT, -1, TITLE_SIZE, Color(1, 0.65, 0.68, 0.3))
 
