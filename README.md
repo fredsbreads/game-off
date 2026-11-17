@@ -76,6 +76,9 @@ run upside down.
   you down. A teleport that drops a chain (MISSED) and lands you across from
   her gets the same warning and grace as running there. Same if a freeze
   ends with her hit but not finished and within a teleport (6 tiles) of you.
+  Two teleporters side by side in a chain sometimes interleave their duels
+  (`PAIR_CHANCE` in `scripts/patterns.gd`): her spots and his alternate, so
+  while one blinks away the other's standing there to hit.
   A teleporter that strikes comes from the side she's on: in front (ahead,
   or straight across), or from behind once the player's past her. If two
   would strike at once (a freeze running out, running on or past, or running
@@ -93,9 +96,10 @@ run upside down.
   `scripts/patterns.gd`). A chain's
   length counts every hit (a knight's 3-4 hits use up 3-4 of it), so knights
   don't make chains longer.
-  Every teleporter shows where she'll blink to next: a faint silhouette in her
-  colour at that spot (`NEXT_ALPHA` in `scripts/knight.gd`), so you can read
-  ahead. Her swings have a thick outline and their white arc tinted in her
+  In the freeze after a clash, a thin flickering thread of lightning in her
+  colour runs from her to where she'll blink next (`THREAD_*` in
+  `scripts/knight.gd`; a silhouette there instead, `SHOW_NEXT`, is off: it
+  read as a target). Her swings have a thick outline and their white arc tinted in her
   colour (`SLASH_OUTLINE_PX`, `SLASH_ARC_TINT`).
   You may leave a duel early (chain onto another enemy instead of her), so a
   chain never ends within reach of a knight unless it ends on her: after each

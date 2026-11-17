@@ -158,6 +158,7 @@ func _append_pattern(pattern: Dictionary) -> void:
 	var knights: Array = pattern.get("knights", [])
 	var last_row := _cursor_row
 	var knight: Knight = null
+	var by_group := {}   # each teleporter, by her group (two teleporters' spots can interleave)
 	for i in shape.size():
 		var e: Vector2 = shape[i]
 		var row: int = _cursor_row if int(e.y) == 0 else 1 - _cursor_row
@@ -165,8 +166,8 @@ func _append_pattern(pattern: Dictionary) -> void:
 		if enemies_off:
 			continue   # keep the layout the same, just empty
 		var group: int = int(knights[i]) if not knights.is_empty() else -1
-		if group >= 0 and i > 0 and int(knights[i - 1]) == group:
-			knight.path.append(Vector2(_cursor + e.x, row))   # one of her later spots
+		if group >= 0 and by_group.has(group):
+			by_group[group].path.append(Vector2(_cursor + e.x, row))   # one of her later spots
 			continue
 		var enemy: Enemy
 		if group >= 0:
@@ -177,6 +178,7 @@ func _append_pattern(pattern: Dictionary) -> void:
 			else:
 				knight = Knight.new()
 			knight.debut = _is_debut(pattern["name"])
+			by_group[group] = knight
 			knight.path.append(Vector2(_cursor + e.x, row))
 			enemy = knight
 		else:

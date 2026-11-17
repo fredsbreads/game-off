@@ -78,6 +78,9 @@ const MASTER_FULL_LEVEL := 20
 # or more (a master has every ninja rule too): see is_ninja_group().
 const NINJA_GROUP := 1000
 const MASTER_GROUP := 2000
+# Two teleporters side by side in a chain: this often their duels interleave
+# (see _build).
+const PAIR_CHANCE := 0.5
 # A knight's blinks: to any of her three landing spots, but never back to a
 # spot she's been on (so never across twice in a row, see _overlaps).
 const KNIGHT_STEPS := ["F", "V", "D"]
@@ -240,7 +243,7 @@ static func generate(level: int, rng: RandomNumberGenerator, knights := true, ni
 			else:
 				hits.append(1)
 				left -= 1
-		var built := _build(hits, rng)
+		var built := _build(hits, rng, PAIR_CHANCE)
 		if not built.is_empty():
 			built["name"] = "generated L%d: %s" % [level, built["steps"]]
 			return built
@@ -285,14 +288,13 @@ static func ninja_alone(rng: RandomNumberGenerator) -> Dictionary:
 ## Lays out one chain: `hits` has one entry per enemy, 1 for a plain enemy or
 ## a knight's number of hits (minus it: a ninja's). Returns {} if the random
 ## steps put two things in one spot.
-static func _build(hits: Array[int], rng: RandomNumberGenerator) -> Dictionary:
+static func _build(hits: Array[int], rng: RandomNumberGenerator, pair_chance := 0.0) -> Dictionary:
 	var enemies: Array[Vector2] = []
 	var knights: Array[int] = []
 	var tokens: PackedStringArray = []
-	var group := 0
-	var ninja_group := NINJA_GROUP
-	var master_group := MASTER_GROUP
-	for i in hits.size():
+	var next_group := {"knight": 0, "ninja": NINJA_GROUP, "master": MASTER_GROUP}
+	var i := 0
+	while i < hits.size():
 		if i > 0:
 			var token := _free_step(GENERATED_STEPS, enemies, rng)
 			enemies.append(_apply(enemies.back(), token))
@@ -301,28 +303,56 @@ static func _build(hits: Array[int], rng: RandomNumberGenerator) -> Dictionary:
 			enemies.append(Vector2(0, 0))
 		if absi(hits[i]) <= 1:
 			knights.append(-1)
+			i += 1
 			continue
-		var master := hits[i] <= -1000
-		var ninja := hits[i] < 0 and not master
-		var count := (-hits[i] - 1000) if master else absi(hits[i])
-		var g := master_group if master else (ninja_group if ninja else group)
-		knights.append(g)
-		tokens.append("M(" if master else ("N(" if ninja else "K("))
-		for h in count - 1:
+		var a := _teleporter(hits[i], next_group)
+		knights.append(a["group"])
+		# Two teleporters side by side: sometimes their duels interleave (her
+		# spots and his alternate, each one step from the last), so while one
+		# blinks away the other's standing there to hit.
+		if i + 1 < hits.size() and absi(hits[i + 1]) > 1 and rng.randf() < pair_chance:
+			var b := _teleporter(hits[i + 1], next_group)
+			tokens.append("P(" + a["label"] + b["label"])
+			var token := _free_step(GENERATED_STEPS, enemies, rng)
+			enemies.append(_apply(enemies.back(), token))
+			knights.append(b["group"])
+			tokens.append(token.to_lower())
+			var left := [int(a["count"]) - 1, int(b["count"]) - 1]
+			var groups := [a["group"], b["group"]]
+			var turn := 0
+			while left[0] > 0 or left[1] > 0:
+				if left[turn] == 0:
+					turn = 1 - turn
+				var blink := _free_step(KNIGHT_STEPS, enemies, rng)
+				enemies.append(_apply(enemies.back(), blink))
+				knights.append(groups[turn])
+				tokens.append(blink.to_lower())
+				left[turn] -= 1
+				turn = 1 - turn
+			tokens.append(")")
+			i += 2
+			continue
+		tokens.append(a["label"] + "(")
+		for h in int(a["count"]) - 1:
 			var blink := _free_step(KNIGHT_STEPS, enemies, rng)
 			enemies.append(_apply(enemies.back(), blink))
-			knights.append(g)
+			knights.append(a["group"])
 			tokens.append(blink.to_lower())
 		tokens.append(")")
-		if master:
-			master_group += 1
-		elif ninja:
-			ninja_group += 1
-		else:
-			group += 1
+		i += 1
 	if _overlaps(enemies, knights) or _strands_by_knight(enemies, knights):
 		return {}
 	return {"enemies": enemies, "knights": knights, "steps": " ".join(tokens)}
+
+
+## A teleporter from its `hits` entry (a knight's hits, minus a ninja's,
+## -1000 minus a master's): {group, count, label}, using up a group number.
+static func _teleporter(entry: int, next_group: Dictionary) -> Dictionary:
+	var kind := "master" if entry <= -1000 else ("ninja" if entry < 0 else "knight")
+	var count := (-entry - 1000) if kind == "master" else absi(entry)
+	var g: int = next_group[kind]
+	next_group[kind] = g + 1
+	return {"group": g, "count": count, "label": {"master": "M", "ninja": "N", "knight": "K"}[kind]}
 
 
 ## A random step from `steps` that lands on a spot not used yet in the chain

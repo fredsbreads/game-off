@@ -59,6 +59,13 @@ const SLASH_OUTLINE_PX := 3
 # Where she'll blink to next: a faint silhouette in her colour at that spot.
 const NEXT_SHADER := preload("res://shaders/silhouette.gdshader")
 const NEXT_ALPHA := 0.28
+const SHOW_NEXT := false   # off for now: it read as a target in the heat of a chain
+# Instead, in the freeze after a clash: a thin flickering thread of lightning
+# in her colour from her to her next spot (main.gd sets `thread`).
+const THREAD_WIDTH := 3.0
+const THREAD_ALPHA := 0.7
+const THREAD_FLICKER := 0.06   # seconds between new zigzags
+const THREAD_JAG := 10.0       # pixels the zigzag strays from the straight line
 const SLASH_ARC_TINT := 0.5
 
 ## Her look, as data, so another teleporter (the ninja) can use all of her
@@ -101,6 +108,11 @@ var ahead := false
 var alerted := false
 var _slashing := false   # the killing blow: green outline held
 var _next: Sprite2D = null   # her next spot's silhouette (see _update_next)
+## True while the thread to her next spot shows (main.gd: the freeze after a clash).
+var thread := false
+var _thread: Node2D = null
+var _thread_points := PackedVector2Array()
+var _thread_time := 0.0
 var _arc: AnimatedSprite2D
 ## Where her body goes in a clash swing: a layer above the player (set by main.gd).
 static var front_parent: Node = null
@@ -169,7 +181,14 @@ func _ready() -> void:
 	_sprite.play("idle")
 	_sprite.frame = randi() % _sprite.sprite_frames.get_frame_count("idle")
 	_sprite.animation_finished.connect(_on_animation_finished)
+	_thread = Node2D.new()
+	_thread.top_level = true
+	_thread.z_index = 1
+	_thread.draw.connect(_draw_thread)
+	add_child(_thread)
 	# Her next spot: a flat silhouette (her stance), drawn where she'll blink to.
+	if not SHOW_NEXT:
+		return
 	_next = Sprite2D.new()
 	_next.texture = _sprite.sprite_frames.get_frame_texture(art["windup_anim"], art["windup_frame"])
 	_next.centered = false
@@ -334,6 +353,13 @@ func _hold_windup() -> void:
 		_sprite.pause()
 
 
+## The player's dead: out of her stance, back to idle (not mid-blow).
+func relax() -> void:
+	if alive and not _slashing and _sprite:
+		threat = false
+		_sprite.play("idle")
+
+
 ## The player is no longer across from her.
 func calm() -> void:
 	threat = false
@@ -397,8 +423,43 @@ func _update_next() -> void:
 	_next.global_scale = Vector2(sc, sc * (-1.0 if int(spot.y) == Rules.Row.CEILING else 1.0))
 
 
+## The thread to her next spot: a fresh zigzag every THREAD_FLICKER seconds.
+func _update_thread(delta: float) -> void:
+	if _thread == null:
+		return
+	var show := thread and alive and not _slashing and step_index + 1 < path.size()
+	_thread.visible = show
+	if not show:
+		return
+	_thread_time -= delta
+	if _thread_time > 0.0:
+		return
+	_thread_time = THREAD_FLICKER
+	var a := Vector2(tile_x * Rules.TILE, Rules.body_center_y(row))
+	var spot: Vector2 = path[step_index + 1]
+	var b := Vector2(spot.x * Rules.TILE, Rules.body_center_y(int(spot.y)))
+	var normal := (b - a).orthogonal().normalized()
+	var steps := maxi(4, int(a.distance_to(b) / 28.0))
+	_thread_points = PackedVector2Array()
+	for i in steps + 1:
+		var t := float(i) / float(steps)
+		var off := 0.0 if i == 0 or i == steps else randf_range(-THREAD_JAG, THREAD_JAG)
+		_thread_points.append(a.lerp(b, t) + normal * off)
+	_thread.queue_redraw()
+
+
+func _draw_thread() -> void:
+	if _thread_points.size() < 2:
+		return
+	var c: Color = art["outline"]
+	_thread.draw_polyline(_thread_points, Color(c.r, c.g, c.b, THREAD_ALPHA * 0.35), THREAD_WIDTH * 2.5)
+	_thread.draw_polyline(_thread_points, Color(c.r, c.g, c.b, THREAD_ALPHA), THREAD_WIDTH)
+	_thread.draw_polyline(_thread_points, Color(1, 1, 1, THREAD_ALPHA * 0.8), 1.0)
+
+
 func _process(delta: float) -> void:
 	_update_next()
+	_update_thread(delta)
 	if _arc and _sprite:
 		if _arc.animation != _sprite.animation:
 			_arc.play(_sprite.animation)

@@ -160,7 +160,7 @@ static func _ninja_too_close(enemies: Array[Vector2], mask: int, x: float, row: 
 		var g := int(knights[i])
 		if not Patterns.is_ninja_group(g) or (mask & (1 << i)) != 0 or not exists(i, mask, knights):
 			continue
-		if i > 0 and int(knights[i - 1]) == g:
+		if prev_spot(i, knights) >= 0:
 			continue   # hit already: the knight rules
 		if Rules.ninja_too_close(enemies[i].x, int(enemies[i].y), x, row):
 			return true
@@ -179,7 +179,7 @@ static func _ninjas_ahead(enemies: Array[Vector2], mask: int, x: float, row: int
 		var g := int(knights[i])
 		if not Patterns.is_ninja_group(g) or (mask & (1 << i)) != 0 or not exists(i, mask, knights):
 			continue
-		if i > 0 and int(knights[i - 1]) == g:
+		if prev_spot(i, knights) >= 0:
 			continue   # hit already: he's fighting her (the knight rules)
 		var e := enemies[i]
 		if Rules.ninja_ahead(e.x, int(e.y), x, row) or (Patterns.is_master_group(g) and Rules.master_diag_ahead(e.x, int(e.y), x, row)):
@@ -212,11 +212,23 @@ static func _left_required_behind(enemies: Array[Vector2], state: Array, require
 
 
 ## True if spot i is there right now: a plain enemy always is; a knight's spot
-## once the spot before it (same knight) has been hit.
+## once her spot before it (wherever it is in the chain: two teleporters'
+## duels can interleave) has been hit.
 static func exists(i: int, mask: int, knights: Array) -> bool:
-	if knights.is_empty() or int(knights[i]) < 0 or i == 0 or int(knights[i - 1]) != int(knights[i]):
-		return true
-	return (mask & (1 << (i - 1))) != 0
+	var j := prev_spot(i, knights)
+	return j < 0 or (mask & (1 << j)) != 0
+
+
+## The index of the same knight's spot before spot i, or -1 (a plain enemy,
+## or her first spot).
+static func prev_spot(i: int, knights: Array) -> int:
+	if knights.is_empty() or int(knights[i]) < 0:
+		return -1
+	var g := int(knights[i])
+	for j in range(i - 1, -1, -1):
+		if int(knights[j]) == g:
+			return j
+	return -1
 
 
 ## The index of a knight that teleports to the player as the player runs from
@@ -231,7 +243,7 @@ static func knight_pounces(enemies: Array[Vector2], mask: int, from_x: float, x:
 		if g < 0 or (mask & (1 << i)) != 0 or not exists(i, mask, knights):
 			continue
 		var e := enemies[i]
-		var engaged := i > 0 and int(knights[i - 1]) == g
+		var engaged := prev_spot(i, knights) >= 0
 		if engaged and Rules.knight_in_reach(e.x - x):
 			return i
 		if Rules.knight_runs_past(e.x, int(e.y), from_x, x, row):

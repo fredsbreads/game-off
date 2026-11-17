@@ -686,6 +686,9 @@ func _update_pause_visuals() -> void:
 	# Every enemy a teleport would slash right now gets a red glint.
 	for e in level.enemies:
 		e.targeted = false
+		if e is Knight:
+			# The freeze after a clash: a thread of lightning to where she'll blink next.
+			(e as Knight).thread = chain_pause and (e as Knight).engaged and not _finishing
 	if state == State.PLAYING and player.alive and not _finishing:
 		for move in [Rules.Move.FORWARD, Rules.Move.VERTICAL, Rules.Move.DIAGONAL]:
 			var tx: float = player.x + Rules.move_dx(move)
@@ -1733,6 +1736,8 @@ func _die(kind: String, killer: Enemy = null) -> void:
 	_death_sound.play()
 	for e in level.enemies:
 		e.clear_glint()   # no red glints lingering on the death moment
+		if e is Knight:
+			(e as Knight).relax()   # out of her stance (not the one who struck: she's mid-blow)
 	var body := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row))
 	_death_focus = body
 	if killer and not is_instance_valid(_second_killer):
