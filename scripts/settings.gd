@@ -14,7 +14,7 @@ static var music := 1.0
 static var sfx := 1.0
 ## Screen shake, 0 (none) to 1 (as tuned).
 static var shake := 1.0
-## Full-screen flashes: 1 = as tuned, FLASH_SOFT = gentler.
+## Full-screen flashes: 1 = as tuned, FLASH_SOFT = gentler, 0 = none.
 static var flashes := 1.0
 const FLASH_SOFT := 0.3
 

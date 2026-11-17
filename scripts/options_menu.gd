@@ -149,7 +149,7 @@ func _values(key: String) -> Array:
 		"colour": return ["default"] + Palette.COLOURS.keys()
 		"music", "sfx": return STEPS_VOLUME
 		"shake": return STEPS_SHAKE
-		"flashes": return [1.0, Settings.FLASH_SOFT]
+		"flashes": return [1.0, Settings.FLASH_SOFT, 0.0]
 	return []
 
 
@@ -171,7 +171,7 @@ func _value_text(key: String) -> String:
 		"music", "sfx", "shake":
 			return "Off" if float(v) <= 0.001 else "%d%%" % roundi(float(v) * 100.0)
 		"flashes":
-			return "Full" if float(v) >= 0.99 else "Soft"
+			return "Full" if float(v) >= 0.99 else ("None" if float(v) <= 0.001 else "Soft")
 	return ""
 
 
