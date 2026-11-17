@@ -8,8 +8,8 @@ extends Control
 ## it every press while it's open (touch doesn't emulate mouse in this
 ## project, so it hit-tests taps itself) and acts on what handle() returns.
 ##
-## Keys: Up/Down pick a button, Enter/Space press it; any teleport key
-## (Right, Left, K, J, D, A, the Shifts) plays; O opens Options.
+## Keys: Up/Down pick a button (it starts on Play); Left/Right, Enter/Space
+## or any teleport key (K, J, D, A, the Shifts) press it; O opens Options.
 
 const TITLE := "RED FLASH"
 ## The title's font ("Russo One", SIL Open Font License: assets/fonts).
@@ -121,12 +121,12 @@ func handle(event: InputEvent, pos: Vector2) -> String:
 			KEY_DOWN:
 				_keyboard = true
 				_selected = posmod(_selected + 1, ids.size())
-			KEY_ENTER, KEY_KP_ENTER, KEY_SPACE:
+			# Left/Right (and the other teleport keys, Enter, Space) press the
+			# picked button; it starts on Play.
+			KEY_ENTER, KEY_KP_ENTER, KEY_SPACE, KEY_RIGHT, KEY_LEFT, KEY_K, KEY_J, KEY_D, KEY_A, KEY_SHIFT:
 				return ids[_selected]
 			KEY_O:
 				return "options"
-			KEY_RIGHT, KEY_LEFT, KEY_K, KEY_J, KEY_D, KEY_A, KEY_SHIFT:
-				return "play"
 		return ""
 	if event is InputEventScreenTouch or event is InputEventMouseButton:
 		for i in ids.size():

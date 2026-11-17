@@ -25,8 +25,9 @@ background with the music playing: "RED FLASH" across the top (the
 Russo One font, `title_font`), her large on the left, running (her run
 animation, katana out behind her) with red lightning crackling
 over her and her katana and a big strike onto her now and then, and the
-buttons on the right. **Play** (or `Enter` / `Space` / any teleport key), the level
-chooser (below), **Options** (`O`); `↑` / `↓` pick a button. After a death,
+buttons on the right. **Play**, the level
+chooser (below), **Options** (`O`); `↑` / `↓` pick a button (it starts on Play), `←` / `→` (or Enter /
+Space / any teleport key) press it. After a death,
 any press retries straight into a new run; **Main menu** (`M`) goes back to
 the title screen.
 
