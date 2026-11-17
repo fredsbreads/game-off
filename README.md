@@ -83,8 +83,10 @@ run upside down.
   met by hand. While the power-up is charged or playing it waits (knight-free
   chains come instead, even past level 5) and comes once it's spent; the
   auto-chain never plays through her. From then on any
-  enemy in a generated chain is a knight with a 5% chance at level 5, +2% per
-  level (`KNIGHT_CHANCE`, `KNIGHT_CHANCE_STEP` in `scripts/patterns.gd`). A chain's
+  enemy in a generated chain is a teleporter (a knight, or from level 10 a
+  ninja) with a 5% chance at level 5, +2% per level, never more than 30%
+  (`KNIGHT_CHANCE`, `KNIGHT_CHANCE_STEP`, `TELEPORTER_CHANCE_MAX` in
+  `scripts/patterns.gd`). A chain's
   length counts every hit (a knight's 3-4 hits use up 3-4 of it), so knights
   don't make chains longer.
   You may leave a duel early (chain onto another enemy instead of her), so a
@@ -92,6 +94,18 @@ run upside down.
   knight, it goes on more than a forward teleport past her furthest spot
   (`_strands_by_knight` in `scripts/patterns.gd`). Finishing a chain always
   leaves you clear of her.
+- **The ninja** (from level 10, `scripts/ninja.gd`), a man: everything the
+  knight does, he does too (the same hits, blinks and duel rules, his own art).
+  He also watches straight ahead: while she's in his row with him no further
+  than her forward teleport reaches, he drops into his stance (hand on his
+  sword) with an alert (the knight's swish, higher: `NINJA_ALERT_PITCH`). Run
+  on there for 0.6 s (`NINJA_AGGRO_DELAY` in `scripts/rules.gd`), or let a
+  freeze run out with him there, and he teleports to her and cuts her down;
+  once he's alerted, coming back into his reach brings him at once. Level 10
+  opens with a ninja alone, like the knight's debut at 5 (it waits for the
+  power-up the same way). After that a teleporter is a ninja 25% of the time
+  at level 10, +5% a level, up to 50% (`NINJA_SHARE*`): he takes knights'
+  places, so teleporters don't get more common.
 - **The streak reward**: the Flawless Streak (shown right of the level bar)
   counts kills in a row, knight hits included, without letting an enemy get
   away or dropping a chain (TOO SLOW / MISSED); either one resets it. At 50
@@ -176,6 +190,7 @@ A bar above the ceiling row fills as you chain kills; filling it levels you up.
 - Enemy: "Martial Hero 3" asset pack (CC0, see `assets/sprites/martial_hero/License.txt`).
 - Knight: "Hero Knight" asset pack (CC0, see `assets/sprites/hero_knight/License.txt`); her lightning is the Frostwindz pack recoloured green.
 - Knight wind-up sound: "Sword blade swish" from Mixkit (same licence), in `assets/sounds/knight_warn.ogg`.
+- Ninja: "Martial Hero 2" asset pack (CC0, see `assets/sprites/ninja/License.txt`).
 - Knight kill sound: "Samurai sword impact" from Mixkit (same licence), the impact only (the build-up cut off), in `assets/sounds/knight_kill.ogg`.
 - Clash sound: "Heavy sword smashes metal" from Mixkit (same licence as the other Mixkit sounds), the crash only, in `assets/sounds/clash.ogg`.
 - Lightning effects: "Pixel Art Skill Animations - Lightning" by Frostwindz (https://frostwindz.itch.io/), recoloured red, in `assets/vfx`.
@@ -209,6 +224,7 @@ scripts/
   player.gd             player + landing markers (drawing only; main.gd moves it)
   enemy.gd              enemy sprite (idle, death animation)
   knight.gd             the knight: several hits, blinks between landing spots
+  ninja.gd              the ninja: the knight, plus he watches straight ahead
   palette.gd            her colour: red, her reward colour with a flawless streak
   camera_rig.gd         follow with fast catch-up after teleports, screen shake
   fx.gd                 trails, rings, slashes, particles, floating text

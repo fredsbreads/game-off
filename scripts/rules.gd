@@ -93,6 +93,18 @@ static func knight_in_reach(dx: float) -> bool:
 	return dx >= -FORWARD and dx < FORWARD + kill_zone(Move.FORWARD).y
 
 
+## The ninja also watches straight ahead: he's "ahead" of the player while
+## he's in her row, no further than her forward teleport reaches. Running there this
+## long (seconds) and he strikes; see ninja.gd.
+const NINJA_AGGRO_DELAY := 0.6
+
+
+static func ninja_ahead(ninja_x: float, ninja_row: int, x: float, row: int) -> bool:
+	# From the far edge of her forward reach all the way to him.
+	var d := ninja_x - x
+	return ninja_row == row and d > 0.0 and d < move_dx(Move.FORWARD) + kill_zone(Move.FORWARD).y
+
+
 ## True if the player is straight across from a knight (at knight_x in
 ## knight_row): the player's across teleport would hit the knight.
 static func knight_across(knight_x: float, knight_row: int, x: float, row: int) -> bool:

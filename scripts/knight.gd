@@ -54,6 +54,22 @@ const AFTERIMAGE_FADE := 0.35       # seconds her clash swing lingers after she 
 const CLASH_TIME := 0.25           # seconds her clash swing (left where she was) plays
 const SLASH_OUTLINE := Color(0.35, 1.0, 0.45, 1.0)   # green outline while she swings
 
+## Her look, as data, so another teleporter (the ninja) can use all of her
+## behaviour with his own art: the sheets, frame size, where the feet are, the
+## drawn scale, and which frames do what.
+const KNIGHT_ART := {
+	"frame": K_FRAME, "feet": K_FEET, "scale": K_SCALE,
+	"anims": [["idle", K_IDLE, K_IDLE_FPS, true], ["death", K_DEATH, K_DEATH_FPS, false],
+		["attack", K_ATTACK, K_ATTACK_FPS, false], ["kill", K_ATTACK2, K_ATTACK_FPS, false],
+		["hit", K_TAKE_HIT, K_HIT_FPS, false, K_HIT_FRAMES]],
+	"kill_frame": KILL_SLASH_FRAME, "kill_body_from": KILL_BODY_FROM,
+	"swings": CLASH_SWINGS, "by_pose": CLASH_BY_POSE,
+	"windup_anim": "attack", "windup_frame": WINDUP_FRAME,
+	"attack_start": K_ATTACK_START,
+}
+## The art in use (see KNIGHT_ART; the ninja sets his own before _ready).
+var art: Dictionary = KNIGHT_ART
+
 ## Every spot she'll be in, in order: Vector2(tile x, row). path[0] is where
 ## she starts; each hit moves her to the next one.
 var path: Array[Vector2] = []
@@ -66,6 +82,14 @@ var debut := false
 ## True while the player is straight across from her: she's winding up to strike.
 var threat := false
 var warned := false   # she's already given her wind-up swish once
+## The ninja's extra: he also watches straight ahead (see ninja.gd). main.gd
+## keeps the rest: `ahead` while the player's in his row inside the forward
+## reach, `aggro_time` running there, and `alerted` once he's given his alert
+## (coming back into his reach after that brings him at once).
+var forward_aggro := false
+var ahead := false
+var aggro_time := 0.0
+var alerted := false
 var _slashing := false   # the killing blow: green outline held
 var _arc: AnimatedSprite2D
 ## Where her body goes in a clash swing: a layer above the player (set by main.gd).
@@ -92,10 +116,13 @@ func _ready() -> void:
 	# Her slash arcs (the white in her attack frames) go behind her: a copy
 	# of her drawing only them, underneath.
 	_arc = AnimatedSprite2D.new()
+	var frame: Vector2i = art["frame"]
+	var feet: Vector2 = art["feet"]
+	var sc: float = art["scale"]
 	_arc.sprite_frames = _build_knight_frames()
 	_arc.centered = false
-	_arc.offset = Vector2(-(K_FRAME.x - K_FEET.x), -K_FEET.y)
-	_arc.scale = Vector2(K_SCALE, K_SCALE)
+	_arc.offset = Vector2(-(frame.x - feet.x), -feet.y)
+	_arc.scale = Vector2(sc, sc)
 	_arc.flip_h = true
 	_arc.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_arc.material = _part_material(2)
@@ -103,8 +130,8 @@ func _ready() -> void:
 	_sprite = AnimatedSprite2D.new()
 	_sprite.sprite_frames = _arc.sprite_frames
 	_sprite.centered = false
-	_sprite.offset = Vector2(-(K_FRAME.x - K_FEET.x), -K_FEET.y)
-	_sprite.scale = Vector2(K_SCALE, K_SCALE)
+	_sprite.offset = Vector2(-(frame.x - feet.x), -feet.y)
+	_sprite.scale = Vector2(sc, sc)
 	_sprite.flip_h = true   # the art faces right; she faces the player (left)
 	_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_material = _part_material(1)
@@ -123,18 +150,18 @@ func _place() -> void:
 func _build_knight_frames() -> SpriteFrames:
 	var frames := SpriteFrames.new()
 	frames.remove_animation("default")
-	for spec in [["idle", K_IDLE, K_IDLE_FPS, true], ["death", K_DEATH, K_DEATH_FPS, false],
-			["attack", K_ATTACK, K_ATTACK_FPS, false], ["kill", K_ATTACK2, K_ATTACK_FPS, false],
-			["hit", K_TAKE_HIT, K_HIT_FPS, false, K_HIT_FRAMES]]:
+	var size: Vector2i = art["frame"]
+	for spec in art["anims"]:
 		var sheet: Texture2D = spec[1]
 		frames.add_animation(spec[0])
 		frames.set_animation_speed(spec[0], spec[2])
 		frames.set_animation_loop(spec[0], spec[3])
-		var count: int = spec[4] if spec.size() > 4 else sheet.get_width() / K_FRAME.x
-		for i in count:
+		var count: int = spec[4] if spec.size() > 4 else sheet.get_width() / size.x
+		var first: int = spec[5] if spec.size() > 5 else 0
+		for i in range(first, first + count):
 			var tex := AtlasTexture.new()
 			tex.atlas = sheet
-			tex.region = Rect2(Vector2(i * K_FRAME.x, 0), Vector2(K_FRAME))
+			tex.region = Rect2(Vector2(i * size.x, 0), Vector2(size))
 			frames.add_frame(spec[0], tex)
 	return frames
 
@@ -178,11 +205,8 @@ func blink(beat := 0.0, her_pose := 0, reappear := -1.0) -> Vector2:
 	_place()
 	threat = false
 	if _sprite:
-		# Engaged now: she waits at her new spot with her sword raised (the
-		# wind-up pose), not idle.
-		_sprite.play("attack")
-		_sprite.frame = WINDUP_FRAME
-		_sprite.pause()
+		# Engaged now: she waits at her new spot in her wind-up pose, not idle.
+		_hold_windup()
 	return from
 
 
@@ -191,8 +215,11 @@ func blink(beat := 0.0, her_pose := 0, reappear := -1.0) -> Vector2:
 func _leave_ghost(beat := 0.0, her_pose := 0) -> void:
 	if get_parent() == null or _sprite == null:
 		return
-	var answer: Dictionary = CLASH_BY_POSE[clampi(her_pose, 0, CLASH_BY_POSE.size() - 1)]
-	var swing: Dictionary = CLASH_SWINGS[answer["swing"]]
+	var by_pose: Array = art["by_pose"]
+	var answer: Dictionary = by_pose[clampi(her_pose, 0, by_pose.size() - 1)]
+	var swing: Dictionary = art["swings"][answer["swing"]]
+	var size: Vector2i = art["frame"]
+	var sc: float = art["scale"]
 	var frames: Array = swing["frames"]
 	var body_from: Dictionary = swing["body_from"]
 	var arc_tex := AtlasTexture.new()
@@ -207,7 +234,7 @@ func _leave_ghost(beat := 0.0, her_pose := 0) -> void:
 		# Further from the player than her real spot (by the swing's "gap", tiles),
 		# so the clash reads as two swords meeting rather than one figure.
 		holder.position = position + Vector2(float(answer["gap"]) * Rules.TILE, 0)
-		holder.scale = Vector2(K_SCALE, K_SCALE * scale.y)
+		holder.scale = Vector2(sc, sc * scale.y)
 		var s := Sprite2D.new()
 		s.texture = arc_tex if part == 2 else body_tex
 		s.centered = false
@@ -227,9 +254,9 @@ func _leave_ghost(beat := 0.0, her_pose := 0) -> void:
 	var held := frames.find(swing["hold"])
 	var show := func(f: float) -> void:
 		var frame: int = frames[clampi(int(f), 0, frames.size() - 1)]
-		arc_tex.region = Rect2(Vector2(frame * K_FRAME.x, 0), Vector2(K_FRAME))
+		arc_tex.region = Rect2(Vector2(frame * size.x, 0), Vector2(size))
 		var body: int = body_from.get(frame, frame)
-		body_tex.region = Rect2(Vector2(body * K_FRAME.x, 0), Vector2(K_FRAME))
+		body_tex.region = Rect2(Vector2(body * size.x, 0), Vector2(size))
 	show.call(0.0)
 	tween.tween_method(show, 0.0, float(held), CLASH_TIME * 0.4)
 	tween.tween_interval(maxf(beat - CLASH_TIME * 0.4, 0.0))
@@ -247,16 +274,22 @@ func _leave_ghost(beat := 0.0, her_pose := 0) -> void:
 ## The player is straight across from her: she raises her sword and holds it.
 func warn() -> void:
 	threat = true
-	if alive and _sprite:
-		_sprite.play("attack")
-		_sprite.frame = WINDUP_FRAME
+	if alive:
+		_hold_windup()
+
+
+## Her wind-up pose, held (the art's: the knight's sword raised).
+func _hold_windup() -> void:
+	if _sprite:
+		_sprite.play(art["windup_anim"])
+		_sprite.frame = art["windup_frame"]
 		_sprite.pause()
 
 
 ## The player is no longer across from her.
 func calm() -> void:
 	threat = false
-	if alive and _sprite and _sprite.animation == "attack":
+	if alive and _sprite and _sprite.animation == art["windup_anim"]:
 		_sprite.play("idle")
 
 
@@ -281,7 +314,8 @@ func slash(her_x: float, side := 1.0) -> void:
 	_place()
 	if _sprite:
 		_sprite.play("kill")
-		_sprite.frame = KILL_BODY_FROM.get(KILL_SLASH_FRAME, KILL_SLASH_FRAME)
+		var kill_frame: int = art["kill_frame"]
+		_sprite.frame = art["kill_body_from"].get(kill_frame, kill_frame)
 		_sprite.pause()
 		for m in [_material, _arc.material]:
 			m.set_shader_parameter("outline_color", SLASH_OUTLINE)
@@ -302,7 +336,7 @@ func _process(delta: float) -> void:
 	if _arc and _sprite:
 		if _arc.animation != _sprite.animation:
 			_arc.play(_sprite.animation)
-		_arc.frame = KILL_SLASH_FRAME if _slashing else _sprite.frame
+		_arc.frame = art["kill_frame"] if _slashing else _sprite.frame
 		_arc.pause()
 	if _slashing:
 		return   # keep the green outline (Enemy would fade it to the target glint)
@@ -329,7 +363,7 @@ func set_anim_speed(value: float) -> void:
 
 
 func _on_animation_finished() -> void:
-	if _sprite.animation == "kill" or _sprite.animation == "attack":
+	if _sprite.animation == "kill" or _sprite.animation == "attack" or _sprite.animation == art["windup_anim"]:
 		_sprite.play("idle")
 	else:
 		super()
@@ -338,4 +372,4 @@ func _on_animation_finished() -> void:
 func attack() -> void:
 	if alive and _sprite:
 		_sprite.play("attack")
-		_sprite.frame = K_ATTACK_START
+		_sprite.frame = art["attack_start"]

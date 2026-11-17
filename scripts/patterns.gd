@@ -56,6 +56,19 @@ const OLD_PATTERN_WEIGHT := 1.0
 const KNIGHT_DEBUT_LEVEL := 5
 const KNIGHT_CHANCE := 0.05
 const KNIGHT_CHANCE_STEP := 0.02
+# Teleporters (knights and ninjas together) never get more likely than this.
+const TELEPORTER_CHANCE_MAX := 0.30
+# Ninjas (see ninja.gd): his debut level opens with one alone; from then on a
+# teleporter in a generated chain is a ninja with NINJA_SHARE at the debut
+# level, plus NINJA_SHARE_STEP a level, up to NINJA_SHARE_MAX (the rest are
+# knights). He takes knights' places, so teleporters don't get more common.
+const NINJA_DEBUT_LEVEL := 10
+const NINJA_SHARE := 0.25
+const NINJA_SHARE_STEP := 0.05
+const NINJA_SHARE_MAX := 0.5
+# A ninja's group number in a chain's `knights` list is NINJA_GROUP or more
+# (a knight's is under it): see is_ninja_group().
+const NINJA_GROUP := 1000
 # A knight's blinks: to any of her three landing spots, but never back to a
 # spot she's been on (so never across twice in a row, see _overlaps).
 const KNIGHT_STEPS := ["F", "V", "D"]
@@ -146,10 +159,22 @@ static func average_chain_length(level: int) -> float:
 
 
 ## The chance that an enemy in a generated chain at `level` is a knight.
+## The chance that an enemy slot is a teleporter (a knight or a ninja).
 static func knight_chance(level: int) -> float:
 	if level < KNIGHT_DEBUT_LEVEL:
 		return 0.0
-	return KNIGHT_CHANCE + KNIGHT_CHANCE_STEP * (level - KNIGHT_DEBUT_LEVEL)
+	return minf(KNIGHT_CHANCE + KNIGHT_CHANCE_STEP * (level - KNIGHT_DEBUT_LEVEL), TELEPORTER_CHANCE_MAX)
+
+
+## The share of teleporters that are ninjas.
+static func ninja_share(level: int) -> float:
+	if level < NINJA_DEBUT_LEVEL:
+		return 0.0
+	return minf(NINJA_SHARE + NINJA_SHARE_STEP * (level - NINJA_DEBUT_LEVEL), NINJA_SHARE_MAX)
+
+
+static func is_ninja_group(group: int) -> bool:
+	return group >= NINJA_GROUP
 
 
 ## A random chain for a generated level: a length from chain_length_range,
@@ -162,19 +187,21 @@ static func knight_chance(level: int) -> float:
 ## Chainable by construction: every step puts the next spot exactly under a
 ## marker, and no two things can be in one spot at the same time (see
 ## _overlaps). The validator runs the full solver check on samples.
-## knights = false: no knights in it (before her debut).
-static func generate(level: int, rng: RandomNumberGenerator, knights := true) -> Dictionary:
+## knights = false: no knights in it (before her debut); ninjas = false: no
+## ninjas (before his).
+static func generate(level: int, rng: RandomNumberGenerator, knights := true, ninjas := true) -> Dictionary:
 	var lengths := chain_length_range(level)
 	var chance := knight_chance(level) if knights else 0.0
+	var share := ninja_share(level) if ninjas else 0.0
 	for _attempt in 40:
 		var n := rng.randi_range(lengths.x, lengths.y)
 		# Spend n spots: a plain enemy takes one, a knight her hits.
-		var hits: Array[int] = []   # per enemy: 1, or a knight's hits
+		var hits: Array[int] = []   # per enemy: 1, or a knight's hits (negative: a ninja's)
 		var left := n
 		while left > 0:
 			if left >= Rules.KNIGHT_HITS_MIN and rng.randf() < chance:
 				var h := mini(rng.randi_range(Rules.KNIGHT_HITS_MIN, Rules.KNIGHT_HITS_MAX), left)
-				hits.append(h)
+				hits.append(-h if rng.randf() < share else h)
 				left -= h
 			else:
 				hits.append(1)
@@ -201,14 +228,25 @@ static func knight_alone(rng: RandomNumberGenerator) -> Dictionary:
 	return {}
 
 
+## A lone ninja (the start of his debut level).
+static func ninja_alone(rng: RandomNumberGenerator) -> Dictionary:
+	for _attempt in 40:
+		var built := _build([-rng.randi_range(Rules.KNIGHT_HITS_MIN, Rules.KNIGHT_HITS_MAX)], rng)
+		if not built.is_empty():
+			built["name"] = "ninja alone: %s" % built["steps"]
+			return built
+	return {}
+
+
 ## Lays out one chain: `hits` has one entry per enemy, 1 for a plain enemy or
-## a knight's number of hits. Returns {} if the random steps put two things in
-## one spot.
+## a knight's number of hits (minus it: a ninja's). Returns {} if the random
+## steps put two things in one spot.
 static func _build(hits: Array[int], rng: RandomNumberGenerator) -> Dictionary:
 	var enemies: Array[Vector2] = []
 	var knights: Array[int] = []
 	var tokens: PackedStringArray = []
 	var group := 0
+	var ninja_group := NINJA_GROUP
 	for i in hits.size():
 		if i > 0:
 			var token := _free_step(GENERATED_STEPS, enemies, rng)
@@ -216,18 +254,23 @@ static func _build(hits: Array[int], rng: RandomNumberGenerator) -> Dictionary:
 			tokens.append(token)
 		else:
 			enemies.append(Vector2(0, 0))
-		if hits[i] <= 1:
+		if absi(hits[i]) <= 1:
 			knights.append(-1)
 			continue
-		knights.append(group)
-		tokens.append("K(")
-		for h in hits[i] - 1:
+		var ninja := hits[i] < 0
+		var g := ninja_group if ninja else group
+		knights.append(g)
+		tokens.append("N(" if ninja else "K(")
+		for h in absi(hits[i]) - 1:
 			var blink := _free_step(KNIGHT_STEPS, enemies, rng)
 			enemies.append(_apply(enemies.back(), blink))
-			knights.append(group)
+			knights.append(g)
 			tokens.append(blink.to_lower())
 		tokens.append(")")
-		group += 1
+		if ninja:
+			ninja_group += 1
+		else:
+			group += 1
 	if _overlaps(enemies, knights) or _strands_by_knight(enemies, knights):
 		return {}
 	return {"enemies": enemies, "knights": knights, "steps": " ".join(tokens)}

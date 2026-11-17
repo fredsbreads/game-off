@@ -42,8 +42,10 @@ static var enemies_off := false
 ## the debut level starts on a clear screen, with the knight alone first.
 var bar_room := INF
 const HOLD_AT_LEVEL := Patterns.KNIGHT_DEBUT_LEVEL - 1
+const NINJA_HOLD_AT_LEVEL := Patterns.NINJA_DEBUT_LEVEL - 1   # (the same for the ninja's debut)
 var _held := false
 var _knight_intro_done := false   # the debut level opens with a knight alone, once
+var _ninja_intro_done := false    # ...and his with a ninja alone
 ## Her debut waits while this is on (main.gd: while the power-up is charged
 ## or playing), so it never plays through her; knight-free chains come instead.
 var debut_wait := false
@@ -79,7 +81,7 @@ func ensure_generated(player_x: float) -> void:
 			_held = false
 			_cursor = maxf(_cursor, player_x + CameraRig.VIEW_TILES - CameraRig.HOME_TILES + 1.0)
 		var pattern := _pick_pattern()
-		if pattern.get("name", "").begins_with("knight alone"):
+		if pattern.get("name", "").begins_with("knight alone") or pattern.get("name", "").begins_with("ninja alone"):
 			_cursor_row = Rules.Row.FLOOR   # her debut: on the floor
 		_append_pattern(pattern)
 	while tiles.size() < _cursor + Patterns.BREAK:
@@ -92,15 +94,22 @@ func _pick_pattern() -> Dictionary:
 	if not _started:
 		_started = true
 		_knight_intro_done = level > Patterns.KNIGHT_DEBUT_LEVEL   # a run started past it has no debut
+		_ninja_intro_done = level > Patterns.NINJA_DEBUT_LEVEL
 	# Her debut: the first chain from level 5 on (later, if the power-up held
 	# it back past then), and no knight before it.
 	if level >= Patterns.KNIGHT_DEBUT_LEVEL and not _knight_intro_done:
 		if debut_wait:
-			return Patterns.generate(level, _rng, false)
+			return Patterns.generate(level, _rng, false, false)
 		_knight_intro_done = true
 		return Patterns.knight_alone(_rng)
+	# The same for the ninja's debut (level 10).
+	if level >= Patterns.NINJA_DEBUT_LEVEL and not _ninja_intro_done:
+		if debut_wait:
+			return Patterns.generate(level, _rng, true, false)
+		_ninja_intro_done = true
+		return Patterns.ninja_alone(_rng)
 	if level >= Patterns.FIRST_GENERATED_LEVEL:
-		return Patterns.generate(level, _rng, _knight_intro_done or level < Patterns.KNIGHT_DEBUT_LEVEL)
+		return Patterns.generate(level, _rng, _knight_intro_done or level < Patterns.KNIGHT_DEBUT_LEVEL, _ninja_intro_done)
 	var pool := Patterns.pool_for_level(level)
 	var total := 0.0
 	for entry in pool:
@@ -121,8 +130,8 @@ func _pick_pattern() -> Dictionary:
 ## a PERFECT), fill the rest of the bar. Ones she's already left behind
 ## (a dropped chain's leftovers) don't count: they can't level her up.
 func _could_level_up(player_x: float) -> bool:
-	# Levels flow straight into each other, except into the knight's debut.
-	if level != HOLD_AT_LEVEL:
+	# Levels flow straight into each other, except into a debut.
+	if level != HOLD_AT_LEVEL and level != NINJA_HOLD_AT_LEVEL:
 		return false
 	var best := 0.0
 	for e in enemies:
@@ -152,8 +161,8 @@ func _append_pattern(pattern: Dictionary) -> void:
 			continue
 		var enemy: Enemy
 		if group >= 0:
-			knight = Knight.new()
-			knight.debut = pattern["name"].begins_with("knight alone")
+			knight = Ninja.new() if Patterns.is_ninja_group(group) else Knight.new()
+			knight.debut = pattern["name"].begins_with("knight alone") or pattern["name"].begins_with("ninja alone")
 			knight.path.append(Vector2(_cursor + e.x, row))
 			enemy = knight
 		else:
@@ -170,12 +179,14 @@ func _append_pattern(pattern: Dictionary) -> void:
 	_cursor_row = last_row
 
 
-## True while her debut is still to come at this level, or is laid but not
-## yet reached (so it can be moved, see main.gd _add_charge).
+## True while a debut (the knight's, the ninja's) is still to come at this
+## level, or is laid but not yet reached (so it can be moved, see main.gd _add_charge).
 func debut_pending() -> bool:
 	if level < Patterns.KNIGHT_DEBUT_LEVEL:
 		return false
 	if not _knight_intro_done:
+		return true
+	if level >= Patterns.NINJA_DEBUT_LEVEL and not _ninja_intro_done:
 		return true
 	for e in enemies:
 		var k := e as Knight
@@ -212,6 +223,8 @@ func rebuild_ahead(from_x: float) -> void:
 		var section: Dictionary = sections.pop_back()
 		if section["name"].begins_with("knight alone"):
 			_knight_intro_done = false   # her debut was thrown away unmet: it's laid again
+		if section["name"].begins_with("ninja alone"):
+			_ninja_intro_done = false
 		for enemy in section["enemies"]:
 			var e: Enemy = enemy
 			if is_instance_valid(e):

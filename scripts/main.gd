@@ -77,6 +77,7 @@ var _pink_shift_sound: AudioStreamPlayer   # her colour sweeping from red to pin
 var _lose_colour_sound: AudioStreamPlayer  # the streak breaks: back to red
 var _charge_sound: AudioStreamPlayer       # the power-up meter is full
 var _auto_finale_layer: AudioStreamPlayer
+var _ninja_alert_sound: AudioStreamPlayer
 var _auto_finale_sound: AudioStreamPlayer  # thunder at the end of an auto-chain
 var _warn_sound: AudioStreamPlayer   # a knight winding up to strike
 const KILL_STRIKE_FPS := 5.0         # the knight's teleport onto the player lingers (normal: 18)
@@ -131,6 +132,7 @@ const AUTO_DUEL_STEP := 0.32    # ...after a clash or a knight's last hit: the d
 const AUTO_GAP_TILES := 12.0    # extra empty run after an auto-chain
 const AUTO_FINALE_FREEZE := 0.3  # (no last enemy to slash: the last kill holds this long, crackling, before the big strike)
 const AUTO_FINALE_CRACKLE := 0.05 # ...a crackle of lightning on her this often while it holds
+const NINJA_ALERT_PITCH := 1.35  # his alert: the knight's swish, higher and sharper
 const AUTO_SLASH_HOP := 0.2      # the finish's three slashes (the streak finisher's, at full speed): seconds between them
 const AUTO_SLASH_TO_BANG := 0.2  # ...and from the third to the big strike
 const AUTO_FINALE_IMPACT := 0.14  # the big strike lands on a frozen, white-hot frame this long
@@ -276,6 +278,9 @@ func _ready() -> void:
 	_clash_sound.stream = preload("res://assets/sounds/clash.ogg")
 	_clash_sound.volume_db = KILL_CUT_DB
 	add_child(_clash_sound)
+	_ninja_alert_sound = AudioStreamPlayer.new()   # the ninja's alert (his swish, higher and sharper)
+	_ninja_alert_sound.stream = preload("res://assets/sounds/knight_warn.ogg")
+	add_child(_ninja_alert_sound)
 	_warn_sound = AudioStreamPlayer.new()
 	_warn_sound.stream = preload("res://assets/sounds/knight_warn.ogg")
 	add_child(_warn_sound)
@@ -769,6 +774,11 @@ func _step() -> void:
 	var pouncer: Knight = null if (_press_x_set and player.cooldown == 0) else _pouncing_knight(run_from)
 	if pouncer:
 		_knights_strike(_strikers(run_from))   # with a second one, if there is
+		return
+	# 4b. a ninja she's running at, straight ahead in his reach: NINJA_AGGRO_DELAY
+	# there and he strikes; at once if he'd already alerted and she came back.
+	if not (_press_x_set and player.cooldown == 0) and _ninja_strikes():
+		_knights_strike(_strikers(run_from))
 		return
 	_note_escapes()
 
@@ -1350,7 +1360,8 @@ func _strikers(run_from := NAN) -> Array[Knight]:
 			continue
 		var fighting := k.engaged and Rules.knight_in_reach(k.tile_x - player.x)
 		var passed := not is_nan(run_from) and Rules.knight_runs_past(k.tile_x, k.row, run_from, player.x, player.row)
-		if fighting or passed or Rules.knight_across(k.tile_x, k.row, player.x, player.row):
+		var ahead := k.forward_aggro and not k.engaged and Rules.ninja_ahead(k.tile_x, k.row, player.x, player.row)
+		if fighting or passed or ahead or Rules.knight_across(k.tile_x, k.row, player.x, player.row):
 			found.append(k)
 	found.sort_custom(func(a: Knight, b: Knight) -> bool:
 		return absf(a.tile_x - player.x) < absf(b.tile_x - player.x))
@@ -1371,12 +1382,34 @@ func _knights_strike(ks: Array[Knight]) -> void:
 	_knight_strikes(front)
 
 
+## Every running frame: each ninja she's in front of (in his row, in her
+## forward reach) counts the time; true if one strikes now (his delay is up,
+## or he'd alerted before and she's come back into his reach).
+func _ninja_strikes() -> bool:
+	var strike := false
+	for e in level.enemies:
+		var k := e as Knight
+		if k == null or not k.alive or not k.forward_aggro or k.engaged:
+			continue
+		var now := Rules.ninja_ahead(k.tile_x, k.row, player.x, player.row)
+		if now and not k.ahead and k.alerted:
+			strike = true   # she left his reach after his alert, and came back
+		if now:
+			k.aggro_time += 1.0 / Rules.PHYSICS_FPS
+			if k.aggro_time >= Rules.NINJA_AGGRO_DELAY - 0.0001:
+				strike = true
+		k.ahead = now
+	return strike
+
+
 ## A knight straight across from her right now, or null.
 func _knight_across() -> Knight:
 	for e in level.enemies:
 		var k := e as Knight
 		if k and k.alive and Rules.knight_across(k.tile_x, k.row, player.x, player.row):
 			return k
+		if k and k.alive and k.forward_aggro and not k.engaged and Rules.ninja_ahead(k.tile_x, k.row, player.x, player.row):
+			return k   # (a ninja: straight ahead of her)
 	return null
 
 
@@ -1391,12 +1424,19 @@ func _update_knight_threats() -> void:
 		# Once you're fighting a knight she's past warning you (no wind-up, no swish).
 		var across := state == State.PLAYING and not k.engaged \
 				and Rules.knight_across(k.tile_x, k.row, player.x, player.row)
+		# A ninja also watches straight ahead (see ninja.gd).
+		var ahead := state == State.PLAYING and k.forward_aggro and not k.engaged \
+				and Rules.ninja_ahead(k.tile_x, k.row, player.x, player.row)
+		if ahead:
+			k.alerted = true
+		across = across or ahead
 		if across and not k.threat:
 			k.warn()
 			if not k.warned:   # the swish only the first time the knight is aggroed
 				k.warned = true
-				_warn_sound.pitch_scale = _jitter()
-				_warn_sound.play()
+				var snd := _ninja_alert_sound if k.forward_aggro else _warn_sound
+				snd.pitch_scale = _jitter() * (NINJA_ALERT_PITCH if k.forward_aggro else 1.0)
+				snd.play()
 		elif not across and k.threat:
 			k.calm()
 		any = any or across

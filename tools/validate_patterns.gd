@@ -47,7 +47,7 @@ func _init() -> void:
 		if bad > 0:
 			failures += 1
 		else:
-			print("  ok    L%d  %d generated chains of %d-%d enemies (knight chance %d%%)" % [level, SAMPLES_PER_LEVEL, r.x, r.y, roundi(Patterns.knight_chance(level) * 100)])
+			print("  ok    L%d  %d generated chains of %d-%d enemies (teleporter chance %d%%, ninja share %d%%)" % [level, SAMPLES_PER_LEVEL, r.x, r.y, roundi(Patterns.knight_chance(level) * 100), roundi(Patterns.ninja_share(level) * 100)])
 	var lone_bad := 0
 	for i in SAMPLES_PER_LEVEL:
 		var lone := Patterns.knight_alone(rng)
@@ -58,6 +58,16 @@ func _init() -> void:
 		failures += 1
 	else:
 		print("  ok    L%d  %d lone knights" % [Patterns.KNIGHT_DEBUT_LEVEL, SAMPLES_PER_LEVEL])
+	var lone_ninja_bad := 0
+	for i in SAMPLES_PER_LEVEL:
+		var lone := Patterns.ninja_alone(rng)
+		if lone.is_empty() or not Patterns.is_chainable(lone["enemies"], lone["knights"]):
+			lone_ninja_bad += 1
+			print("  FAIL  ninja alone %s" % lone.get("steps", "?"))
+	if lone_ninja_bad > 0:
+		failures += 1
+	else:
+		print("  ok    L%d  %d lone ninjas" % [Patterns.NINJA_DEBUT_LEVEL, SAMPLES_PER_LEVEL])
 
 	var sizes: PackedStringArray = []
 	var prog := Progression.new()

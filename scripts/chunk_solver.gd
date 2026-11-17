@@ -12,7 +12,9 @@ extends RefCounted
 ##   3. running into a live enemy in your row kills you
 ##   4. tick the cooldown down
 ##
-## Enemies are Vector2(x, row). States are [x, row, cooldown, killed_mask].
+## Enemies are Vector2(x, row). States are [x, row, cooldown, killed_mask,
+## ninja_frames (running in a ninja's reach), alerted_mask (ninjas that have
+## seen you ahead)]; the last two may be left off (0).
 ##
 ## Knights (optional `knights`, one entry per enemy: -1, or the knight's
 ## number) are listed as one entry per spot she'll be in, in order. A spot
@@ -20,6 +22,9 @@ extends RefCounted
 ##   5. running on past a knight straight across from you (out of reach of
 ##      your across teleport) makes her teleport to you: you die
 ##   6. a knight you've hit is within a teleport of you while you run: same
+##   7. a ninja (knight group >= Patterns.NINJA_GROUP) straight ahead in your
+##      row, in your forward reach: running there NINJA_AGGRO_DELAY and he
+##      strikes; and once he's seen you there, coming back into it does at once
 ## (both checked after running, so chaining on from a kill never triggers it;
 ## teleporting past a knight is fine).
 ##
@@ -37,6 +42,8 @@ const DEDUP_PER_TILE := 20.0    # positions within 0.05 tiles count as the same
 static func search(enemies: Array[Vector2], start: Array, goal_x: float, limit_x: float, speed: float, max_frames: int = 3000, required_kills: int = 0, knights: Array = []) -> Dictionary:
 	# Each history entry: [x, row, cooldown, killed_mask, parent_index, action]
 	var first: Array = start.duplicate()
+	first.append(0)
+	first.append(0)
 	first.append(0)
 	first.append(-1)
 	first.append(Rules.Move.NONE)
@@ -62,7 +69,7 @@ static func search(enemies: Array[Vector2], start: Array, goal_x: float, limit_x
 					return {"ok": true, "actions": _path(history, new_index)}
 				# States at (almost) the same spot, row and kills are
 				# interchangeable; keep the one that can teleport soonest.
-				var key := "%d|%d|%d" % [roundi(result[0] * DEDUP_PER_TILE), result[1], result[3]]
+				var key := "%d|%d|%d|%d|%d" % [roundi(result[0] * DEDUP_PER_TILE), result[1], result[3], result[4], result[5]]
 				if seen.has(key):
 					var slot: int = seen[key]
 					var kept: Array = history[next[slot]]
@@ -79,13 +86,18 @@ static func search(enemies: Array[Vector2], start: Array, goal_x: float, limit_x
 	return {"ok": false, "actions": []}
 
 
-## One frame of the game rules. Returns [x, row, cooldown, killed_mask], or
-## an empty array if the player dies or the action isn't allowed.
+## One frame of the game rules. Returns [x, row, cooldown, killed_mask,
+## ninja_frames, alerted_mask], or an empty array if the player dies or the
+## action isn't allowed.
 static func step(enemies: Array[Vector2], state: Array, move: int, speed: float, limit_x: float = INF, knights: Array = []) -> Array:
 	var x: float = state[0]
 	var row: int = state[1]
 	var cooldown: int = state[2]
 	var mask: int = state[3]
+	var ninja_frames: int = state[4] if state.size() > 4 else 0
+	var alerted: int = state[5] if state.size() > 5 else 0
+	var x0 := x   # (where she was before this frame: for "came back into a ninja's reach")
+	var row0 := row
 
 	if move != Rules.Move.NONE:
 		if cooldown > 0:
@@ -112,7 +124,7 @@ static func step(enemies: Array[Vector2], state: Array, move: int, speed: float,
 			snap_to -= Rules.STRIKE_OFFSET
 			if move == Rules.Move.VERTICAL and snap_to < x and not _can_chain(enemies, mask, snap_to, row, knights):
 				snap_to = x
-			return [snap_to, row, 0, mask]
+			return [snap_to, row, 0, mask, 0, alerted | _ninjas_ahead(enemies, mask, snap_to, row, knights)]
 		cooldown = Rules.cooldown_frames()
 
 	var run_from := x
@@ -123,8 +135,38 @@ static func step(enemies: Array[Vector2], state: Array, move: int, speed: float,
 			return []
 	if knight_pounces(enemies, mask, run_from, x, row, knights) >= 0:
 		return []
+	# 7. ninjas straight ahead
+	var before := _ninjas_ahead(enemies, mask, x0, row0, knights)
+	var ahead := _ninjas_ahead(enemies, mask, x, row, knights)
+	if (ahead & alerted & ~before) != 0:
+		return []   # back into the reach of one that had seen her
+	if ahead != 0:
+		ninja_frames += 1
+		if ninja_frames >= roundi(Rules.NINJA_AGGRO_DELAY * Rules.PHYSICS_FPS):
+			return []
+	else:
+		ninja_frames = 0
+	alerted |= ahead
 	cooldown = maxi(cooldown - 1, 0)
-	return [x, row, cooldown, mask]
+	return [x, row, cooldown, mask, ninja_frames, alerted]
+
+
+## Bits (by spot index) of the un-hit ninjas straight ahead of (x, row), in
+## the forward teleport's reach.
+static func _ninjas_ahead(enemies: Array[Vector2], mask: int, x: float, row: int, knights: Array) -> int:
+	if knights.is_empty():
+		return 0
+	var bits := 0
+	for i in enemies.size():
+		var g := int(knights[i])
+		if not Patterns.is_ninja_group(g) or (mask & (1 << i)) != 0 or not exists(i, mask, knights):
+			continue
+		if i > 0 and int(knights[i - 1]) == g:
+			continue   # hit already: he's fighting her (the knight rules)
+		var e := enemies[i]
+		if Rules.ninja_ahead(e.x, int(e.y), x, row):
+			bits |= 1 << i
+	return bits
 
 
 ## True if any live enemy is under one of the markers at (x, row).
@@ -183,6 +225,6 @@ static func _path(history: Array, index: int) -> Array:
 	var actions: Array = []
 	while index > 0:
 		var entry: Array = history[index]
-		actions.push_front(entry[5])
-		index = entry[4]
+		actions.push_front(entry[7])
+		index = entry[6]
 	return actions
