@@ -93,13 +93,16 @@ var _message_visible_before_pause := false
 # The level bar (a katana), the power-up bolt and the flawless streak,
 # centred above the ceiling row (scripts/top_bar.gd).
 var _top: TopBar
-# The first-time tutorial: "Tap Left", "Tap Both", "Tap Right" across the
-# middle, dull until she does that move (then her red, with a pop); when all
-# three are done they flicker and fizzle out.
+# The tutorial: "Tap Left", "Tap Right", "Tap Both" stacked on the right of
+# the screen, each with an arrow to its left showing where that move takes
+# her from where she is (up or down; forward; up-right or down-right). Dull
+# until she does that move (then her red, with a pop); when all three are
+# done they flicker and fizzle out.
 var _tut: Control
 var _tut_lit := {}        # key -> seconds since it lit
 var _tut_fizzle := -1.0   # seconds since all three were done (-1: not yet)
 var _tut_rng := RandomNumberGenerator.new()
+var tutorial_on_floor := true   # (main.gd: she's on the floor: Tap Left goes up)
 const TUT_FIZZLE_TIME := 0.8
 
 const PAUSE_BUTTON_SIZE := 64.0
@@ -761,7 +764,8 @@ func _draw_rotate() -> void:
 
 # --- the first-time tutorial --------------------------------------------------
 
-func show_tutorial() -> void:
+func show_tutorial(on_floor: bool) -> void:
+	tutorial_on_floor = on_floor
 	_tut_lit.clear()
 	_tut_fizzle = -1.0
 	_tut_rng.randomize()
@@ -781,37 +785,61 @@ func _draw_tutorial() -> void:
 	var v := c.size
 	var font := ThemeDB.fallback_font
 	var touch := is_touch()
+	var up := tutorial_on_floor
 	var prompts := [
-		["left", "Tap Left" if touch else "Left", 0.2],
-		["both", "Tap Both" if touch else "Both", 0.5],
-		["right", "Tap Right" if touch else "Right", 0.8],
+		["left", "Tap Left" if touch else "Left", Vector2(0, -1) if up else Vector2(0, 1)],
+		["right", "Tap Right" if touch else "Right", Vector2(1, 0)],
+		["both", "Tap Both" if touch else "Both", (Vector2(1, -1) if up else Vector2(1, 1)).normalized()],
 	]
-	var y := v.y * 0.5
+	const SIZE := 34
+	const LINE := 58.0
+	const ARROW := 30.0   # the arrow's box (it's drawn in this square, left of the words)
+	const GAP := 18.0
+	var widest := 0.0
+	for p in prompts:
+		widest = maxf(widest, font.get_string_size(p[1], HORIZONTAL_ALIGNMENT_LEFT, -1, SIZE).x)
+	# The block, centred on the right side (where "Tap Right" was), its lines centred on the middle.
+	var left := v.x * 0.8 - (ARROW + GAP + widest) / 2.0
+	var top := v.y * 0.5 - LINE
 	var fade := 1.0
+	var drift := 0.0
 	if _tut_fizzle >= 0.0:
 		var k := clampf(_tut_fizzle / TUT_FIZZLE_TIME, 0.0, 1.0)
 		fade = (1.0 - k) * (0.55 + 0.45 * _tut_rng.randf())   # flickering out
-	for p in prompts:
+		drift = 30.0 * _tut_fizzle   # drifting up
+	for i in prompts.size():
+		var p: Array = prompts[i]
 		var key: String = p[0]
 		var text: String = p[1]
+		var dir: Vector2 = p[2]
 		var lit := _tut_lit.has(key)
 		var t: float = _tut_lit.get(key, 0.0)
-		var size := 40 + int(14.0 * maxf(0.0, 1.0 - t / 0.25)) if lit else 40   # a pop as it lights
-		var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
-		var pos := Vector2(v.x * float(p[2]) - w / 2.0, y + size * 0.35)
-		if _tut_fizzle >= 0.0:
-			pos.y -= 30.0 * _tut_fizzle   # drifting up as they fizzle
+		var pop := 1.0 + 0.3 * maxf(0.0, 1.0 - t / 0.25) if lit else 1.0   # a pop as it lights
+		var size := int(SIZE * pop)
+		var cy := top + i * LINE - drift
+		var col := Color(MainMenu.TITLE_TEXT_RED, fade) if lit else Color(1, 1, 1, 0.3 * fade)
+		# The arrow.
+		var centre := Vector2(left + ARROW / 2.0, cy)
+		var half := dir * ARROW * 0.5 * pop
+		var a := centre - half
+		var b := centre + half
+		var w := 4.0
 		if lit:
-			var red: Color = MainMenu.TITLE_TEXT_RED
-			for i in 12:   # a glow, as the title's
-				c.draw_string(font, pos + Vector2.RIGHT.rotated(i * TAU / 12.0) * 5.0, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(red, 0.08 * fade))
-			c.draw_string(font, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(red, fade))
-			if _tut_fizzle >= 0.0:   # sparks off it as it goes
-				for i in 3:
-					var a := pos + Vector2(_tut_rng.randf() * w, -_tut_rng.randf() * size)
-					var pts := PackedVector2Array([a])
-					for j in 3:
-						pts.append(pts[-1] + Vector2(_tut_rng.randf_range(-10, 10), _tut_rng.randf_range(-14, -4)))
-					c.draw_polyline(pts, Color(1, 0.4, 0.4, fade), 2.0)
-		else:
-			c.draw_string(font, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(1, 1, 1, 0.3 * fade))
+			c.draw_line(a, b, Color(col, 0.25 * fade), w * 3.0, true)   # a glow
+		c.draw_line(a, b, col, w, true)
+		var head := 11.0 * pop
+		c.draw_colored_polygon(PackedVector2Array([b + dir * 2.0, b - dir * head + dir.orthogonal() * head * 0.7, b - dir * head - dir.orthogonal() * head * 0.7]), col)
+		# The words.
+		var pos := Vector2(left + ARROW + GAP, cy + size * 0.35)
+		if lit:
+			for j in 12:   # a glow, as the title's
+				c.draw_string(font, pos + Vector2.RIGHT.rotated(j * TAU / 12.0) * 5.0, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(MainMenu.TITLE_TEXT_RED, 0.08 * fade))
+		c.draw_string(font, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, col)
+		if lit and _tut_fizzle >= 0.0:   # sparks off it as it goes
+			var tw := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+			for n in 3:
+				var s0 := pos + Vector2(_tut_rng.randf() * tw, -_tut_rng.randf() * size)
+				var pts := PackedVector2Array([s0])
+				for m in 3:
+					pts.append(pts[-1] + Vector2(_tut_rng.randf_range(-10, 10), _tut_rng.randf_range(-14, -4)))
+				c.draw_polyline(pts, Color(1, 0.4, 0.4, fade), 2.0)

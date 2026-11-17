@@ -20,11 +20,12 @@ const START_LEVELS := [1, 5, 10, 15]
 ## The start level picked on the title screen: kept through this visit (back
 ## to the title screen, retries) but not saved, so the game always opens on 1.
 static var _session_start_level := 1
-## The first-time tutorial (see _start_tutorial): no enemies until she has
+## The tutorial (see _start_tutorial), once per session: no enemies until she has
 ## done each move once (Tap Left, Tap Right, Tap Both); then the first enemy
 ## comes in as at the start of a run (Level.RUNWAY_TILES ahead of her).
 var _tutorial := false
 var _tutorial_moves := {}
+static var _tutorial_seen := false   # done this session (not saved: a new visit shows it again)
 var _run_start_level := 1
 # Every kill gets a short hit freeze (invert flash).
 const KILL_HIT := 0.06
@@ -394,18 +395,17 @@ func begin() -> void:
 	_start_music()
 	hud.hide_message()
 	hud.set_pause_button_visible(true)
-	if not debug and not bool(_load_progress("tutorial_done", false)):
+	if not debug and not _tutorial_seen:
 		_start_tutorial()
 
 
-## First time only (nothing in the save says it's been done, so players from
-## before it existed see it once too): no enemies, and the three moves to try.
+## The first Play of each session: no enemies, and the three moves to try.
 func _start_tutorial() -> void:
 	_tutorial = true
 	_tutorial_moves.clear()
 	level.spawn_hold = true
 	level.rebuild_ahead(player.x - 1.0)   # (the enemies already laid go)
-	hud.show_tutorial()
+	hud.show_tutorial(player.row == Rules.Row.FLOOR)
 
 
 ## A move she made during the tutorial: its prompt lights up; all three done ends it.
@@ -418,23 +418,13 @@ func _tutorial_move(move: int) -> void:
 	if _tutorial_moves.size() < 3:
 		return
 	_tutorial = false
-	var cfg := ConfigFile.new()
-	cfg.load(SAVE_PATH)
-	cfg.set_value("progress", "tutorial_done", true)
-	cfg.save(SAVE_PATH)
+	_tutorial_seen = true
 	hud.finish_tutorial()   # the prompts fizzle out
 	# The game starts: the first enemy a little past the right edge.
 	level.spawn_hold = false
 	# (From her, not the camera: right after a teleport it hasn't caught up.)
 	level.push_cursor(player.x + Level.RUNWAY_TILES)   # (the same run-up as the start of a run)
 	level.ensure_generated(player.x)
-
-
-func _load_progress(key: String, default: Variant) -> Variant:
-	var cfg := ConfigFile.new()
-	if cfg.load(SAVE_PATH) != OK:
-		return default
-	return cfg.get_value("progress", key, default)
 
 
 # --- input ---------------------------------------------------------------
@@ -1032,6 +1022,7 @@ func _teleport(move: int) -> void:
 	player.x = to_x
 	player.row = to_row
 	if _tutorial:
+		hud.tutorial_on_floor = player.row == Rules.Row.FLOOR   # (its arrows point where each move would take her now)
 		_tutorial_move(move)
 	# A combo never runs a frame, so build the level ahead here too (otherwise
 	# a long chain outruns it and the next enemies pop in when it ends).
