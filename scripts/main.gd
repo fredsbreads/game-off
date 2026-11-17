@@ -321,7 +321,8 @@ func _ready() -> void:
 		debug.main = self
 		add_child(debug)
 	if LEVEL_CHOICE and progression.level == 1:   # (not set by the debug --level option)
-		progression.level = _load_setting("start_level", 1)
+		var start: int = _load_setting("start_level", 1)
+		progression.level = start if start in _unlocked_start_levels() else 1
 		level.level = progression.level
 	Palette.set_pink(0.0)   # every run starts red (her colour is the streak reward)
 	player.x = START_X
@@ -361,7 +362,8 @@ func _ready() -> void:
 		_retry = false
 		begin()   # a retry goes straight into the run
 	else:
-		hud.menu.open(progression.level, LEVEL_CHOICE)
+		# The level choice shows once a later start level is unlocked.
+		hud.menu.open(progression.level, LEVEL_CHOICE and _unlocked_start_levels().size() > 1)
 		if not debug:
 			# The music plays on the title screen too. Deferred: the scene is
 			# still being set up here, and the music lives on the root (it
@@ -1862,6 +1864,7 @@ func _end_chain(grade: String, word: String = "") -> void:
 					-1.0 if player.row == Rules.Row.CEILING else 1.0)   # drift away from her row
 		if levelled:
 			level.level = progression.level
+			_note_level_reached(progression.level)
 			# Only groups well past the right edge get rebuilt (a sprite reaches
 			# beyond its spot, so one just off screen could already show).
 			level.rebuild_ahead(cam.left() / Rules.TILE + CameraRig.VIEW_TILES + 3.0)
@@ -2024,12 +2027,36 @@ func _start_level_input(event: InputEvent) -> bool:
 	return true
 
 
-## want: a level, or 0 = the next one in START_LEVELS, -1 = the one before.
+## The highest level she has reached (in any run), kept in the save file
+## (in a browser: the site's storage, so it lasts between visits).
+func _note_level_reached(n: int) -> void:
+	if debug:   # (test runs don't unlock anything)
+		return
+	var cfg := ConfigFile.new()
+	cfg.load(SAVE_PATH)
+	if n > int(cfg.get_value("progress", "max_level", 1)):
+		cfg.set_value("progress", "max_level", n)
+		cfg.save(SAVE_PATH)
+
+
+## The start levels she can pick: 1, and each of START_LEVELS once she has
+## got past it (reached 6 for 5, 11 for 10, 16 for 15).
+func _unlocked_start_levels() -> Array:
+	var cfg := ConfigFile.new()
+	cfg.load(SAVE_PATH)
+	var reached := int(cfg.get_value("progress", "max_level", 1))
+	return START_LEVELS.filter(func(l: int) -> bool: return l == 1 or reached >= l + 1)
+
+
+## want: a level, or 0 = the next one unlocked, -1 = the one before.
 func _choose_start_level(want: int) -> void:
+	var levels := _unlocked_start_levels()
+	if want != 0 and want != -1 and not want in levels:
+		return   # (not unlocked yet)
 	if want == 0:   # the next one
-		want = START_LEVELS[(START_LEVELS.find(progression.level) + 1) % START_LEVELS.size()]
+		want = levels[(levels.find(progression.level) + 1) % levels.size()]
 	elif want == -1:   # the one before
-		want = START_LEVELS[posmod(START_LEVELS.find(progression.level) - 1, START_LEVELS.size())]
+		want = levels[posmod(levels.find(progression.level) - 1, levels.size())]
 	var cfg := ConfigFile.new()
 	cfg.load(SAVE_PATH)
 	cfg.set_value("settings", "start_level", want)

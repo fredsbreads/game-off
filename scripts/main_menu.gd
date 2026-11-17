@@ -152,8 +152,12 @@ func handle(event: InputEvent, pos: Vector2) -> String:
 		return ""
 	if event is InputEventScreenTouch or event is InputEventMouseButton:
 		for i in ids.size():
-			if _button_rect(i).grow(8.0).has_point(pos):
+			var r := _button_rect(i)
+			if r.grow(8.0).has_point(pos):
 				_selected = i
+				# The start level selector: its left third steps back.
+				if ids[i] == "level" and pos.x < r.position.x + r.size.x / 3.0:
+					return "level_back"
 				return ids[i]
 	return ""
 
@@ -334,6 +338,9 @@ func _draw_button(i: int) -> void:
 	var id := _buttons()[i]
 	var r := _button_rect(i)
 	var picked := _keyboard and i == _selected
+	if id == "level":
+		_draw_level_selector(r, picked)
+		return
 	var play := id == "play"
 	var fill := Color(TITLE_RED, 0.3) if play else Color(1, 1, 1, 0.07)
 	if picked:
@@ -346,3 +353,26 @@ func _draw_button(i: int) -> void:
 	var s := 30 if play else LABEL_SIZE
 	var w := f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, s).x
 	draw_string(f, Vector2(r.position.x + (r.size.x - w) / 2.0, r.position.y + r.size.y / 2.0 + s * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1, s, Color.WHITE)
+
+
+## The start level: a setting you step through, not a button. "<  Start
+## Level 5  >" on a faint strip (underlined), its arrows stepping it.
+func _draw_level_selector(r: Rect2, picked: bool) -> void:
+	draw_rect(r, Color(1, 1, 1, 0.1 if picked else 0.035))
+	if picked:
+		draw_rect(r, Color.WHITE, false, 2.0)
+	else:
+		draw_line(Vector2(r.position.x + 12.0, r.end.y - 1.0), Vector2(r.end.x - 12.0, r.end.y - 1.0), Color(1, 1, 1, 0.3), 1.0)
+	var f := ThemeDB.fallback_font
+	var y := r.position.y + r.size.y / 2.0 + LABEL_SIZE * 0.35
+	var arrow := Color(1, 1, 1, 0.75)
+	draw_string(f, Vector2(r.position.x + 16.0, y), "<", HORIZONTAL_ALIGNMENT_LEFT, -1, LABEL_SIZE, arrow)
+	var gw := f.get_string_size(">", HORIZONTAL_ALIGNMENT_LEFT, -1, LABEL_SIZE).x
+	draw_string(f, Vector2(r.end.x - 16.0 - gw, y), ">", HORIZONTAL_ALIGNMENT_LEFT, -1, LABEL_SIZE, arrow)
+	var label := "Start Level "
+	var value := str(start_level)
+	var lw := f.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, LABEL_SIZE - 4).x
+	var vw := f.get_string_size(value, HORIZONTAL_ALIGNMENT_LEFT, -1, LABEL_SIZE + 4).x
+	var x := r.position.x + (r.size.x - lw - vw) / 2.0
+	draw_string(f, Vector2(x, y), label, HORIZONTAL_ALIGNMENT_LEFT, -1, LABEL_SIZE - 4, Color(1, 1, 1, 0.7))
+	draw_string(f, Vector2(x + lw, y + 1.0), value, HORIZONTAL_ALIGNMENT_LEFT, -1, LABEL_SIZE + 4, Color.WHITE)
