@@ -997,23 +997,21 @@ func _start_auto() -> void:
 	cam.shake(0.2, 10.0)
 
 
-## One hop of the auto-chain: onto the nearest enemy under a marker (the next
-## one in the chain: chains never go backwards), a knight she's fighting first.
+## One hop of the auto-chain: onto the nearest enemy under a marker, so none
+## is ever left behind (a knight she's fighting waits her turn); one straight
+## across from her goes first.
 func _auto_hop() -> void:
 	var best_move := Rules.Move.NONE
 	var best_x := INF
-	var best_knight := false
-	for move in [Rules.Move.VERTICAL, Rules.Move.FORWARD, Rules.Move.DIAGONAL]:
+	for move in [Rules.Move.VERTICAL, Rules.Move.FORWARD, Rules.Move.DIAGONAL]:   # (ties: across first)
 		var tx: float = player.x + Rules.move_dx(move)
 		var trow: int = (1 - player.row) if Rules.move_flips_row(move) else player.row
 		for e in level.enemies_hit_by(move, tx, trow):
 			if e is Knight and (e as Knight).debut:
 				continue   # her debut: the auto-chain stops short of her
-			var engaged := e is Knight and (e as Knight).engaged
-			if (engaged and not best_knight) or (engaged == best_knight and e.tile_x < best_x - 0.01):
+			if e.tile_x < best_x - 0.01:
 				best_move = move
 				best_x = e.tile_x
-				best_knight = engaged
 	if best_move == Rules.Move.NONE:
 		_auto = false
 		player.auto_chain = false
