@@ -77,6 +77,8 @@ var options: OptionsMenu
 var _menu_button: Control
 # The pause screen's "Main Menu" button (leaves the run for the title screen).
 var _pause_menu_button: Control
+var _over_options_button: Control
+var _on_over_screen := false
 # ...and "Resume". The pause screen's buttons stand in a column under
 # "PAUSED"; on a keyboard Up/Down pick one (Resume, each time it opens) and
 # Left/Right (or Enter/Space) press it.
@@ -205,6 +207,14 @@ func _ready() -> void:
 	_retry_button.visible = false
 	_retry_button.draw.connect(func() -> void: _draw_menu_style_button(_retry_button, "New Run", true, _over_sel == 0))
 	add_child(_retry_button)
+	# The game-over screen's "Options" (between New Run and Main Menu, as on
+	# the pause screen).
+	_over_options_button = Control.new()
+	_over_options_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_over_options_button.size = FLIP_BUTTON_SIZE
+	_over_options_button.visible = false
+	_over_options_button.draw.connect(func() -> void: _draw_menu_style_button(_over_options_button, "Options", false, not is_touch() and _over_sel == 1))
+	add_child(_over_options_button)
 
 	auto_overlay = AutoOverlay.new()
 	add_child(auto_overlay)
@@ -273,16 +283,19 @@ func _process(delta: float) -> void:
 	var col := shown.size() * FLIP_BUTTON_SIZE.y + maxf(shown.size() - 1, 0) * gap
 	var bx := (view.x - FLIP_BUTTON_SIZE.x) / 2.0
 	if _backdrop_mode == "over":
-		var buttons_h := FLIP_BUTTON_SIZE.y if is_touch() else FLIP_BUTTON_SIZE.y * 2.0 + gap
+		var n := 2.0 if is_touch() else 3.0   # (Options and Main Menu; New Run too on a computer)
+		var buttons_h := FLIP_BUTTON_SIZE.y * n + gap * (n - 1.0)
 		var h := OVER_TITLE_H + OVER_STATS_H + (OVER_HINT_H if is_touch() else 24.0) + buttons_h
 		_band = Rect2(0, (view.y - h) / 2.0 - BAND_PAD, view.x, h + BAND_PAD * 2.0)
 		_menu_button.position = Vector2(bx, _band.end.y - BAND_PAD - FLIP_BUTTON_SIZE.y)
-		_retry_button.position = _menu_button.position - Vector2(0, FLIP_BUTTON_SIZE.y + gap)
+		_over_options_button.position = _menu_button.position - Vector2(0, FLIP_BUTTON_SIZE.y + gap)
+		_retry_button.position = _over_options_button.position - Vector2(0, FLIP_BUTTON_SIZE.y + gap)
 		if _pause_dim.visible:
 			_over_t += delta
 			_pause_dim.queue_redraw()
 			_menu_button.modulate.a = _over_fade()
 			_retry_button.modulate.a = _over_fade()
+			_over_options_button.modulate.a = _over_fade()
 	else:
 		_band = Rect2(0, (view.y - PAUSE_TITLE_H - col) / 2.0 - BAND_PAD, view.x, PAUSE_TITLE_H + col + BAND_PAD * 2.0)
 		var y := _band.position.y + BAND_PAD + PAUSE_TITLE_H
@@ -321,7 +334,12 @@ static func is_touch() -> bool:
 ## pause screen's own text and buttons step aside while it's open).
 func open_options(over_game: bool) -> void:
 	options.see_through = over_game
-	if over_game:
+	if _on_over_screen:
+		# From the game-over screen: it steps aside while Options is open.
+		options.see_through = true
+		for b in [_pause_dim, _retry_button, _over_options_button, _menu_button]:
+			b.visible = false
+	elif over_game:
 		_message.visible = false
 		_pause_dim.visible = false
 		_flip_button.visible = false
@@ -332,7 +350,13 @@ func open_options(over_game: bool) -> void:
 
 
 func _on_options_closed() -> void:
-	if _on_pause_screen:
+	if _on_over_screen:
+		_pause_dim.visible = true
+		_retry_button.visible = not is_touch()
+		_over_options_button.visible = true
+		_menu_button.visible = true
+		_redraw_over_buttons()
+	elif _on_pause_screen:
 		show_paused(true, _pause_can_flip)
 
 
@@ -441,6 +465,8 @@ func show_game_over(stats: Dictionary) -> void:
 	_over_hint = "Tap Anywhere To Retry" if is_touch() else ""
 	_over_sel = 0
 	_retry_button.visible = not is_touch()
+	_over_options_button.visible = true
+	_on_over_screen = true
 	_redraw_over_buttons()
 	_backdrop_mode = "over"
 	_over_t = 0.0
@@ -449,35 +475,42 @@ func show_game_over(stats: Dictionary) -> void:
 
 
 func menu_button_contains(pos: Vector2) -> bool:
-	return _menu_button.visible and _menu_button.get_rect().has_point(pos)
+	return _menu_button.visible and not options.visible and _menu_button.get_rect().has_point(pos)
 
 
 func _draw_menu_button() -> void:
-	_draw_menu_style_button(_menu_button, "Main Menu", false, not is_touch() and _retry_button.visible and _over_sel == 1)
+	_draw_menu_style_button(_menu_button, "Main Menu", false, not is_touch() and _retry_button.visible and _over_sel == 2)
 
 
 ## The game-over screen's buttons (computer): Up/Down.
 func over_move(dir: int) -> void:
-	_over_sel = posmod(_over_sel + dir, 2)
+	_over_sel = posmod(_over_sel + dir, 3)
 	_redraw_over_buttons()
 
 
-## What the picked game-over button does: "retry" or "menu".
+## What the picked game-over button does: "retry", "options" or "menu".
 func over_selected() -> String:
-	return "retry" if _over_sel == 0 else "menu"
+	return ["retry", "options", "menu"][clampi(_over_sel, 0, 2)]
 
 
 ## The game-over button under a click, or "".
 func over_button_at(pos: Vector2) -> String:
 	if _retry_button.visible and _retry_button.get_rect().has_point(pos):
 		return "retry"
+	if over_options_button_contains(pos):
+		return "options"
 	if menu_button_contains(pos):
 		return "menu"
 	return ""
 
 
+func over_options_button_contains(pos: Vector2) -> bool:
+	return _over_options_button.visible and not options.visible and _over_options_button.get_rect().has_point(pos)
+
+
 func _redraw_over_buttons() -> void:
 	_retry_button.queue_redraw()
+	_over_options_button.queue_redraw()
 	_menu_button.queue_redraw()
 
 

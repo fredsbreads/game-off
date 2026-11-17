@@ -511,9 +511,10 @@ func _unhandled_input(event: InputEvent) -> void:
 				hud.open_options(false)
 		return
 	if state == State.OVER and not Hud.is_touch() and (event is InputEventKey or event is InputEventMouseButton):
-		# The game-over screen on a computer: New Run (picked first) over Main
-		# Menu. Up/Down pick; Left/Right, the teleport keys, Enter or Space
-		# press; a left or right click anywhere is a new run, except on Main Menu.
+		# The game-over screen on a computer: New Run (picked first), Options,
+		# Main Menu. Up/Down pick; Left/Right, the teleport keys, Enter or Space
+		# press; a left or right click anywhere is a new run, except on Options
+		# or Main Menu.
 		get_viewport().set_input_as_handled()
 		var pick := ""
 		if event is InputEventKey:
@@ -529,10 +530,17 @@ func _unhandled_input(event: InputEvent) -> void:
 			pick = hud.over_button_at(_screen_pos(event))
 			if pick == "":
 				pick = "retry"
-		if pick != "" and _state_time >= RETRY_DELAY:
+		if pick == "options" and _state_time >= RETRY_DELAY:
+			hud.open_options(true)
+		elif pick != "" and _state_time >= RETRY_DELAY:
 			if pick == "retry":
 				_retry = true
 			get_tree().reload_current_scene()
+		return
+	if state == State.OVER and _state_time >= RETRY_DELAY and event is InputEventScreenTouch and event.pressed \
+			and hud.over_options_button_contains(_screen_pos(event)):
+		get_viewport().set_input_as_handled()
+		hud.open_options(true)   # (a tap anywhere else is a new run)
 		return
 	if state == State.OVER and _state_time >= RETRY_DELAY and (_is_menu_key(event) \
 			or ((event is InputEventScreenTouch or event is InputEventMouseButton) and hud.menu_button_contains(_screen_pos(event)))):
