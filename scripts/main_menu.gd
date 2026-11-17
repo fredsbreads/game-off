@@ -50,6 +50,10 @@ var start_level := 1
 var level_choice := false
 var _selected := 0
 var _keyboard := false
+## Picking a start level rebuilds the scene; this keeps the level button
+## picked (and its highlight) across that, so pressing it again steps the
+## level again instead of pressing Play.
+static var _reopen := {}
 var _rng := RandomNumberGenerator.new()
 var _t := 0.0
 var _bolts: Array = []   # [points, forks, life, max_life, width]
@@ -84,7 +88,16 @@ func open(level: int, choice: bool) -> void:
 	start_level = level
 	level_choice = choice
 	_selected = 0
+	if not _reopen.is_empty():
+		_selected = maxi(_buttons().find(_reopen["id"]), 0)
+		_keyboard = _reopen["keyboard"]
+		_reopen = {}
 	visible = true
+
+
+## Keep the level button picked through the rebuild a new start level does.
+func keep_level_picked() -> void:
+	_reopen = {"id": "level", "keyboard": _keyboard}
 
 
 func close() -> void:

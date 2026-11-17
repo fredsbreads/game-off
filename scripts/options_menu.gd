@@ -37,8 +37,8 @@ var _rows := [
 var _selected := 0
 ## Set by hud.gd: true over the game (see-through), false over the title screen.
 var see_through := false
-## Shown with the keyboard highlight only once a key has been used.
-var _keyboard := false
+## The picked row's highlight (shown from the start: it opens on the top row).
+var _keyboard := true
 
 
 func _ready() -> void:
@@ -49,7 +49,7 @@ func _ready() -> void:
 
 func open() -> void:
 	_selected = 0
-	_keyboard = false
+	_keyboard = true
 	visible = true
 	queue_redraw()
 
@@ -99,9 +99,7 @@ func handle(event: InputEvent, pos: Vector2) -> void:
 
 func _step(i: int, dir: int) -> void:
 	var row: Dictionary = _rows[i]
-	if row.has("action"):
-		if dir < 0:
-			return
+	if row.has("action"):   # (either way presses it)
 		match row["action"]:
 			"reset":
 				Settings.reset()

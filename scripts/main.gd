@@ -454,6 +454,7 @@ func _unhandled_input(event: InputEvent) -> void:
 					_request_fullscreen()
 					begin()
 			"level":
+				hud.menu.keep_level_picked()   # (pressing it again steps it again)
 				_choose_start_level(0)
 			"options":
 				_start_music()   # (so its volume can be heard while it's set)
