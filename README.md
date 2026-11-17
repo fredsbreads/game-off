@@ -203,7 +203,9 @@ run upside down.
   `CHARGE_*`, `_auto_*` in `scripts/main.gd`.
 - **Her reward colour** is one setting: `COLOUR` at the top of
   `scripts/palette.gd` (default `"yellow"`; every name is in `COLOURS`
-  there; the last, "red", is "Red (Original)": her red kept as it is).
+  there; the last, "red", is "Red (Original)": her red kept as it is, and
+  the streak finisher is always the quick one, as there's no colour change
+  to show).
   The player can pick another on the Options screen (saved);
   on a keyboard, **C** does too and shows the name (off with `CYCLE_KEY`).
 - **Screen shake** is scaled down globally by `SHAKE_SCALE` (0.5) in

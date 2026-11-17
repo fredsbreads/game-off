@@ -988,8 +988,9 @@ func _teleport(move: int) -> void:
 ## ends. The enemy stays standing until it's over, then falls. She keeps the colour
 ## until the streak breaks (_break_streak).
 func _finisher(k: Enemy, grade: String) -> void:
-	# The whole thing the first time in a run; after that, the quick one.
-	var quick := _finished_before
+	# The whole thing the first time in a run; after that, the quick one. With
+	# Red (Original) picked, always the quick one (no colour changes to show).
+	var quick := _finished_before or Palette.keeps_red()
 	_finished_before = true
 	_fin_hop = FINISHER_QUICK_HOP if quick else FINISHER_HOP
 	_fin_strike_fps = 18.0 if quick else FINISHER_STRIKE_FPS

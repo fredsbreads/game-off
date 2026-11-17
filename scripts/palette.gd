@@ -37,6 +37,11 @@ const COLOURS := {
 	"red": [-1.0, 1.0, 1.0],
 }
 
+## True with Red (Original) picked: her colour never changes.
+static func keeps_red() -> bool:
+	return float(_hsv[0]) < 0.0
+
+
 ## How a colour's name is shown (the Options screen, the C key).
 static func display_name(name: String) -> String:
 	return "Red (Original)" if name == "red" else name.capitalize()
