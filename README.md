@@ -76,7 +76,7 @@ run upside down.
   you down. A teleport that drops a chain (MISSED) and lands you across from
   her gets the same warning and grace as running there. Same if a freeze
   ends with her hit but not finished and within a teleport (6 tiles) of you.
-  Two teleporters side by side in a chain sometimes interleave their duels
+  Two teleporters side by side in a chain usually (80%) interleave their duels
   (`PAIR_CHANCE` in `scripts/patterns.gd`): her spots and his alternate, so
   while one blinks away the other's standing there to hit. Each one's every
   blink is still one move from where you hit her, so you never need one to

@@ -81,7 +81,7 @@ const MASTER_GROUP := 2000
 # Two teleporters side by side in a chain: this often their duels interleave
 # (see _build): you fight both at once, but each one's every blink is one move
 # from where you hit her, so neither needs the other to reach her next spot.
-const PAIR_CHANCE := 0.5
+const PAIR_CHANCE := 0.8
 # A knight's blinks: to any of her three landing spots, but never back to a
 # spot she's been on (so never across twice in a row, see _overlaps).
 const KNIGHT_STEPS := ["F", "V", "D"]
