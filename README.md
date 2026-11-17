@@ -132,7 +132,7 @@ run upside down.
   holds it; the instant he's in the other row in front of her, nearer than
   that but not yet straight across, he strikes (`Rules.master_diag_ahead`,
   `master_diag_too_close`). Straight across, the knight's rule holds. After a
-  clash he waits in Attack2's first frame. Level 15 opens with a master alone
+  clash he waits in his stance; his clash swings are either attack, half and half, and his killing blow is Attack1 (frame 4). Level 15 opens with a master alone
   (the same as the other debuts). From level 15 a teleporter is a master 20%
   of the time, rising to a third by level 20 (`MASTER_SHARE`,
   `MASTER_FULL_LEVEL`); the rest are knights and ninjas, half and half. So from

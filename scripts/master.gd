@@ -13,15 +13,15 @@ extends Ninja
 
 const M_IDLE := preload("res://assets/sprites/master/idle.png")
 const M_RUN := preload("res://assets/sprites/master/run.png")           # frame 5: his stance when he alerts
-const M_ATTACK := preload("res://assets/sprites/master/attack.png")     # "Attack1": clash swings
-const M_ATTACK2 := preload("res://assets/sprites/master/attack2.png")   # "Attack2": after a clash (frame 0), the killing blow
+const M_ATTACK := preload("res://assets/sprites/master/attack.png")     # "Attack1": clash swings, and the killing blow (frame 4)
+const M_ATTACK2 := preload("res://assets/sprites/master/attack2.png")   # "Attack2": clash swings
 const M_TAKE_HIT := preload("res://assets/sprites/master/take_hit.png")
 const M_DEATH := preload("res://assets/sprites/master/death.png")
 
 const MASTER_ART := {
 	"frame": Vector2i(200, 200), "feet": Vector2(94, 122), "scale": 2.2,
 	"anims": [["idle", M_IDLE, 6.0, true], ["death", M_DEATH, 12.0, false],
-		["attack", M_ATTACK, 14.0, false], ["kill", M_ATTACK2, 14.0, false],
+		["attack", M_ATTACK, 14.0, false], ["kill", M_ATTACK, 14.0, false],
 		["hit", M_TAKE_HIT, 12.0, false, 3],
 		["stance", M_RUN, 1.0, false, 1, 5]],
 	"kill_frame": 4, "kill_body_from": {},
@@ -34,6 +34,7 @@ const MASTER_ART := {
 		{"swing": 1, "gap": 2.9},
 		{"swing": 0, "gap": 1.9},
 	],
+	"swing_mix": true,   # each clash: either swing, half and half (not by her pose)
 	"windup_anim": "stance", "windup_frame": 0,
 	"engaged_anim": "stance", "engaged_frame": 0,   # after a clash: his stance too
 	"attack_start": 3,

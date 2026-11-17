@@ -289,6 +289,13 @@ func _leave_ghost(beat := 0.0, her_pose := 0) -> void:
 		return
 	var by_pose: Array = art["by_pose"]
 	var answer: Dictionary = by_pose[clampi(her_pose, 0, by_pose.size() - 1)]
+	if art.get("swing_mix", false):
+		# Either swing, half and half: the first pose that answers with it.
+		var want: int = randi() % (art["swings"] as Array).size()
+		for entry in by_pose:
+			if int(entry["swing"]) == want:
+				answer = entry
+				break
 	var swing: Dictionary = art["swings"][answer["swing"]]
 	var size: Vector2i = art["frame"]
 	var sc: float = art["scale"]
