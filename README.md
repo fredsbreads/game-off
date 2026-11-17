@@ -270,6 +270,9 @@ It prints `SOAK OK` if it reaches the distance, or `SOAK FAIL` with the chunk it
 died in. Other options are listed at the top of `scripts/debug_tools.gd`
 (`--autostart`, `--shots=DIR` for screenshots, `--level=N` to start at a level).
 
-The pause screen has a **Color** button that steps through her reward
-colours; the choice is saved between visits (`user://save.cfg`). Every run
-starts at level 1.
+The start screen has a **Start at level 1 / 5 / 10** button (tap it, or press
+L, 1, 5 or 0): 5 goes straight to the knight's debut, 10 to the ninja's. It's
+switched on and off with `LEVEL_CHOICE` at the top of `scripts/main.gd` (off:
+no button, every run starts at level 1, e.g. for playtesters). The pause
+screen has a **Color** button that steps through her reward colours. Both
+choices are saved between visits (`user://save.cfg`).

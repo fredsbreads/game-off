@@ -10,6 +10,12 @@ extends Node2D
 enum State { READY, PLAYING, DYING, OVER }
 
 const START_X := 3.0
+# >>> The start screen's level chooser: true = shown (for testing), false =
+# hidden and every run starts at level 1 (for playtesters). <<<
+const LEVEL_CHOICE := true
+# The levels it offers (5: straight to the knight's debut, 10: the ninja's);
+# the pick is kept between visits.
+const START_LEVELS := [1, 5, 10]
 # Every kill gets a short hit freeze (invert flash).
 const KILL_HIT := 0.06
 # If another enemy is under any marker where you land, the
@@ -288,6 +294,9 @@ func _ready() -> void:
 		debug = DebugTools.new()
 		debug.main = self
 		add_child(debug)
+	if LEVEL_CHOICE and progression.level == 1:   # (not set by the debug --level option)
+		progression.level = _load_setting("start_level", 1)
+		level.level = progression.level
 	Palette.use_colour(_load_colour())   # the one picked last (pause screen / C), else COLOUR
 	Palette.set_pink(0.0)   # every run starts red (her colour is the streak reward)
 	player.x = START_X
@@ -324,6 +333,8 @@ func _ready() -> void:
 	best_score = _load_best()
 	hud.show_start(best_score)
 	_prewarm()
+	if LEVEL_CHOICE:
+		hud.show_level_choice(progression.level)
 	hud.set_enemies_off(Level.enemies_off)   # practice mode stays on across retries
 
 
@@ -379,6 +390,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	if state == State.PLAYING and (event.is_action_pressed("pause") or _is_pause_button_press(event)):
 		get_viewport().set_input_as_handled()
 		_set_paused(true)
+		return
+	if LEVEL_CHOICE and state == State.READY and _start_level_input(event):
+		get_viewport().set_input_as_handled()
 		return
 	var button := _button_from_event(event)
 	if button == Rules.Move.NONE:
@@ -1803,3 +1817,31 @@ func _load_setting(key: String, default: Variant) -> Variant:
 	if cfg.load(SAVE_PATH) != OK:
 		return default
 	return cfg.get_value("settings", key, default)
+
+
+## The start screen's level choice: tap its button (or L) to switch between
+## the start levels, or press 1 / 5 / 0 (10). The run is rebuilt at that level.
+## Returns true if the event was that.
+func _start_level_input(event: InputEvent) -> bool:
+	var tap: bool = (event is InputEventScreenTouch or event is InputEventMouseButton) and event.pressed
+	var want := -1
+	if tap and hud.level_button_contains(_screen_pos(event)):
+		want = 0
+	elif event is InputEventKey and event.pressed:
+		match event.physical_keycode:
+			KEY_L: want = 0
+			KEY_1: want = 1
+			KEY_5: want = 5
+			KEY_0: want = 10
+	if want < 0:
+		return false
+	if want == 0:   # the next one
+		want = START_LEVELS[(START_LEVELS.find(progression.level) + 1) % START_LEVELS.size()]
+	var cfg := ConfigFile.new()
+	cfg.load(SAVE_PATH)
+	cfg.set_value("settings", "start_level", want)
+	cfg.save(SAVE_PATH)
+	if want != progression.level:
+		# A fresh run at that level (after this input is done with).
+		get_tree().reload_current_scene.call_deferred()
+	return true
