@@ -93,6 +93,10 @@ run upside down.
   `scripts/patterns.gd`). A chain's
   length counts every hit (a knight's 3-4 hits use up 3-4 of it), so knights
   don't make chains longer.
+  Every teleporter shows where she'll blink to next: a faint silhouette in her
+  colour at that spot (`NEXT_ALPHA` in `scripts/knight.gd`), so you can read
+  ahead. Her swings have a thick outline and their white arc tinted in her
+  colour (`SLASH_OUTLINE_PX`, `SLASH_ARC_TINT`).
   You may leave a duel early (chain onto another enemy instead of her), so a
   chain never ends within reach of a knight unless it ends on her: after each
   knight, it goes on more than a forward teleport past her furthest spot

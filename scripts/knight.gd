@@ -56,6 +56,9 @@ const SLASH_OUTLINE := Color(0.35, 1.0, 0.45, 1.0)   # green outline while she s
 # Her swings (the clash and the killing blow) in her colour: the outline this
 # thick (art pixels, up to 3) and the white arc tinted toward it this much.
 const SLASH_OUTLINE_PX := 3
+# Where she'll blink to next: a faint silhouette in her colour at that spot.
+const NEXT_SHADER := preload("res://shaders/silhouette.gdshader")
+const NEXT_ALPHA := 0.28
 const SLASH_ARC_TINT := 0.5
 
 ## Her look, as data, so another teleporter (the ninja) can use all of her
@@ -97,6 +100,7 @@ var diag_aggro := false   # the master: diagonally too (see master.gd)
 var ahead := false
 var alerted := false
 var _slashing := false   # the killing blow: green outline held
+var _next: Sprite2D = null   # her next spot's silhouette (see _update_next)
 var _arc: AnimatedSprite2D
 ## Where her body goes in a clash swing: a layer above the player (set by main.gd).
 static var front_parent: Node = null
@@ -165,6 +169,21 @@ func _ready() -> void:
 	_sprite.play("idle")
 	_sprite.frame = randi() % _sprite.sprite_frames.get_frame_count("idle")
 	_sprite.animation_finished.connect(_on_animation_finished)
+	# Her next spot: a flat silhouette (her stance), drawn where she'll blink to.
+	_next = Sprite2D.new()
+	_next.texture = _sprite.sprite_frames.get_frame_texture(art["windup_anim"], art["windup_frame"])
+	_next.centered = false
+	_next.offset = _sprite.offset
+	_next.flip_h = true
+	_next.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	var m := ShaderMaterial.new()
+	m.shader = NEXT_SHADER
+	_next.material = m
+	_next.top_level = true
+	var c: Color = art["outline"]
+	_next.modulate = Color(c.r, c.g, c.b, NEXT_ALPHA)
+	add_child(_next)
+	_update_next()
 
 
 func _place() -> void:
@@ -363,7 +382,23 @@ func slash(her_x: float, side := 1.0) -> void:
 	_slashing = true
 
 
+## Puts her next spot's silhouette where she'll blink to next (hidden when
+## there's none, or she's dead or striking).
+func _update_next() -> void:
+	if _next == null:
+		return
+	var has_next := alive and not _slashing and step_index + 1 < path.size()
+	_next.visible = has_next
+	if not has_next:
+		return
+	var spot: Vector2 = path[step_index + 1]
+	var sc: float = art["scale"]
+	_next.global_position = Vector2(spot.x * Rules.TILE, Rules.surface_y(int(spot.y)))
+	_next.global_scale = Vector2(sc, sc * (-1.0 if int(spot.y) == Rules.Row.CEILING else 1.0))
+
+
 func _process(delta: float) -> void:
+	_update_next()
 	if _arc and _sprite:
 		if _arc.animation != _sprite.animation:
 			_arc.play(_sprite.animation)

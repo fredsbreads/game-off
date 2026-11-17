@@ -1278,7 +1278,7 @@ func _prewarm() -> void:
 	plain.blood(at, 1.0, 8, 0.1)
 	plain.kill_burst(at, 1)
 	for shader in [Player.ARC_SHADER, Player.GHOST_SHADER, Player.MARKER_SHADER, Player.DISSOLVE_SHADER,
-			Enemy.OUTLINE_SHADER, Palette.SHADER]:
+			Enemy.OUTLINE_SHADER, Palette.SHADER, Knight.NEXT_SHADER]:
 		var m := ShaderMaterial.new()
 		m.shader = shader
 		var spr := Sprite2D.new()
