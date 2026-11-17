@@ -536,12 +536,15 @@ func _set_paused(value: bool) -> void:
 
 ## Auto-pause when the window/tab/app loses focus (not during bot runs).
 func _notification(what: int) -> void:
-	if debug or state != State.PLAYING or get_tree().paused:
+	if what != NOTIFICATION_APPLICATION_FOCUS_OUT and what != NOTIFICATION_WM_WINDOW_FOCUS_OUT \
+			and what != NOTIFICATION_APPLICATION_PAUSED:
 		return
-	if what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_WM_WINDOW_FOCUS_OUT \
-			or what == NOTIFICATION_APPLICATION_PAUSED:
-		_set_paused(true)
-		_shift_held.clear()
+	# (Not while leaving the scene: on the way to the title screen the old run
+	# gets a few last notifications with no scene tree.)
+	if not is_inside_tree() or debug or state != State.PLAYING or get_tree().paused:
+		return
+	_set_paused(true)
+	_shift_held.clear()
 
 
 ## True only for a real new press. Key repeats are dropped (`echo`), and so
