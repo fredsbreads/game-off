@@ -1107,7 +1107,7 @@ func _cycle_colour() -> void:
 	var above := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row) - Rules.TILE * 1.8)
 	if player.row == Rules.Row.CEILING:
 		above.y += Rules.TILE * 3.6
-	text_fx.text(above, name.replace("_", " ").to_upper(), 26, Color.WHITE, Rules.RUN_SPEED * Rules.TILE if state == State.PLAYING else 0.0, 1.2)
+	text_fx.text(above, Palette.display_name(name).to_upper(), 26, Color.WHITE, Rules.RUN_SPEED * Rules.TILE if state == State.PLAYING else 0.0, 1.2)
 
 
 ## The power-up meter: CLEAN / PERFECT chains add to it; full = charged.

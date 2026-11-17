@@ -33,7 +33,13 @@ const COLOURS := {
 	"violet": [0.74, 0.85, 1.0],
 	"magenta": [0.85, 0.9, 0.95],
 	"pink": [0.93, 0.7, 1.09],
+	# Her own red, unchanged (a hue below 0 means "keep it": see accent.gdshaderinc).
+	"red": [-1.0, 1.0, 1.0],
 }
+
+## How a colour's name is shown (the Options screen, the C key).
+static func display_name(name: String) -> String:
+	return "Red (Original)" if name == "red" else name.capitalize()
 
 const SHADER := preload("res://shaders/accent_sprite.gdshader")
 
@@ -75,11 +81,15 @@ static func next_colour() -> String:
 ## Her lit-marker red in the colour in use (for the pause screen's swatch).
 static func swatch() -> Color:
 	var red := Color(0.95, 0.15, 0.2)
+	if float(_hsv[0]) < 0.0:
+		return red
 	return Color.from_hsv(float(_hsv[0]), minf(1.0, red.s * float(_hsv[1])), minf(1.0, red.v * float(_hsv[2])))
 
 
 ## The screen flash when she changes over, in her new colour.
 static func flash_colour() -> Color:
+	if float(_hsv[0]) < 0.0:
+		return Color(0.95, 0.19, 0.24, 0.55)   # her red
 	return Color.from_hsv(float(_hsv[0]), minf(1.0, 0.8 * float(_hsv[1])), minf(1.0, 0.95 * float(_hsv[2])), 0.55)
 
 
@@ -100,7 +110,7 @@ static func sweep_to(at: float) -> void:
 
 ## The same as accent() in the shader, for colours set in code.
 static func tint(c: Color) -> Color:
-	if pink <= 0.0:
+	if pink <= 0.0 or float(_hsv[0]) < 0.0:
 		return c
 	var from_red := minf(c.h, 1.0 - c.h)
 	var w := (1.0 - smoothstep(0.05, 0.11, from_red)) * smoothstep(0.12, 0.3, c.s)
