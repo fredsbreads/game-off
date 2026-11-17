@@ -97,13 +97,24 @@ func handle(event: InputEvent, pos: Vector2) -> void:
 		# A button (Flip Screen, Reset To Defaults, Back) only takes taps on the
 		# box drawn for it; a setting's row takes them anywhere along it.
 		var area := _button_rect(i) if _rows[i].has("action") else r.grow_individual(0, ROW_GAP / 2.0, 0, ROW_GAP / 2.0)
+		var touch_row: bool = Hud.is_touch() and _rows[i].has("key")
+		if touch_row:
+			# Touch screens: a setting takes taps right across the screen at its
+			# height; the left half steps it back, the right half steps it on.
+			area = Rect2(0.0, area.position.y, size.x, area.size.y)
 		if area.has_point(pos):
 			_selected = i
 			# The value's left third steps back; anywhere else steps on.
 			var back: bool = _rows[i].has("key") and pos.x < r.end.x - VALUE_W + VALUE_W / 3.0 and pos.x >= r.end.x - VALUE_W
+			if touch_row:
+				back = pos.x < size.x / 2.0
 			_step(i, -1 if back else 1)
 			queue_redraw()
 			return
+	# Touch screens: a tap anywhere below the settings that isn't on a button
+	# goes back.
+	if Hud.is_touch() and pos.y > _settings_bottom():
+		close()
 
 
 func _step(i: int, dir: int) -> void:
@@ -171,6 +182,15 @@ func _top() -> float:
 	return maxf((size.y - h) / 2.0, 8.0)
 
 
+## The bottom of the last setting's row (its tap band included).
+func _settings_bottom() -> float:
+	var bottom := 0.0
+	for i in _rows.size():
+		if _rows[i].has("key"):
+			bottom = _row_rect(i).end.y + ROW_GAP / 2.0
+	return bottom
+
+
 ## An action row's button: BUTTON_W wide, centred in its row.
 func _button_rect(i: int) -> Rect2:
 	var r := _row_rect(i)
@@ -208,11 +228,16 @@ func _draw() -> void:
 		if picked:
 			draw_rect(r, Color(1, 1, 1, 0.9), false, 2.0)
 		draw_string(font, Vector2(r.position.x + 18.0, text_y), row["label"], HORIZONTAL_ALIGNMENT_LEFT, -1, LABEL_SIZE, Color(1, 1, 1, 0.85))
-		# The value, between arrows.
+		# The value, between arrows (touch screens: big arrows outside the row,
+		# since the whole left / right half of the screen at its height steps it).
 		var vx := r.end.x - VALUE_W
 		var arrow := Color(1, 1, 1, 0.7)
-		draw_string(font, Vector2(vx + 10.0, text_y), "<", HORIZONTAL_ALIGNMENT_LEFT, -1, LABEL_SIZE, arrow)
-		draw_string(font, Vector2(r.end.x - 26.0, text_y), ">", HORIZONTAL_ALIGNMENT_LEFT, -1, LABEL_SIZE, arrow)
+		if Hud.is_touch():
+			_draw_chevron(Vector2(r.position.x - 34.0, r.get_center().y), -1, arrow)
+			_draw_chevron(Vector2(r.end.x + 34.0, r.get_center().y), 1, arrow)
+		else:
+			draw_string(font, Vector2(vx + 10.0, text_y), "<", HORIZONTAL_ALIGNMENT_LEFT, -1, LABEL_SIZE, arrow)
+			draw_string(font, Vector2(r.end.x - 26.0, text_y), ">", HORIZONTAL_ALIGNMENT_LEFT, -1, LABEL_SIZE, arrow)
 		var key: String = row["key"]
 		var text := _value_text(key)
 		var vw := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, LABEL_SIZE).x
@@ -222,3 +247,11 @@ func _draw() -> void:
 			draw_rect(sw, Palette.swatch())
 			left = maxf(left, sw.end.x + 10.0)
 		draw_string(font, Vector2(left, text_y), text, HORIZONTAL_ALIGNMENT_LEFT, -1, LABEL_SIZE, Color.WHITE)
+
+
+## A big arrow (touch screens), pointing left (dir -1) or right (1).
+func _draw_chevron(centre: Vector2, dir: int, col: Color) -> void:
+	var w := 12.0
+	var h := 16.0
+	var pts := PackedVector2Array([centre + Vector2(-w * dir, -h), centre + Vector2(w * dir, 0), centre + Vector2(-w * dir, h)])
+	draw_polyline(pts, col, 5.0, true)
