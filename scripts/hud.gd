@@ -52,9 +52,6 @@ const FLIP_BUTTON_SIZE := Vector2(300, 64)
 var _enemies_button: Control
 # Her level-10 colour (Palette), stepped through on the pause screen.
 var _colour_button: Control
-# The start screen's "Start at level" choice (1 or 5).
-var _level_button: Control
-var _start_level := 1
 var _enemies_off_label: Label
 var _enemies_off := false
 var _message_before_pause := ""
@@ -178,12 +175,6 @@ func _ready() -> void:
 	_colour_button.visible = false
 	_colour_button.draw.connect(_draw_colour_button)
 	add_child(_colour_button)
-	_level_button = Control.new()
-	_level_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_level_button.size = FLIP_BUTTON_SIZE
-	_level_button.visible = false
-	_level_button.draw.connect(_draw_level_button)
-	add_child(_level_button)
 	_enemies_off_label = _label(20, Vector2(20, 14))
 	_enemies_off_label.text = "NO ENEMIES (N)"
 	_enemies_off_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.6))
@@ -241,7 +232,6 @@ func _process(delta: float) -> void:
 	for b in shown:
 		b.position = Vector2(x, view.y * 0.5 + 55.0)
 		x += FLIP_BUTTON_SIZE.x + gap
-	_level_button.position = Vector2((view.x - FLIP_BUTTON_SIZE.x) / 2.0, view.y * 0.5 + 55.0)
 
 
 ## True on a phone/tablet held sideways in the browser: play is upright there.
@@ -412,28 +402,6 @@ func _draw_result() -> void:
 			_progress.draw_rect(Rect2(base, 0, kills, s.y), PROGRESS_PENDING.lerp(PROGRESS_FILL, p))
 
 
-## The start screen's level choice: shown with the start message.
-func show_level_choice(level: int) -> void:
-	_start_level = level
-	_level_button.visible = true
-	_level_button.queue_redraw()
-
-
-func level_button_contains(pos: Vector2) -> bool:
-	return _level_button.visible and _level_button.get_rect().grow(10.0).has_point(pos)
-
-
-func _draw_level_button() -> void:
-	var s := FLIP_BUTTON_SIZE
-	_level_button.draw_rect(Rect2(Vector2.ZERO, s), Color(1, 1, 1, 0.12))
-	_level_button.draw_rect(Rect2(Vector2.ZERO, s), Color(1, 1, 1, 0.7), false, 2.0)
-	var font := ThemeDB.fallback_font
-	var text := "Start at level %d" % _start_level
-	var size := 26
-	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
-	_level_button.draw_string(font, Vector2((s.x - w) / 2.0, s.y / 2.0 + size * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color.WHITE)
-
-
 func show_start(best: int) -> void:
 	var lines := "left tap - shift\n"
 	lines += "right tap - forward\n"
@@ -558,7 +526,6 @@ func _draw_pause_button() -> void:
 
 func hide_message() -> void:
 	_message.visible = false
-	_level_button.visible = false
 
 
 ## The colour-change wave at screen x `x` (0..1, right to left), in
