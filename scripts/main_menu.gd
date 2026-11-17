@@ -21,8 +21,8 @@ const BG_BOTTOM := Color(0.02, 0.01, 0.02)
 const BUTTON_SIZE := Vector2(300, 58)
 const BUTTON_GAP := 14.0
 const LABEL_SIZE := 26
-const HINT_TOUCH := "Left Tap: Shift    Right Tap: Forward    Both: Shift + Forward"
-const HINT_KEYS := "Left Arrow / A: Shift    Right Arrow / D: Forward    Both: Shift + Forward"
+const HINT_TOUCH := "Left: Vertical    Right: Horizontal    Both: Diagonal"
+const HINT_KEYS := "Left: Vertical    Right: Horizontal    Both: Diagonal"
 
 ## Her: running (the run sheet, as in the game), at a whole-number scale
 ## (crisp pixels).
