@@ -21,7 +21,18 @@ func _ready() -> void:
 	add_child(_rect)
 
 
+## Shown at a strength nobody can see for a moment (see main.gd _prewarm),
+## so the browser compiles it before the first kill pause needs it.
+var _warm_until := 0
+
+
+func prewarm(seconds: float) -> void:
+	_warm_until = Time.get_ticks_msec() + int(seconds * 1000.0)
+
+
 func set_state(invert: float, grey: float) -> void:
+	if Time.get_ticks_msec() < _warm_until and invert <= 0.0 and grey <= 0.0:
+		grey = 0.002
 	_rect.visible = invert > 0.0 or grey > 0.0
 	_material.set_shader_parameter("invert", invert)
 	_material.set_shader_parameter("grey", grey)

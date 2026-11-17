@@ -288,6 +288,7 @@ func _ready() -> void:
 	cam.snap(player.x)
 	best_score = _load_best()
 	hud.show_start(best_score)
+	_prewarm()
 	hud.show_level_choice(progression.level)
 	hud.set_enemies_off(Level.enemies_off)   # practice mode stays on across retries
 
@@ -1066,6 +1067,44 @@ func _auto_finale_strike(grade: String) -> void:
 	level.push_cursor(cam.left() / Rules.TILE + CameraRig.VIEW_TILES + AUTO_GAP_TILES)
 	_sync_debut_wait()
 	level.ensure_generated(player.x)
+
+
+## The first time a shader (or a kind of draw with it) is used, the browser
+## compiles it, which made the first kill hitch. So on the start screen every
+## effect is drawn once, near-invisibly (2 % alpha), then thrown away.
+func _prewarm() -> void:
+	var holder := Node2D.new()
+	holder.modulate = Color(1, 1, 1, 0.02)
+	$EnemyLayer.add_child(holder)
+	var at := Vector2(player.x * Rules.TILE + 200.0, Rules.body_center_y(Rules.Row.FLOOR))
+	var warm := Fx.new()
+	warm.material = Palette.sprite_material()
+	holder.add_child(warm)
+	warm.kill_burst(at, 3)
+	warm.blood(at, 1.0, 8, 0.1)
+	warm.zap(at, 2)
+	warm.zap_line(at, at + Vector2(80, 0))
+	warm.strike(at - Vector2(100, 0), at)
+	warm.strike(at - Vector2(100, 0), at, true)
+	for kind in Fx.Bolt.values():
+		warm.bolt(kind, at)
+	warm.bolt(Fx.Bolt.SPARKS, at, 0.0, Vector2.ONE, 20.0, 0, true)
+	warm.text(at, "PERFECT", 30, Color.WHITE)
+	var plain := Fx.new()   # blood / text without her colour material
+	holder.add_child(plain)
+	plain.blood(at, 1.0, 8, 0.1)
+	plain.kill_burst(at, 1)
+	for shader in [Player.ARC_SHADER, Player.GHOST_SHADER, Player.MARKER_SHADER, Player.DISSOLVE_SHADER,
+			Enemy.OUTLINE_SHADER, FreezeEffect.SHADER, Palette.SHADER]:
+		var m := ShaderMaterial.new()
+		m.shader = shader
+		var spr := Sprite2D.new()
+		spr.texture = Fx.BOLT_SHEETS[0]
+		spr.material = m
+		spr.position = at
+		holder.add_child(spr)
+	freeze_effect.prewarm(0.5)
+	get_tree().create_timer(0.5).timeout.connect(holder.queue_free)
 
 
 ## Her knight debut waits while the power-up is charged or playing (so it
