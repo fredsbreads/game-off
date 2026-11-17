@@ -196,8 +196,8 @@ func _ready() -> void:
 	options.closed.connect(_on_options_closed)   # over everything but the "turn your phone" screen
 
 	# The "turn your phone" screen, in the title screen's look: its dark
-	# background, the heading in her red with a glow, her falling (with a red
-	# glow behind her) beside it. Drawn in _draw_rotate.
+	# background, the heading in her red with a glow, a red frog croaking
+	# (with a red glow behind it) beside it. Drawn in _draw_rotate.
 	_rotate = _rect(Color(0, 0, 0, 0))
 	_rotate.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_rotate.draw.connect(_draw_rotate)
@@ -205,18 +205,21 @@ func _ready() -> void:
 	_rotate_font = FontVariation.new()
 	_rotate_font.base_font = preload("res://assets/fonts/RussoOne-Regular.ttf")
 	_rotate_font.fallbacks = [preload("res://assets/fonts/NotoSansJP-shrug.ttf")]
-	# Her falling animation beside the message.
+	# A red frog beside the message, facing right, croaking now and then
+	# (assets/sprites/frog_croak_red.png: four 32 px frames).
 	_rotate_sprite = AnimatedSprite2D.new()
 	var frames := SpriteFrames.new()
-	frames.set_animation_speed("default", 10.0)
-	for i in 3:
+	frames.set_animation_speed("default", 8.0)
+	var croak := preload("res://assets/sprites/frog_croak_red.png")
+	for i in [0, 0, 0, 0, 0, 0, 1, 2, 3, 3, 3, 2, 3, 3, 2, 1]:   # (a rest, then the croak)
 		var tex := AtlasTexture.new()
-		tex.atlas = Player.SHEET
-		tex.region = Rect2(i * 96, 5 * 96, 96, 96)
+		tex.atlas = croak
+		tex.region = Rect2(i * 32, 0, 32, 32)
 		frames.add_frame("default", tex)
 	_rotate_sprite.sprite_frames = frames
 	_rotate_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_rotate_sprite.scale = Vector2(4, 4)
+	_rotate_sprite.scale = Vector2(8, 8)
+	_rotate_sprite.offset = Vector2(0, -7)   # (the frog sits low in its frames: centre it in the glow)
 	_rotate_sprite.play()
 	_rotate.add_child(_rotate_sprite)
 
@@ -703,7 +706,7 @@ func _draw_rotate() -> void:
 	var v := c.size
 	c.draw_polygon(PackedVector2Array([Vector2.ZERO, Vector2(v.x, 0), v, Vector2(0, v.y)]),
 			PackedColorArray([MainMenu.BG_TOP, MainMenu.BG_TOP, MainMenu.BG_BOTTOM, MainMenu.BG_BOTTOM]))
-	# A soft red glow behind her, breathing.
+	# A soft red glow behind the frog, breathing.
 	var t := Time.get_ticks_msec() / 1000.0
 	var centre := Vector2(v.x * 0.2, v.y * 0.5)
 	for i in 10:
