@@ -99,6 +99,8 @@ func clear_glint() -> void:
 ## death animation and stays where he fell.
 func die() -> void:
 	alive = false
+	if _idle_held:
+		hold_idle(false)   # (his death plays at its own speed)
 	if _sprite:
 		_sprite.play("death")
 	else:
@@ -119,6 +121,20 @@ func fall() -> void:
 		_sprite.speed_scale = 1.0
 
 
+## Held still in his idle pose while she's in a chain's freeze (the grey),
+## and picks up again where he left off when it's over. Only his idle: a
+## death or an attack plays on at its own speed.
+var _idle_held := false
+
+func hold_idle(on: bool) -> void:
+	if not _sprite or on == _idle_held:
+		return
+	if on and not (alive and _sprite.animation == "idle"):
+		return
+	_idle_held = on
+	_sprite.speed_scale = 0.0 if on else 1.0
+
+
 ## Slow down or stop his animation (1 = normal, 0 = frozen).
 func set_anim_speed(value: float) -> void:
 	if _sprite:
@@ -129,6 +145,8 @@ func set_anim_speed(value: float) -> void:
 ## GRUNT_KILL_DISTANCE ahead of her, so she's at the edge of his swing (not inside it).
 func attack(her_x := NAN) -> void:
 	if alive and _sprite:
+		if _idle_held:
+			hold_idle(false)
 		if not is_nan(her_x):
 			tile_x = her_x + GRUNT_KILL_DISTANCE
 			position.x = tile_x * Rules.TILE

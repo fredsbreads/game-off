@@ -873,6 +873,10 @@ func _update_pause_visuals() -> void:
 		_grey_bridge = maxf(_grey_bridge - get_process_delta_time(), 0.0)
 	var grey := chain_pause or (state == State.PLAYING and chain > 0 and _grey_bridge > 0.0)
 	freeze_effect.set_state(1.0 if flashing else 0.0, 1.0 if grey and not flashing else 0.0)
+	# The basic grunts hold still in their idle while it's grey.
+	for e in level.enemies:
+		if not e is Knight:
+			e.hold_idle(grey)
 	fx.frozen = paused and _pause_elapsed >= FX_FREEZE_AFTER
 	blood_fx.frozen = fx.frozen
 	text_fx.frozen = fx.frozen
