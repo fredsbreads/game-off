@@ -42,9 +42,22 @@ const SWEEP_GLOW := 70.0      # pixels either side of the band's core
 const SWEEP_WASH := 0.12      # the new colour, faintly, over the part already swept
 var _flash_tween: Tween
 var _pause_button: Control
-var _pause_dim: ColorRect
+## Behind the pause and game-over screens: the game dimmed, with a darker band
+## across the middle (red hairlines at its edges) and the screen's title in
+## the title screen's glowing red. The game still shows above and below.
+var _pause_dim: Control
+var _backdrop_mode := "pause"   # "pause" or "over"
+var _band := Rect2()            # the band (set in _process)
+var _over_stats: Array = []     # [[value, label], ...] on the game-over screen
+var _over_hint := ""
+var _over_t := 0.0              # seconds the game-over screen has shown
 var _flip_button: Control
-const FLIP_BUTTON_SIZE := Vector2(300, 64)
+const FLIP_BUTTON_SIZE := Vector2(300, 58)   # (as the title screen's buttons)
+const BAND_PAD := 30.0
+const PAUSE_TITLE_H := 92.0
+const OVER_TITLE_H := 96.0
+const OVER_STATS_H := 92.0
+const OVER_HINT_H := 48.0
 # Practice mode toggle on the pause screen (N on a keyboard), plus a small
 # note in the corner while enemies are off.
 # Opens the Options screen (on the start screen and the pause screen).
@@ -61,7 +74,6 @@ var _pause_menu_button: Control
 # "PAUSED"; on a keyboard Up/Down pick one (Resume, each time it opens) and
 # Left/Right (or Enter/Space) press it.
 var _resume_button: Control
-var _pause_title: Label
 var _pause_sel := 0
 ## The title screen (main.gd passes it presses while it's open).
 var menu: MainMenu
@@ -118,9 +130,12 @@ func _ready() -> void:
 	_pause_button.draw.connect(_draw_pause_button)
 	add_child(_pause_button)
 
-	_pause_dim = _rect(Color(0, 0, 0, 0.55))
+	_pause_dim = Control.new()
+	_pause_dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_pause_dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_pause_dim.visible = false
+	_pause_dim.draw.connect(_draw_backdrop)
+	add_child(_pause_dim)
 
 	_flip_button = Control.new()
 	_flip_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -146,10 +161,6 @@ func _ready() -> void:
 	_resume_button.visible = false
 	_resume_button.draw.connect(_draw_pause_btn.bind(_resume_button, "Resume"))
 	add_child(_resume_button)
-	_pause_title = _label(40, Vector2.ZERO)
-	_pause_title.text = "PAUSED"
-	_pause_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_pause_title.visible = false
 	_pause_menu_button = Control.new()
 	_pause_menu_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_pause_menu_button.size = FLIP_BUTTON_SIZE
@@ -211,17 +222,27 @@ func _process(delta: float) -> void:
 	_chain_bar_bg.position = Vector2(right - 200, 54)
 	_chain_bar.position = _chain_bar_bg.position
 	_pause_button.position = Vector2(right - PAUSE_BUTTON_SIZE - PAUSE_BUTTON_MARGIN, PAUSE_BUTTON_MARGIN)
-	# The pause screen's buttons: a column under "PAUSED".
+	# The pause screen's buttons: a column under "PAUSED", in the band.
 	var shown := pause_buttons()
-	var gap := 12.0
+	var gap := 14.0
 	var col := shown.size() * FLIP_BUTTON_SIZE.y + maxf(shown.size() - 1, 0) * gap
-	var y := (view.y - col) / 2.0 + 30.0
-	_pause_title.position = Vector2(0, y - 70.0)
-	_pause_title.size.x = view.x
-	for b in shown:
-		b.position = Vector2((view.x - FLIP_BUTTON_SIZE.x) / 2.0, y)
-		y += FLIP_BUTTON_SIZE.y + gap
-	_menu_button.position = Vector2((view.x - FLIP_BUTTON_SIZE.x) / 2.0, view.y - FLIP_BUTTON_SIZE.y - 24.0)
+	var bx := (view.x - FLIP_BUTTON_SIZE.x) / 2.0
+	if _backdrop_mode == "over":
+		var h := OVER_TITLE_H + OVER_STATS_H + OVER_HINT_H + FLIP_BUTTON_SIZE.y
+		_band = Rect2(0, (view.y - h) / 2.0 - BAND_PAD, view.x, h + BAND_PAD * 2.0)
+		_menu_button.position = Vector2(bx, _band.end.y - BAND_PAD - FLIP_BUTTON_SIZE.y)
+		if _pause_dim.visible:
+			_over_t += delta
+			_pause_dim.queue_redraw()
+			_menu_button.modulate.a = _over_fade()
+	else:
+		_band = Rect2(0, (view.y - PAUSE_TITLE_H - col) / 2.0 - BAND_PAD, view.x, PAUSE_TITLE_H + col + BAND_PAD * 2.0)
+		var y := _band.position.y + BAND_PAD + PAUSE_TITLE_H
+		for b in shown:
+			b.position = Vector2(bx, y)
+			y += FLIP_BUTTON_SIZE.y + gap
+		if _pause_dim.visible:
+			_pause_dim.queue_redraw()   # (the band follows the buttons shown)
 
 
 ## True on a touch device (phone, tablet): instructions say "Tap"; else they
@@ -248,7 +269,6 @@ func open_options(over_game: bool) -> void:
 		_options_button.visible = false
 		_pause_menu_button.visible = false
 		_resume_button.visible = false
-		_pause_title.visible = false
 	options.open()
 
 
@@ -350,9 +370,17 @@ func show_game_over(stats: Dictionary) -> void:
 		lines += ("NEW BEST!\n" if stats["new_best"] else "Best  %d\n" % stats["best"])
 	lines += "\n"
 	lines += "Tap To Retry" if is_touch() else "Press Any Key To Retry"
-	_message.text = lines
-	_message.visible = true
 	_menu_button.visible = true
+	if SHOW_SCORE_UI or SHOW_DISTANCE_UI:   # (the old text screen)
+		_message.text = lines
+		_message.visible = true
+		return
+	_over_stats = [[stats["kills"], "KILLS"], [stats["level"], "LEVEL"], [stats["best_sweep"], "BEST FLAWLESS"]]
+	_over_hint = "Tap To Retry" if is_touch() else "Press Any Key To Retry"
+	_backdrop_mode = "over"
+	_over_t = 0.0
+	_pause_dim.visible = true
+	_pause_dim.queue_redraw()
 
 
 func menu_button_contains(pos: Vector2) -> bool:
@@ -360,14 +388,87 @@ func menu_button_contains(pos: Vector2) -> bool:
 
 
 func _draw_menu_button() -> void:
-	var s := FLIP_BUTTON_SIZE
-	_menu_button.draw_rect(Rect2(Vector2.ZERO, s), Color(1, 1, 1, 0.12))
-	_menu_button.draw_rect(Rect2(Vector2.ZERO, s), Color(1, 1, 1, 0.7), false, 2.0)
+	_draw_menu_style_button(_menu_button, "Main Menu", false, false)
+
+
+## A button as the title screen draws them; `primary` = red (as its PLAY).
+func _draw_menu_style_button(b: Control, text: String, primary: bool, picked: bool) -> void:
+	var r := Rect2(Vector2.ZERO, FLIP_BUTTON_SIZE)
+	var fill := Color(MainMenu.TITLE_RED, 0.3) if primary else Color(1, 1, 1, 0.07)
+	if picked:
+		fill = Color(fill, fill.a + 0.12)
+	b.draw_rect(r, Color(0.04, 0.03, 0.04, 0.6))   # (so the game doesn't show through the text)
+	b.draw_rect(r, fill)
+	var border := Color(1, 0.45, 0.5, 0.95) if primary else Color(1, 1, 1, 0.55)
+	b.draw_rect(r, Color.WHITE if picked else border, false, 2.0)
 	var font := ThemeDB.fallback_font
-	var text := "Main Menu"
-	var size := 26
+	var size := 30 if primary else MainMenu.LABEL_SIZE
 	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
-	_menu_button.draw_string(font, Vector2((s.x - w) / 2.0, s.y / 2.0 + size * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color.WHITE)
+	b.draw_string(font, Vector2((r.size.x - w) / 2.0, r.size.y / 2.0 + size * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color.WHITE)
+
+
+func _over_fade() -> float:
+	return clampf(_over_t / 0.35, 0.0, 1.0)
+
+
+func _draw_backdrop() -> void:
+	var c := _pause_dim
+	var view := c.size
+	var a := _over_fade() if _backdrop_mode == "over" else 1.0
+	c.draw_rect(Rect2(Vector2.ZERO, view), Color(0, 0, 0, 0.3 * a))
+	# The band, its top and bottom edges soft.
+	var soft := 18.0
+	var dark := Color(0.03, 0.02, 0.03, 0.72 * a)
+	var clear := Color(dark, 0.0)
+	c.draw_rect(_band, dark)
+	var t := _band.position.y
+	var bt := _band.end.y
+	c.draw_polygon(PackedVector2Array([Vector2(0, t - soft), Vector2(view.x, t - soft), Vector2(view.x, t), Vector2(0, t)]), PackedColorArray([clear, clear, dark, dark]))
+	c.draw_polygon(PackedVector2Array([Vector2(0, bt), Vector2(view.x, bt), Vector2(view.x, bt + soft), Vector2(0, bt + soft)]), PackedColorArray([dark, dark, clear, clear]))
+	# Red hairlines, brightest in the middle.
+	for y in [t, bt]:
+		var mid := Color(MainMenu.TITLE_RED, 0.75 * a)
+		var edge := Color(MainMenu.TITLE_RED, 0.0)
+		c.draw_polygon(PackedVector2Array([Vector2(0, y - 1), Vector2(view.x / 2.0, y - 1), Vector2(view.x / 2.0, y + 1), Vector2(0, y + 1)]), PackedColorArray([edge, mid, mid, edge]))
+		c.draw_polygon(PackedVector2Array([Vector2(view.x / 2.0, y - 1), Vector2(view.x, y - 1), Vector2(view.x, y + 1), Vector2(view.x / 2.0, y + 1)]), PackedColorArray([mid, edge, edge, mid]))
+	var top := t + BAND_PAD
+	if _backdrop_mode == "pause":
+		_draw_glow_title(c, "PAUSED", 60, top + 62.0, view.x, a)
+		return
+	_draw_glow_title(c, "GAME OVER", 66, top + 64.0, view.x, a)
+	# The stats: big numbers over small labels, side by side.
+	var font := ThemeDB.fallback_font
+	var col_w := 210.0
+	var x0 := (view.x - col_w * _over_stats.size()) / 2.0
+	var sy := top + OVER_TITLE_H
+	for i in _over_stats.size():
+		var cx := x0 + col_w * (i + 0.5)
+		var value := str(_over_stats[i][0])
+		var label: String = _over_stats[i][1]
+		var vw := font.get_string_size(value, HORIZONTAL_ALIGNMENT_LEFT, -1, 46).x
+		c.draw_string(font, Vector2(cx - vw / 2.0, sy + 46.0), value, HORIZONTAL_ALIGNMENT_LEFT, -1, 46, Color(1, 1, 1, a))
+		var lw := font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
+		c.draw_string(font, Vector2(cx - lw / 2.0, sy + 74.0), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(1, 1, 1, 0.55 * a))
+		if i > 0:   # thin dividers between them
+			var dx := x0 + col_w * i
+			c.draw_line(Vector2(dx, sy + 10.0), Vector2(dx, sy + 78.0), Color(1, 1, 1, 0.15 * a), 1.0)
+	# "Press any key to retry", breathing.
+	var hy := sy + OVER_STATS_H + 26.0
+	var hw := font.get_string_size(_over_hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 20).x
+	var breathe := 0.6 + 0.3 * sin(_over_t * 3.0)
+	c.draw_string(font, Vector2((view.x - hw) / 2.0, hy), _over_hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color(1, 1, 1, breathe * a))
+
+
+## A title in the title screen's red, with its soft glow.
+func _draw_glow_title(c: Control, text: String, size: int, baseline: float, width: float, a: float) -> void:
+	var font: Font = menu.title_font
+	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+	var base := Vector2((width - w) / 2.0, baseline)
+	for i in 12:
+		var o := Vector2.RIGHT.rotated(i * TAU / 12.0) * 5.0
+		c.draw_string(font, base + o, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(MainMenu.TITLE_RED, 0.07 * a))
+	c.draw_string(font, base, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(MainMenu.TITLE_RED, a))
+	c.draw_string(font, base + Vector2(0, -2), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(1, 0.65, 0.68, 0.3 * a))
 
 
 func set_pause_button_visible(value: bool) -> void:
@@ -381,14 +482,15 @@ func pause_button_contains(pos: Vector2) -> bool:
 
 ## can_flip: show the "Flip screen" button (upright phones only).
 func show_paused(paused: bool, can_flip: bool = false) -> void:
+	_backdrop_mode = "pause"
 	_pause_dim.visible = paused
+	_pause_dim.queue_redraw()
 	_pause_button.visible = not paused
 	_flip_button.visible = paused and can_flip
 	_pause_can_flip = can_flip
 	_options_button.visible = paused
 	_pause_menu_button.visible = paused
 	_resume_button.visible = paused
-	_pause_title.visible = paused
 	if paused:
 		if not _on_pause_screen:   # (not again on coming back from Options)
 			_message_before_pause = _message.text
@@ -450,16 +552,10 @@ func _redraw_pause_buttons() -> void:
 
 
 func _draw_pause_btn(b: Control, text: String) -> void:
-	var s := FLIP_BUTTON_SIZE
 	var list := pause_buttons()
 	# The keyboard's pick is lit (not on touch screens: there you just tap).
 	var picked := not is_touch() and list.find(b) == clampi(_pause_sel, 0, list.size() - 1)
-	b.draw_rect(Rect2(Vector2.ZERO, s), Color(1, 1, 1, 0.26 if picked else 0.12))
-	b.draw_rect(Rect2(Vector2.ZERO, s), Color(1, 1, 1, 1.0 if picked else 0.6), false, 3.0 if picked else 2.0)
-	var font := ThemeDB.fallback_font
-	var size := 26
-	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
-	b.draw_string(font, Vector2((s.x - w) / 2.0, s.y / 2.0 + size * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color.WHITE)
+	_draw_menu_style_button(b, text, b == _resume_button, picked)
 
 
 func options_button_contains(pos: Vector2) -> bool:
@@ -485,6 +581,8 @@ func _draw_pause_button() -> void:
 
 func hide_message() -> void:
 	_message.visible = false
+	if _backdrop_mode == "over":
+		_pause_dim.visible = false
 	_menu_button.visible = false
 	_options_button.visible = false
 
