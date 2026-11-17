@@ -96,8 +96,9 @@ run upside down.
   `scripts/patterns.gd`). A chain's
   length counts every hit (a knight's 3-4 hits use up 3-4 of it), so knights
   don't make chains longer.
-  In the freeze after a clash, a thin flickering thread of lightning in her
-  colour runs from her to where she'll blink next (`THREAD_*` in
+  In the freeze after a clash (not in the power-up's auto-chain), a wavering
+  line of energy in her colour, with a pulse running along it, runs from her
+  to where she'll blink next (`THREAD_*` in
   `scripts/knight.gd`; a silhouette there instead, `SHOW_NEXT`, is off: it
   read as a target). Her swings have a thick outline and their white arc tinted in her
   colour (`SLASH_OUTLINE_PX`, `SLASH_ARC_TINT`).

@@ -63,9 +63,10 @@ const SHOW_NEXT := false   # off for now: it read as a target in the heat of a c
 # Instead, in the freeze after a clash: a thin flickering thread of lightning
 # in her colour from her to her next spot (main.gd sets `thread`).
 const THREAD_WIDTH := 3.0
-const THREAD_ALPHA := 0.7
-const THREAD_FLICKER := 0.06   # seconds between new zigzags
-const THREAD_JAG := 10.0       # pixels the zigzag strays from the straight line
+const THREAD_JAG := 9.0           # pixels it wavers from the straight line (most in the middle)
+const THREAD_POINTS := 28
+const THREAD_FADE_IN := 0.12      # seconds
+const THREAD_PULSE_SPEED := 1.8   # pulses along it per second
 const SLASH_ARC_TINT := 0.5
 
 ## Her look, as data, so another teleporter (the ninja) can use all of her
@@ -113,6 +114,8 @@ var thread := false
 var _thread: Node2D = null
 var _thread_points := PackedVector2Array()
 var _thread_time := 0.0
+var _thread_fade := 0.0
+var _thread_seed := randf() * TAU
 var _arc: AnimatedSprite2D
 ## Where her body goes in a clash swing: a layer above the player (set by main.gd).
 static var front_parent: Node = null
@@ -184,6 +187,9 @@ func _ready() -> void:
 	_thread = Node2D.new()
 	_thread.top_level = true
 	_thread.z_index = 1
+	var glow := CanvasItemMaterial.new()
+	glow.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	_thread.material = glow
 	_thread.draw.connect(_draw_thread)
 	add_child(_thread)
 	# Her next spot: a flat silhouette (her stance), drawn where she'll blink to.
@@ -423,28 +429,30 @@ func _update_next() -> void:
 	_next.global_scale = Vector2(sc, sc * (-1.0 if int(spot.y) == Rules.Row.CEILING else 1.0))
 
 
-## The thread to her next spot: a fresh zigzag every THREAD_FLICKER seconds.
+## The thread to her next spot: a wavering line of energy in her colour,
+## fading in, with a pulse running along it toward where she'll blink.
 func _update_thread(delta: float) -> void:
 	if _thread == null:
 		return
 	var show := thread and alive and not _slashing and step_index + 1 < path.size()
-	_thread.visible = show
 	if not show:
+		_thread.visible = false
+		_thread_fade = 0.0
 		return
-	_thread_time -= delta
-	if _thread_time > 0.0:
-		return
-	_thread_time = THREAD_FLICKER
+	_thread.visible = true
+	_thread_fade = minf(_thread_fade + delta / THREAD_FADE_IN, 1.0)
+	_thread_time += delta
 	var a := Vector2(tile_x * Rules.TILE, Rules.body_center_y(row))
 	var spot: Vector2 = path[step_index + 1]
 	var b := Vector2(spot.x * Rules.TILE, Rules.body_center_y(int(spot.y)))
 	var normal := (b - a).orthogonal().normalized()
-	var steps := maxi(4, int(a.distance_to(b) / 28.0))
+	var n := THREAD_POINTS
 	_thread_points = PackedVector2Array()
-	for i in steps + 1:
-		var t := float(i) / float(steps)
-		var off := 0.0 if i == 0 or i == steps else randf_range(-THREAD_JAG, THREAD_JAG)
-		_thread_points.append(a.lerp(b, t) + normal * off)
+	for i in n + 1:
+		var t := float(i) / float(n)
+		# A smooth waver (two slow waves), pinned at both ends.
+		var w := sin(t * 17.0 + _thread_time * 11.0 + _thread_seed) * 0.6 + sin(t * 41.0 - _thread_time * 19.0) * 0.4
+		_thread_points.append(a.lerp(b, t) + normal * w * THREAD_JAG * sin(t * PI))
 	_thread.queue_redraw()
 
 
@@ -452,9 +460,25 @@ func _draw_thread() -> void:
 	if _thread_points.size() < 2:
 		return
 	var c: Color = art["outline"]
-	_thread.draw_polyline(_thread_points, Color(c.r, c.g, c.b, THREAD_ALPHA * 0.35), THREAD_WIDTH * 2.5)
-	_thread.draw_polyline(_thread_points, Color(c.r, c.g, c.b, THREAD_ALPHA), THREAD_WIDTH)
-	_thread.draw_polyline(_thread_points, Color(1, 1, 1, THREAD_ALPHA * 0.8), 1.0)
+	var f := _thread_fade
+	# Glow, then the colour, then a white-hot core.
+	_thread.draw_polyline(_thread_points, Color(c.r, c.g, c.b, 0.10 * f), THREAD_WIDTH * 4.0, true)
+	_thread.draw_polyline(_thread_points, Color(c.r, c.g, c.b, 0.22 * f), THREAD_WIDTH * 2.2, true)
+	_thread.draw_polyline(_thread_points, Color(c.r, c.g, c.b, 0.85 * f), THREAD_WIDTH, true)
+	_thread.draw_polyline(_thread_points, Color(1, 1, 1, 0.75 * f), maxf(THREAD_WIDTH * 0.35, 1.0), true)
+	# A pulse running toward her next spot (shows which way she'll go).
+	var u := fmod(_thread_time * THREAD_PULSE_SPEED, 1.0)
+	var k := u * float(_thread_points.size() - 1)
+	var i := mini(int(k), _thread_points.size() - 2)
+	var p := _thread_points[i].lerp(_thread_points[i + 1], k - float(i))
+	var pa := sin(u * PI) * f
+	_thread.draw_circle(p, THREAD_WIDTH * 3.0, Color(c.r, c.g, c.b, 0.25 * pa))
+	_thread.draw_circle(p, THREAD_WIDTH * 1.1, Color(1, 1, 1, 0.9 * pa))
+	# A soft glow where it lands.
+	var end := _thread_points[_thread_points.size() - 1]
+	var beat := 0.75 + 0.25 * sin(_thread_time * 9.0)
+	_thread.draw_circle(end, THREAD_WIDTH * 3.5, Color(c.r, c.g, c.b, 0.18 * f * beat))
+	_thread.draw_circle(end, THREAD_WIDTH * 1.4, Color(c.r, c.g, c.b, 0.6 * f * beat))
 
 
 func _process(delta: float) -> void:

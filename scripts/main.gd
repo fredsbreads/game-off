@@ -688,7 +688,8 @@ func _update_pause_visuals() -> void:
 		e.targeted = false
 		if e is Knight:
 			# The freeze after a clash: a thread of lightning to where she'll blink next.
-			(e as Knight).thread = chain_pause and (e as Knight).engaged and not _finishing
+			(e as Knight).thread = chain_pause and (e as Knight).engaged and not _finishing \
+					and not _auto and not _finale_hold   # (not in the power-up's auto-chain)
 	if state == State.PLAYING and player.alive and not _finishing:
 		for move in [Rules.Move.FORWARD, Rules.Move.VERTICAL, Rules.Move.DIAGONAL]:
 			var tx: float = player.x + Rules.move_dx(move)
