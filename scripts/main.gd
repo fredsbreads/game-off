@@ -509,9 +509,9 @@ func _unhandled_input(event: InputEvent) -> void:
 				hud.open_options(false)
 		return
 	if state == State.OVER and not Hud.is_touch() and (event is InputEventKey or event is InputEventMouseButton):
-		# The game-over screen on a computer: buttons only (New Run, picked
-		# first, over Main Menu). Up/Down pick; Left/Right, the teleport keys,
-		# Enter or Space press; a click presses the button under it.
+		# The game-over screen on a computer: New Run (picked first) over Main
+		# Menu. Up/Down pick; Left/Right, the teleport keys, Enter or Space
+		# press; a left or right click anywhere is a new run, except on Main Menu.
 		get_viewport().set_input_as_handled()
 		var pick := ""
 		if event is InputEventKey:
@@ -521,8 +521,12 @@ func _unhandled_input(event: InputEvent) -> void:
 				KEY_DOWN, KEY_S: hud.over_move(1)
 				KEY_LEFT, KEY_RIGHT, KEY_A, KEY_D, KEY_J, KEY_K, KEY_SHIFT, KEY_ENTER, KEY_KP_ENTER, KEY_SPACE: pick = hud.over_selected()
 				KEY_M: pick = "menu"
-		elif event.button_index == MOUSE_BUTTON_LEFT:
+		elif event.button_index == MOUSE_BUTTON_LEFT or event.button_index == MOUSE_BUTTON_RIGHT:
+			# A click on Main Menu goes there; a click anywhere else (New Run's
+			# button included) starts a new run.
 			pick = hud.over_button_at(_screen_pos(event))
+			if pick == "":
+				pick = "retry"
 		if pick != "" and _state_time >= RETRY_DELAY:
 			if pick == "retry":
 				_retry = true

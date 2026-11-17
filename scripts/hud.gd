@@ -219,6 +219,10 @@ func _ready() -> void:
 	# (with a red glow behind it) beside it. Drawn in _draw_rotate.
 	_rotate = _rect(Color(0, 0, 0, 0))
 	_rotate.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	# Shown only on a phone held sideways, from the very first frame (a new
+	# scene, as on a new run, would otherwise draw it for a frame before
+	# _process hides it).
+	_rotate.visible = needs_portrait()
 	_rotate.draw.connect(_draw_rotate)
 	# The game's font has no ツ: it falls back to a tiny one that does.
 	_rotate_font = FontVariation.new()
@@ -728,6 +732,8 @@ func _rect(color: Color) -> ColorRect:
 
 ## The "turn your phone" screen (phones held sideways).
 func _draw_rotate() -> void:
+	if not needs_portrait():
+		return   # (never anywhere but a phone held sideways)
 	var c := _rotate
 	var v := c.size
 	c.draw_polygon(PackedVector2Array([Vector2.ZERO, Vector2(v.x, 0), v, Vector2(0, v.y)]),
