@@ -162,6 +162,14 @@ run upside down.
   of the time, rising to a third by level 20 (`MASTER_SHARE`,
   `MASTER_FULL_LEVEL`); the rest are knights and ninjas, half and half. So from
   level 20 the three are equally common (the 30% cap still holds).
+- **The top bar** (`scripts/top_bar.gd`), centred above the ceiling: the
+  power-up meter as a lightning bolt that fills from the bottom and crackles
+  once it's full; the level; the level bar as a katana whose blade fills from
+  the guard to the tip (grey: this chain's kills so far; gold: PERFECT's
+  bonus growing in; grey pieces breaking off: a dropped chain's lost half);
+  and the Flawless Streak, which pops with every kill (bigger, with a ring, at
+  10, 25, 50 and every 25 after), turns gold at 50 and shatters in red when
+  it breaks.
 - **The streak reward**: the Flawless Streak (shown right of the level bar)
   counts kills in a row, knight hits included, without letting an enemy get
   away or dropping a chain (TOO SLOW / MISSED); either one resets it. At 50
@@ -295,7 +303,8 @@ scripts/
   palette.gd            her colour: red, her reward colour with a flawless streak
   camera_rig.gd         follow with fast catch-up after teleports, screen shake
   fx.gd                 trails, rings, slashes, particles, floating text
-  hud.gd                progression bar, messages, rotate-device overlay, flash
+  hud.gd                messages, buttons, rotate-device overlay, flash
+  top_bar.gd            the level katana, the power-up bolt, the flawless streak
   settings.gd           the player's options, saved; the Music / SFX audio buses
   options_menu.gd       the Options screen
   main_menu.gd          the title screen

@@ -65,40 +65,9 @@ var _enemies_off := false
 var _message_before_pause := ""
 var _message_visible_before_pause := false
 
-# Progression bar, centred above the ceiling row.
-const PROGRESS_SIZE := Vector2(320, 12)
-const PROGRESS_FILL := Color(1, 1, 1, 0.9)
-const PROGRESS_PENDING := Color(0.6, 0.6, 0.6, 0.75)   # this chain's kills, not yet counted
-const PROGRESS_EMPTY := Color(1, 1, 1, 0.12)
-const PROGRESS_BONUS := Color(1.0, 0.85, 0.3)        # PERFECT's extra half, growing in
-const PROGRESS_CRUMBLE := Color(0.6, 0.6, 0.6)       # a dropped chain's lost half, falling off
-# When a chain ends, the bar acts out its grade before the kills count:
-# RESULT_ACT seconds of growing / crumbling / turning solid, then a short hold.
-const RESULT_ACT := 0.35
-const RESULT_HOLD := 0.2
-const CRUMBLE_PIECE := 8.0     # pixels
-const CRUMBLE_FALL := 18.0     # pixels the pieces drop
-var _result := {}              # the chain being shown (empty = none)
-var _result_t := 0.0
-var _progress: Control
-var _progress_level: Label
-# The current flawless streak (kills in a row without letting one get away),
-# right of the bar.
-var _streak: Label
-var _streak_n: Label   # its number (gold from STREAK_GOLD_AT)
-const STREAK_GOLD_AT := 50   # (main.gd STREAK_REWARD)
-const STREAK_GOLD := Color(1.0, 0.82, 0.25)
-# The auto-chain power-up meter: a thin bar under the level bar.
-var _charge_bar: Control
-var _c_value := 0.0
-var _c_charged := false
-const CHARGE_BAR_H := 5.0
-const CHARGE_COLOR := Color(0.95, 0.15, 0.2)   # her red (her colour once she has it: Palette.tint)
-var _p_bar := 0.0
-var _p_size := 1.0
-var _p_pending := 0.0
-var _p_pulse := 0.0
-var _p_tween: Tween
+# The level bar (a katana), the power-up bolt and the flawless streak,
+# centred above the ceiling row (scripts/top_bar.gd).
+var _top: TopBar
 
 const PAUSE_BUTTON_SIZE := 64.0
 const PAUSE_BUTTON_MARGIN := 14.0
@@ -125,26 +94,9 @@ func _ready() -> void:
 	_chain_bar = _rect(Color(1, 1, 1, 0.9))
 	_chain_bar.size = _chain_bar_bg.size
 
-	_progress = Control.new()
-	_progress.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_progress.size = PROGRESS_SIZE
-	_progress.visible = false
-	_progress.draw.connect(_draw_progress)
-	add_child(_progress)
-	_progress_level = _label(20, Vector2.ZERO)
-	_progress_level.reparent(_progress)
-	_progress_level.add_theme_color_override("font_color", Color(1, 1, 1, 0.75))
-	_charge_bar = Control.new()
-	_charge_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_charge_bar.position = Vector2(0, PROGRESS_SIZE.y + 7.0)
-	_charge_bar.size = Vector2(PROGRESS_SIZE.x, CHARGE_BAR_H)
-	_charge_bar.draw.connect(_draw_charge)
-	_progress.add_child(_charge_bar)
-	_streak = _label(20, Vector2.ZERO)
-	_streak.reparent(_progress)
-	_streak.add_theme_color_override("font_color", Color(1, 1, 1, 0.75))
-	_streak_n = _label(20, Vector2.ZERO)
-	_streak_n.reparent(_progress)
+	_top = TopBar.new()
+	_top.visible = false
+	add_child(_top)
 
 	# Pause button, top-right. Drawn only; main.gd hit-tests taps against it
 	# (touch doesn't emulate mouse in this project, so Buttons won't see taps).
@@ -227,7 +179,6 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	_process_result(delta)
 	_rotate.visible = needs_portrait()
 	var view := get_viewport().get_visible_rect().size
 	if _rotate.visible:
@@ -287,139 +238,35 @@ func set_stats(score: int, distance: float, kills: int, chain: int, chain_fracti
 ## `pending` kills shown in grey after it. ceiling_y = the ceiling's screen y;
 ## the bar sits in the middle of the band above it.
 func set_progress(level: int, bar: float, bar_size: float, pending: int, ceiling_y: float) -> void:
-	_progress.visible = not menu.visible   # (hidden behind the title screen)
-	_p_bar = bar
-	_p_size = maxf(bar_size, 0.001)
-	_p_pending = pending
-	if not _result.is_empty():
-		level = _result["level"]
+	_top.visible = not menu.visible   # (hidden behind the title screen)
+	_top.set_progress(level, bar, bar_size, pending)
 	var view := get_viewport().get_visible_rect().size
-	_progress.position = Vector2((view.x - PROGRESS_SIZE.x) / 2.0, maxf(ceiling_y * 0.5, 30.0) - PROGRESS_SIZE.y / 2.0)
-	_progress_level.text = "LV %d" % level
-	_progress_level.position = Vector2(-_progress_level.get_minimum_size().x - 12.0, (PROGRESS_SIZE.y - _progress_level.get_minimum_size().y) / 2.0)
-	_progress.queue_redraw()
+	var ext := _top.extent()
+	_top.position = Vector2((view.x - (ext.y - ext.x)) / 2.0 - ext.x, maxf(ceiling_y * 0.5, 34.0) - TopBar.BLADE.y / 2.0)
 
 
 ## The power-up meter: value out of full; charged = full and ready.
 func set_charge(value: int, full: int, charged: bool) -> void:
-	_c_value = clampf(float(value) / float(full), 0.0, 1.0)
-	_c_charged = charged
-	_charge_bar.queue_redraw()
+	_top.set_charge(value, full, charged)
 
 
-func _draw_charge() -> void:
-	var s := _charge_bar.size
-	var col := Palette.tint(CHARGE_COLOR)
-	_charge_bar.draw_rect(Rect2(Vector2.ZERO, s), Color(1, 1, 1, 0.12))
-	if _c_charged:
-		# Full: the whole bar crackles bright.
-		var pulse := 0.6 + 0.4 * sin(Time.get_ticks_msec() * 0.02)
-		_charge_bar.draw_rect(Rect2(Vector2.ZERO, s), Color(col.lightened(0.2), pulse))
-		_charge_bar.draw_rect(Rect2(Vector2.ZERO, s).grow(2.0), Color(col, 0.5 * pulse), false, 1.5)
-	elif _c_value > 0.0:
-		_charge_bar.draw_rect(Rect2(Vector2.ZERO, Vector2(s.x * _c_value, s.y)), Color(col, 0.85))
-
-
-## The current flawless streak, shown right of the bar.
+## The current flawless streak.
 func set_streak(n: int) -> void:
-	_streak.text = "Streak "
-	# In her reward colour while she has it; the number turns gold the
-	# instant the streak reaches the reward.
-	var col := Palette.swatch().lightened(0.25) if Palette.pink > 0.5 else Color(1, 1, 1, 0.75)
-	_streak.add_theme_color_override("font_color", col)
-	_streak.position = Vector2(PROGRESS_SIZE.x + 12.0, (PROGRESS_SIZE.y - _streak.get_minimum_size().y) / 2.0)
-	_streak_n.text = str(n)
-	_streak_n.add_theme_color_override("font_color", STREAK_GOLD if n >= STREAK_GOLD_AT else col)
-	_streak_n.position = _streak.position + Vector2(_streak.get_minimum_size().x, 0.0)
+	_top.set_streak(n)
 
 
 func hide_progress() -> void:
-	_progress.visible = false
+	_top.visible = false
 
 
-## Shows how a finished chain counts: `kills` were grey (pending) on top of
-## `old_bar`. PERFECT turns solid while an extra half grows in gold,
-## CLEAN/SINGLE turn solid, DROPPED keeps half (turning solid) while the other half crumbles off. Then the bar flashes and shows
-## the real values again (set_progress).
+## Shows how a finished chain counts (see TopBar.show_chain_result).
 func show_chain_result(grade: String, kills: int, old_bar: float, bar_size: float, level: int) -> void:
-	var gain := minf(kills * float(Progression.MULTIPLIER[grade]), bar_size - old_bar)
-	_result = {"grade": grade, "kills": float(kills), "base": old_bar, "gain": maxf(gain, 0.0),
-		"size": maxf(bar_size, 0.001), "level": level}
-	_result_t = 0.0
-
-
-func _process_result(delta: float) -> void:
-	if _result.is_empty():
-		return
-	_result_t += delta
-	_progress.queue_redraw()
-	if _result_t >= RESULT_ACT + RESULT_HOLD:
-		_result = {}
-		pulse_progress()
+	_top.show_chain_result(grade, kills, old_bar, bar_size, level)
 
 
 ## A short flash on the bar when a chain is added to it.
 func pulse_progress() -> void:
-	if _p_tween:
-		_p_tween.kill()
-	_p_pulse = 1.0
-	_p_tween = create_tween()
-	_p_tween.tween_method(func(v: float) -> void:
-		_p_pulse = v
-		_progress.queue_redraw(), 1.0, 0.0, 0.35)
-
-
-func _draw_progress() -> void:
-	var s := PROGRESS_SIZE
-	var full := Rect2(Vector2.ZERO, s)
-	_progress.draw_rect(full, PROGRESS_EMPTY)
-	if not _result.is_empty():
-		_draw_result()
-		_progress.draw_rect(full.grow(2.0), Color(1, 1, 1, 0.35), false, 2.0)
-		return
-	var filled := s.x * clampf(_p_bar / _p_size, 0.0, 1.0)
-	var pending := minf(s.x * _p_pending / _p_size, s.x - filled)
-	if pending > 0.0:
-		_progress.draw_rect(Rect2(filled, 0, pending, s.y), PROGRESS_PENDING)
-	if filled > 0.0:
-		_progress.draw_rect(Rect2(0, 0, filled, s.y), PROGRESS_FILL)
-	var outline := Color(1, 1, 1, 0.35 + 0.65 * _p_pulse)
-	_progress.draw_rect(full.grow(2.0 + 3.0 * _p_pulse), outline, false, 2.0)
-
-
-func _draw_result() -> void:
-	var s := PROGRESS_SIZE
-	var px := s.x / float(_result["size"])
-	var base := minf(float(_result["base"]) * px, s.x)
-	var kills := minf(float(_result["kills"]) * px, s.x - base)
-	var gain := minf(float(_result["gain"]) * px, s.x - base)
-	var p := ease(clampf(_result_t / RESULT_ACT, 0.0, 1.0), 0.4)   # fast start, soft end
-	var hold := clampf((_result_t - RESULT_ACT) / RESULT_HOLD, 0.0, 1.0)
-	if base > 0.0:
-		_progress.draw_rect(Rect2(0, 0, base, s.y), PROGRESS_FILL)
-	match _result["grade"]:
-		"PERFECT":
-			# The kills turn solid while the bonus half grows in gold beside them.
-			_progress.draw_rect(Rect2(base, 0, kills, s.y), PROGRESS_PENDING.lerp(PROGRESS_FILL, p))
-			var extra := maxf(gain - kills, 0.0) * p
-			if extra > 0.0:
-				_progress.draw_rect(Rect2(base + kills, 0, extra, s.y), PROGRESS_BONUS.lerp(PROGRESS_FILL, hold))
-		"DROPPED":
-			# The kept half turns solid while the lost half crumbles.
-			_progress.draw_rect(Rect2(base, 0, gain, s.y), PROGRESS_PENDING.lerp(PROGRESS_FILL, p))
-			# The lost half breaks into pieces that fall and fade.
-			var x := base + gain
-			var i := 0
-			while x < base + kills - 0.01:
-				var w := minf(CRUMBLE_PIECE, base + kills - x)
-				var fall := CRUMBLE_FALL * p * (0.7 + 0.15 * (i % 3))
-				var c := PROGRESS_CRUMBLE
-				c.a = 1.0 - p
-				_progress.draw_rect(Rect2(x + 1.0, fall, w - 2.0, s.y), c)
-				x += w
-				i += 1
-		_:   # CLEAN, SINGLE: counts as it is
-			_progress.draw_rect(Rect2(base, 0, kills, s.y), PROGRESS_PENDING.lerp(PROGRESS_FILL, p))
+	_top.pulse()
 
 
 func show_game_over(stats: Dictionary) -> void:
