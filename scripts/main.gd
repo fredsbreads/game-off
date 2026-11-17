@@ -456,6 +456,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			"level":
 				hud.menu.keep_level_picked()   # (pressing it again steps it again)
 				_choose_start_level(0)
+			"level_back":   # (a left key: the level before)
+				hud.menu.keep_level_picked()
+				_choose_start_level(-1)
 			"options":
 				_start_music()   # (so its volume can be heard while it's set)
 				hud.open_options(false)
@@ -1999,10 +2002,12 @@ func _start_level_input(event: InputEvent) -> bool:
 	return true
 
 
-## want: a level, or 0 = the next one in START_LEVELS.
+## want: a level, or 0 = the next one in START_LEVELS, -1 = the one before.
 func _choose_start_level(want: int) -> void:
 	if want == 0:   # the next one
 		want = START_LEVELS[(START_LEVELS.find(progression.level) + 1) % START_LEVELS.size()]
+	elif want == -1:   # the one before
+		want = START_LEVELS[posmod(START_LEVELS.find(progression.level) - 1, START_LEVELS.size())]
 	var cfg := ConfigFile.new()
 	cfg.load(SAVE_PATH)
 	cfg.set_value("settings", "start_level", want)

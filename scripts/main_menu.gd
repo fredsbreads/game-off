@@ -123,7 +123,8 @@ func _button_text(id: String) -> String:
 # --- input (from main.gd) ---------------------------------------------------
 
 ## A fresh press while the menu is open; `pos` = its game-screen position
-## (taps and clicks only). Returns "play", "level", "options" or "".
+## (taps and clicks only). Returns "play", "level", "level_back" (a left key
+## on the level button: the level before), "options" or "".
 func handle(event: InputEvent, pos: Vector2) -> String:
 	var ids := _buttons()
 	if event is InputEventKey:
@@ -139,6 +140,9 @@ func handle(event: InputEvent, pos: Vector2) -> String:
 			# Left/Right (and the other teleport keys, Enter, Space) press the
 			# picked button; it starts on Play.
 			KEY_ENTER, KEY_KP_ENTER, KEY_SPACE, KEY_RIGHT, KEY_LEFT, KEY_K, KEY_J, KEY_D, KEY_A, KEY_SHIFT:
+				var left: bool = code in [KEY_LEFT, KEY_J, KEY_A] or (code == KEY_SHIFT and event.location == KEY_LOCATION_LEFT)
+				if ids[_selected] == "level" and left:
+					return "level_back"
 				return ids[_selected]
 			KEY_O:
 				return "options"
