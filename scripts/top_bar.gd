@@ -20,8 +20,8 @@ const BLADE := Vector2(330, 16)
 const TIP := 24.0            # the point (kissaki): pixels at the end where the edge sweeps up to the spine
 # The grip is straight and level; the blade leaves the guard level too and
 # curves gently up from there to the tip.
-const SORI := 20.0           # how far the tip rises (pixels)
-const STRAIGHT := 0.4        # the first part of the blade that stays straight (of its length); it curves after
+static var sori := 18.0       # how far the tip rises (pixels)
+static var straight := 0.2    # the first part of the blade that stays straight (of its length); it curves after
 const TAPER := 0.15          # the blade narrows this much (of its width) from the guard to the point
 const STEEL := Color(0.92, 0.94, 1.0, 0.95)       # counted
 const PENDING := Color(0.6, 0.62, 0.68, 0.8)      # this chain's kills, not yet counted
@@ -36,12 +36,10 @@ const CRUMBLE_FALL := 20.0
 const RESULT_ACT := 0.35
 const RESULT_HOLD := 0.2
 
-# The hilt, left of the blade: a pale gold collar (habaki), a thin black
-# guard seen edge-on (tsuba), the grip (tsuka, about a third of the whole):
+# The hilt, left of the blade: a thin black guard seen edge-on (tsuba), the grip (tsuka, about a third of the whole):
 # yellow wrap crossing over black, so black diamonds show between, and a
 # dark cap at its end (kashira).
-const HABAKI := 12.0
-const HABAKI_COLOUR := Color(0.92, 0.84, 0.58)
+const HABAKI := 0.0   # (no collar: the blade starts right at the guard)
 const TSUBA := Vector2(7, 36)
 const TSUKA := 150.0
 const KASHIRA := 6.0
@@ -321,10 +319,10 @@ func _growing_edge() -> float:
 ## the blade narrowing a little toward the point. x: pixels along the blade
 ## (negative: the hilt).
 func _arc(x: float) -> float:
-	# Level along the grip and the first STRAIGHT of the blade, then curving
+	# Level along the grip and the first `straight` of the blade, then curving
 	# up, more and more toward the tip (it leaves the straight part smoothly).
-	var t := maxf(x / BLADE.x - STRAIGHT, 0.0) / (1.0 - STRAIGHT)
-	return -SORI * t * t
+	var t := maxf(x / BLADE.x - straight, 0.0) / (1.0 - straight)
+	return -sori * t * t
 
 
 func _spine(x: float) -> float:
@@ -515,8 +513,6 @@ func _draw_hilt() -> void:
 		var a := TAU * i / 24.0
 		disc.append(gc + Vector2(cos(a) * TSUBA.x / 2.0, sin(a) * TSUBA.y / 2.0))
 	draw_colored_polygon(disc, HILT_BLACK)
-	# The collar, where the blade leaves the guard.
-	draw_colored_polygon(_band(-HABAKI, 0.0, BLADE.y + 2.0), HABAKI_COLOUR)
 
 
 ## Over the whole katana (grip and guard as well as the blade): the level-up's

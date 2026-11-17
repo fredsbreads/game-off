@@ -243,12 +243,14 @@ func set_progress(level: int, bar: float, bar_size: float, pending: int, ceiling
 	var view := get_viewport().get_visible_rect().size
 	# The bolt and the streak out toward the edges; the level and the katana
 	# centred between them.
-	var bolt_left := view.x * 0.045
+	# The level and the katana a little left of centre (room for the streak);
+	# the bolt halfway between the screen's left edge and the level; the
+	# streak toward the right edge.
 	var streak_left := view.x - 190.0
-	var mid := (bolt_left + TopBar.BOLT_SIZE.x + streak_left) / 2.0
 	var ext := _top.extent()
-	_top.position = Vector2(mid - (ext.x + ext.y) / 2.0, maxf(ceiling_y * 0.5, 34.0) - TopBar.BLADE.y / 2.0)
-	_top.bolt_x = bolt_left - _top.position.x
+	_top.position = Vector2(view.x / 2.0 - 22.0 - (ext.x + ext.y) / 2.0, maxf(ceiling_y * 0.5, 34.0) - TopBar.BLADE.y / 2.0)
+	var level_left := _top.position.x + ext.x
+	_top.bolt_x = level_left / 2.0 - TopBar.BOLT_SIZE.x / 2.0 - _top.position.x
 	_top.streak_x = streak_left - _top.position.x
 
 
