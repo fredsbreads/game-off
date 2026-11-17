@@ -167,8 +167,10 @@ run upside down.
   once it's full, stays full while the power-up plays, and empties with a
   white flash at its finale's strike (while she's golden, PERFECT chains charge double: the bolt
   glows gold with a gold rim, gold sparks rise off it, an "x2" badge sits on
-  it, and each gain pops bigger with a gold ring); the level; the level bar as a katana (her own: a yellow grip
-  with three black squares, a black guard) whose blade fills from the guard
+  it, and each gain pops bigger with a gold ring); the level; the level bar as a katana (the whole sword on one gentle
+  arc, grip rising behind the guard and blade toward the tip; a black wrap
+  over a yellow grip showing yellow diamonds, a black guard edge-on, a pale
+  gold collar, a temper line along the blade) whose blade fills from the guard
   to the tip (grey: this chain's kills so far; gold: PERFECT's bonus growing
   in, sparks off its edge; grey pieces breaking off: a dropped chain's lost
   half; a shine sweeps it as a chain is added; it shimmers in her colour

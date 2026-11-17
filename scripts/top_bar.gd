@@ -16,10 +16,13 @@ extends Control
 const FONT := preload("res://assets/fonts/RussoOne-Regular.ttf")
 
 # The blade.
-const BLADE := Vector2(345, 18)
-const TIP := 30.0            # the point (kissaki): pixels at the end where the edge sweeps up to the spine
-const SORI := 14.0           # the blade's curve: how far the tip rises (pixels), bending evenly from the guard
-const TAPER := 0.25          # the blade narrows this much (of its width) from the guard to the point
+const BLADE := Vector2(330, 16)
+const TIP := 24.0            # the point (kissaki): pixels at the end where the edge sweeps up to the spine
+# The whole sword (grip and blade) lies on one gentle arc, lowest just past
+# the guard: the grip rises a little behind it, the blade more toward the tip.
+const SORI := 16.0           # how far the tip rises (pixels)
+const ARC_LOW := 20.0        # where the arc is lowest (pixels along the blade)
+const TAPER := 0.15          # the blade narrows this much (of its width) from the guard to the point
 const STEEL := Color(0.92, 0.94, 1.0, 0.95)       # counted
 const PENDING := Color(0.6, 0.62, 0.68, 0.8)      # this chain's kills, not yet counted
 const EMPTY := Color(0.55, 0.6, 0.7, 0.16)
@@ -32,15 +35,18 @@ const CRUMBLE_FALL := 20.0
 const RESULT_ACT := 0.35
 const RESULT_HOLD := 0.2
 
-# The hilt, left of the blade, as on her own katana (her sprites): a black
-# guard, then the grip, all yellow, with three black squares evenly spaced
-# along its middle. About a third of the blade's length, like hers.
-const TSUBA := Vector2(7, 34)
-const TSUKA := 115.0
+# The hilt, left of the blade: a pale gold collar (habaki), a thin black
+# guard seen edge-on (tsuba), the grip (tsuka, about a third of the whole):
+# black wrap crossing over yellow, so yellow diamonds show between, and a
+# dark cap at its end (kashira).
+const HABAKI := 12.0
+const HABAKI_COLOUR := Color(0.92, 0.84, 0.58)
+const TSUBA := Vector2(7, 36)
+const TSUKA := 150.0
+const KASHIRA := 6.0
 const HILT_YELLOW := Color(1.0, 0.9, 0.15)
 const HILT_BLACK := Color(0.03, 0.03, 0.04)
-const HILT_SQUARES := 3
-const SQUARE := 8.0           # the black squares' size (pixels)
+const WRAP_STEP := 15.0       # one diamond's length (pixels)
 
 # Juice: a shine sweeping the blade when a chain is added; sparks off the
 # fill's leading edge while it grows; a shimmer in her colour once it's
@@ -251,12 +257,22 @@ func _growing_edge() -> float:
 
 # --- the blade ---------------------------------------------------------------
 
-## A katana, as drawn here: the grip level, the blade curving evenly up from
-## the guard (sori), the spine (top, the inside of the curve) running
-## straight on into the point, the cutting edge (bottom, the outside) sweeping
-## up to meet it there, and the blade narrowing a little toward the point.
+## A katana, as drawn here: the whole sword on one gentle arc (sori), the
+## spine (top, the inside of the curve) running straight on into the point,
+## the cutting edge (bottom, the outside) sweeping up to meet it there, and
+## the blade narrowing a little toward the point. x: pixels along the blade
+## (negative: the hilt).
+func _arc(x: float) -> float:
+	return -SORI * pow((x - ARC_LOW) / (BLADE.x - ARC_LOW), 2.0)
+
+
 func _spine(x: float) -> float:
-	return -SORI * pow(x / BLADE.x, 2.0)
+	return _arc(x)
+
+
+## The sword's centre line at x (for the hilt).
+func _centre(x: float) -> float:
+	return _arc(x) + BLADE.y / 2.0
 
 
 func _width(x: float) -> float:
@@ -348,6 +364,12 @@ func _draw_blade() -> void:
 		draw_polyline(outline, Color(1, 1, 1, 0.35 * _pulse), 6.0 * _pulse + 2.0, true)
 	draw_polyline(outline, Color(1, 1, 1, 0.4 + 0.6 * _pulse), 1.5, true)
 	draw_polyline(edge, Color(1, 1, 1, 0.55), 1.0, true)
+	# The temper line (hamon): a soft wave along the blade, near the edge.
+	var hamon := PackedVector2Array()
+	for i in 81:
+		var x := (w - TIP) * i / 80.0
+		hamon.append(Vector2(x, _bottom(x) - _width(x) * (0.36 + 0.08 * sin(x * 0.22))))
+	draw_polyline(hamon, Color(1, 1, 1, 0.22), 1.0, true)
 	draw_polyline(back, Color(0.15, 0.17, 0.2, 0.6), 1.0, true)
 
 
@@ -383,22 +405,55 @@ func _draw_result() -> void:
 			_fill(base, base + kills, PENDING.lerp(STEEL, p))
 
 
+## A band along the sword's curve from x0 to x1, h tall, centred on it.
+func _band(x0: float, x1: float, h: float) -> PackedVector2Array:
+	var pts := PackedVector2Array()
+	var n := maxi(int((x1 - x0) / 6.0), 1)
+	for i in n + 1:
+		var x := lerpf(x0, x1, float(i) / n)
+		pts.append(Vector2(x, _centre(x) - h / 2.0))
+	for i in range(n, -1, -1):
+		var x := lerpf(x0, x1, float(i) / n)
+		pts.append(Vector2(x, _centre(x) + h / 2.0))
+	return pts
+
+
 func _draw_hilt() -> void:
-	var mid := BLADE.y / 2.0
-	var tsuba := Rect2(-TSUBA.x, mid - TSUBA.y / 2.0, TSUBA.x, TSUBA.y)
-	var h := BLADE.y + 2.0
-	var grip := Rect2(tsuba.position.x - TSUKA, mid - h / 2.0, TSUKA, h)
-	draw_rect(grip, HILT_YELLOW)
-	# Three black squares, evenly spaced along the middle of the grip.
-	var gap := (TSUKA - HILT_SQUARES * SQUARE) / float(HILT_SQUARES + 1)
-	for i in HILT_SQUARES:
-		var x := grip.position.x + gap * (i + 1) + SQUARE * i
-		draw_rect(Rect2(x, mid - SQUARE / 2.0, SQUARE, SQUARE), HILT_BLACK)
-	draw_rect(tsuba, HILT_BLACK)
+	var guard_x := -HABAKI - TSUBA.x
+	var grip0 := guard_x - TSUKA
+	var h := BLADE.y + 3.0
+	# The grip: yellow under, black wrap crossing over (yellow diamonds between).
+	draw_colored_polygon(_band(grip0, guard_x, h), HILT_YELLOW)
+	var x := grip0
+	while x < guard_x - 0.1:
+		var x1 := minf(x + WRAP_STEP, guard_x)
+		var xm := (x + x1) / 2.0
+		var c0 := _centre(x)
+		var c1 := _centre(x1)
+		var cm := _centre(xm)
+		# A black band crossing from each corner to the middle, top and bottom.
+		# (They meet in the middle, so the yellow left between is a row of solid diamonds.)
+		draw_colored_polygon(PackedVector2Array([Vector2(x, c0 - h / 2.0), Vector2(x1, c1 - h / 2.0), Vector2(xm, cm + 0.5)]), HILT_BLACK)
+		draw_colored_polygon(PackedVector2Array([Vector2(x, c0 + h / 2.0), Vector2(x1, c1 + h / 2.0), Vector2(xm, cm - 0.5)]), HILT_BLACK)
+		x = x1
+	var outline := _band(grip0, guard_x, h)
+	outline.append(outline[0])
+	draw_polyline(outline, HILT_BLACK, 1.5, true)
+	# The cap at its end.
+	draw_colored_polygon(_band(grip0 - KASHIRA, grip0, h + 1.0), Color(0.12, 0.1, 0.1))
+	# The guard, edge-on: a thin black disc across the sword.
+	var gc := Vector2(guard_x + TSUBA.x / 2.0, _centre(guard_x + TSUBA.x / 2.0))
+	var disc := PackedVector2Array()
+	for i in 24:
+		var a := TAU * i / 24.0
+		disc.append(gc + Vector2(cos(a) * TSUBA.x / 2.0, sin(a) * TSUBA.y / 2.0))
+	draw_colored_polygon(disc, HILT_BLACK)
+	# The collar, where the blade leaves the guard.
+	draw_colored_polygon(_band(-HABAKI, 0.0, BLADE.y + 2.0), HABAKI_COLOUR)
 
 
 func _hilt_left() -> float:
-	return -TSUBA.x - TSUKA
+	return -HABAKI - TSUBA.x - TSUKA - KASHIRA
 
 
 # --- the power-up bolt -------------------------------------------------------
