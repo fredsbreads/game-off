@@ -297,7 +297,15 @@ func _leave_ghost(beat := 0.0, her_pose := 0) -> void:
 		return
 	var by_pose: Array = art["by_pose"]
 	var answer: Dictionary = by_pose[clampi(her_pose, 0, by_pose.size() - 1)]
-	if force_swing >= 0:
+	if art.has("pose_swings"):
+		# (The master) her pose decides which swings can answer, each with its own gap.
+		var options: Array = art["pose_swings"][clampi(her_pose, 0, art["pose_swings"].size() - 1)]
+		answer = options[randi() % options.size()]
+		if force_swing >= 0:
+			for entry in options:
+				if int(entry["swing"]) == force_swing:
+					answer = entry
+	elif force_swing >= 0:
 		for entry in by_pose:
 			if int(entry["swing"]) == force_swing:
 				answer = entry

@@ -34,7 +34,14 @@ const MASTER_ART := {
 		{"swing": 1, "gap": 2.9},
 		{"swing": 0, "gap": 1.9},
 	],
-	"swing_mix": true,   # each clash: either swing, half and half (not by her pose)
+	# Each clash, by her strike pose: which of his swings can answer it (one
+	# picked at random) and how far (tiles) past his spot it's drawn.
+	# Pose 3 is only ever answered by Attack2.
+	"pose_swings": [
+		[{"swing": 0, "gap": 3.4}, {"swing": 1, "gap": 3.4}],
+		[{"swing": 0, "gap": 3.9}, {"swing": 1, "gap": 3.4}],
+		[{"swing": 1, "gap": 3.4}],
+	],
 	"kill_distance": 3.1,   # tiles ahead of her he strikes from (the knight's 2.6, half a tile further)
 	"windup_anim": "stance", "windup_frame": 0,
 	"engaged_anim": "stance", "engaged_frame": 0,   # after a clash: his stance too
