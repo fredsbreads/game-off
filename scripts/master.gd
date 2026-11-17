@@ -35,7 +35,7 @@ const MASTER_ART := {
 		{"swing": 0, "gap": 1.9},
 	],
 	"windup_anim": "stance", "windup_frame": 0,
-	"engaged_anim": "kill", "engaged_frame": 0,
+	"engaged_anim": "stance", "engaged_frame": 0,   # after a clash: his stance too
 	"attack_start": 3,
 	"lightning": "purple", "outline": Color(0.75, 0.45, 1.0, 1.0),
 	"alert_pitch": 0.9,

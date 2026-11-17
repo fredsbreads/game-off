@@ -10,6 +10,10 @@ uniform float glint = 0.0;
 // Knights draw their slash arc (the pure white pixels) behind their body:
 // 0 = everything, 1 = all but the arc (the body, in front), 2 = only the arc.
 uniform int white_part = 0;
+// The teleporters' slashes: a thicker outline (pixels of the art) and the white
+// arc tinted toward the outline colour (0..1, faded with `glint`).
+uniform int outline_px = 1;
+uniform float arc_tint = 0.0;
 
 varying vec4 tint;
 
@@ -38,13 +42,22 @@ void fragment() {
 	vec4 c = texture(TEXTURE, UV);
 	bool arc = is_arc(c);
 	if (white_part == 2 && arc) {
-		COLOR = c * tint;
+		COLOR = mix(c, vec4(accent(outline_color.rgb, SCREEN_UV.x), c.a), arc_tint * glint) * tint;
 	} else if (white_part != 2 && c.a > 0.0 && !(white_part == 1 && arc)) {
 		COLOR = c * tint;
 	} else {
 		vec2 px = TEXTURE_PIXEL_SIZE;
 		float n = part_alpha(texture(TEXTURE, UV + vec2(px.x, 0.0))) + part_alpha(texture(TEXTURE, UV - vec2(px.x, 0.0)))
 			+ part_alpha(texture(TEXTURE, UV + vec2(0.0, px.y))) + part_alpha(texture(TEXTURE, UV - vec2(0.0, px.y)));
+		if (outline_px > 1 && glint > 0.0) {
+			for (int dy = -3; dy <= 3; dy++) {
+				for (int dx = -3; dx <= 3; dx++) {
+					if (dx * dx + dy * dy <= outline_px * outline_px) {
+						n += part_alpha(texture(TEXTURE, UV + vec2(float(dx) * px.x, float(dy) * px.y)));
+					}
+				}
+			}
+		}
 		float shimmer = 0.8 + 0.2 * sin(TIME * 9.0);
 		float a = n > 0.0 ? outline_color.a * glint * shimmer * tint.a : 0.0;
 		COLOR = vec4(accent(outline_color.rgb, SCREEN_UV.x), a);   // her colour (the knight's green stays)
