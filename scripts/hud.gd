@@ -93,6 +93,14 @@ var _message_visible_before_pause := false
 # The level bar (a katana), the power-up bolt and the flawless streak,
 # centred above the ceiling row (scripts/top_bar.gd).
 var _top: TopBar
+# The first-time tutorial: "Tap Left", "Tap Both", "Tap Right" across the
+# middle, dull until she does that move (then her red, with a pop); when all
+# three are done they flicker and fizzle out.
+var _tut: Control
+var _tut_lit := {}        # key -> seconds since it lit
+var _tut_fizzle := -1.0   # seconds since all three were done (-1: not yet)
+var _tut_rng := RandomNumberGenerator.new()
+const TUT_FIZZLE_TIME := 0.8
 
 const PAUSE_BUTTON_SIZE := 64.0
 const PAUSE_BUTTON_MARGIN := 14.0
@@ -127,6 +135,14 @@ func _ready() -> void:
 	_top = TopBar.new()
 	_top.visible = false
 	add_child(_top)
+
+	# The first-time tutorial's three prompts (see show_tutorial).
+	_tut = Control.new()
+	_tut.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_tut.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_tut.visible = false
+	_tut.draw.connect(_draw_tutorial)
+	add_child(_tut)
 
 	# Pause button, top-right. Drawn only; main.gd hit-tests taps against it
 	# (touch doesn't emulate mouse in this project, so Buttons won't see taps).
@@ -225,6 +241,14 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	if _tut.visible and not get_tree().paused:
+		for k in _tut_lit:
+			_tut_lit[k] += delta
+		if _tut_fizzle >= 0.0:
+			_tut_fizzle += delta
+			if _tut_fizzle >= TUT_FIZZLE_TIME:
+				_tut.visible = false
+		_tut.queue_redraw()
 	rotated = OS.has_feature("web") and int(JavaScriptBridge.eval("window.redFlashRotated === true ? 1 : 0", true)) == 1
 	_rotate.visible = needs_portrait()
 	var view := get_viewport().get_visible_rect().size
@@ -733,3 +757,61 @@ func _draw_rotate() -> void:
 	var ns := maxi(bs - 4, 12)
 	var nw := _rotate_font.get_string_size(PORTRAIT_NOTE, HORIZONTAL_ALIGNMENT_LEFT, -1, ns).x
 	c.draw_string(_rotate_font, Vector2(left + (w - nw) / 2.0, y + 88.0), PORTRAIT_NOTE, HORIZONTAL_ALIGNMENT_LEFT, -1, ns, Color(1, 1, 1, 0.5))
+
+
+# --- the first-time tutorial --------------------------------------------------
+
+func show_tutorial() -> void:
+	_tut_lit.clear()
+	_tut_fizzle = -1.0
+	_tut_rng.randomize()
+	_tut.visible = true
+
+
+func tutorial_done(key: String) -> void:
+	_tut_lit[key] = 0.0
+
+
+func finish_tutorial() -> void:
+	_tut_fizzle = 0.0
+
+
+func _draw_tutorial() -> void:
+	var c := _tut
+	var v := c.size
+	var font := ThemeDB.fallback_font
+	var touch := is_touch()
+	var prompts := [
+		["left", "Tap Left" if touch else "Left", 0.2],
+		["both", "Tap Both" if touch else "Both", 0.5],
+		["right", "Tap Right" if touch else "Right", 0.8],
+	]
+	var y := v.y * 0.5
+	var fade := 1.0
+	if _tut_fizzle >= 0.0:
+		var k := clampf(_tut_fizzle / TUT_FIZZLE_TIME, 0.0, 1.0)
+		fade = (1.0 - k) * (0.55 + 0.45 * _tut_rng.randf())   # flickering out
+	for p in prompts:
+		var key: String = p[0]
+		var text: String = p[1]
+		var lit := _tut_lit.has(key)
+		var t: float = _tut_lit.get(key, 0.0)
+		var size := 40 + int(14.0 * maxf(0.0, 1.0 - t / 0.25)) if lit else 40   # a pop as it lights
+		var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+		var pos := Vector2(v.x * float(p[2]) - w / 2.0, y + size * 0.35)
+		if _tut_fizzle >= 0.0:
+			pos.y -= 30.0 * _tut_fizzle   # drifting up as they fizzle
+		if lit:
+			var red: Color = MainMenu.TITLE_TEXT_RED
+			for i in 12:   # a glow, as the title's
+				c.draw_string(font, pos + Vector2.RIGHT.rotated(i * TAU / 12.0) * 5.0, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(red, 0.08 * fade))
+			c.draw_string(font, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(red, fade))
+			if _tut_fizzle >= 0.0:   # sparks off it as it goes
+				for i in 3:
+					var a := pos + Vector2(_tut_rng.randf() * w, -_tut_rng.randf() * size)
+					var pts := PackedVector2Array([a])
+					for j in 3:
+						pts.append(pts[-1] + Vector2(_tut_rng.randf_range(-10, 10), _tut_rng.randf_range(-14, -4)))
+					c.draw_polyline(pts, Color(1, 0.4, 0.4, fade), 2.0)
+		else:
+			c.draw_string(font, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(1, 1, 1, 0.3 * fade))
