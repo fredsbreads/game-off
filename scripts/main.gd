@@ -118,6 +118,7 @@ const FINISHER_QUICK_BOLT_FPS := 12.0
 const FINISHER_QUICK_AFTER := 0.1
 const FINISHER_QUICK_SWEEP := 0.35
 const FINISHER_QUICK_HOLD := 0.2
+var _streak_shown := 0   # the flawless streak on screen (held through a finisher)
 var _finished_before := false   # the whole finisher has played once this run
 var _fin_hop := FINISHER_HOP
 var _fin_strike_fps := FINISHER_STRIKE_FPS
@@ -728,7 +729,11 @@ func _physics_process(delta: float) -> void:
 	# The real top-left of the view (a zoom can pan it left of cam.left()).
 	level.set_view(minf(cam.left(), cam.position.x), cam.shown_world_size())
 	hud.set_stats(score(), distance, kills, chain, 0.0)
-	hud.set_streak(sweep)   # the flawless streak so far
+	# The flawless streak so far; a streak finisher's or the power-up finale's
+	# kill counts on it once that's over.
+	if not (_finishing or _finale_hold):
+		_streak_shown = sweep
+	hud.set_streak(_streak_shown)
 	if _auto or _finale_hold:
 		# The power-up playing: its bolt stays full until the finale's strike.
 		hud.set_charge(CHARGE_FULL, CHARGE_FULL, true, Palette.pink >= 1.0)

@@ -18,15 +18,15 @@ const FONT := preload("res://assets/fonts/RussoOne-Regular.ttf")
 # The blade.
 const BLADE := Vector2(330, 16)
 const TIP := 24.0            # the point (kissaki): pixels at the end where the edge sweeps up to the spine
-# The whole sword (grip and blade) lies on one gentle arc, lowest just past
-# the guard: the grip rises a little behind it, the blade more toward the tip.
+# The grip is straight and level; the blade leaves the guard level too and
+# curves gently up from there to the tip.
 const SORI := 16.0           # how far the tip rises (pixels)
-const ARC_LOW := 20.0        # where the arc is lowest (pixels along the blade)
 const TAPER := 0.15          # the blade narrows this much (of its width) from the guard to the point
 const STEEL := Color(0.92, 0.94, 1.0, 0.95)       # counted
 const PENDING := Color(0.6, 0.62, 0.68, 0.8)      # this chain's kills, not yet counted
 const EMPTY := Color(0.55, 0.6, 0.7, 0.16)
 const BONUS := Color(1.0, 0.85, 0.3)              # PERFECT's extra half, growing in
+const READY := Color(1.0, 0.82, 0.3)              # this chain's kills, once they'd fill it (a level-up coming)
 const CRUMBLE := Color(0.62, 0.64, 0.7)           # a dropped chain's lost half, breaking off
 const CRUMBLE_PIECE := 9.0
 const CRUMBLE_FALL := 20.0
@@ -37,7 +37,7 @@ const RESULT_HOLD := 0.2
 
 # The hilt, left of the blade: a pale gold collar (habaki), a thin black
 # guard seen edge-on (tsuba), the grip (tsuka, about a third of the whole):
-# black wrap crossing over yellow, so yellow diamonds show between, and a
+# yellow wrap crossing over black, so black diamonds show between, and a
 # dark cap at its end (kashira).
 const HABAKI := 12.0
 const HABAKI_COLOUR := Color(0.92, 0.84, 0.58)
@@ -61,10 +61,9 @@ const LEVEL_UP_FLASH := 0.45   # seconds the whole blade stays lit before draini
 # The power-up bolt, left of the level.
 const BOLT_SIZE := Vector2(36, 54)
 const BOLT_POINTS := [Vector2(23, 0), Vector2(2, 31), Vector2(16, 31), Vector2(10, 54), Vector2(34, 20), Vector2(20, 20), Vector2(28, 0)]
-# Space between the pieces (pixels): bolt | LV | hilt ... tip | FLAWLESS.
-const GAP_BOLT := 40.0
+# Space between the level and the hilt (pixels). The bolt and the streak are
+# placed by hud.gd, out toward the screen's edges (bolt_x, streak_x).
 const GAP_LEVEL := 22.0
-const GAP_STREAK := 44.0
 const LEVEL_SIZE := 24
 const CHARGE_COLOR := Color(0.95, 0.15, 0.2)   # her red (her colour once she has it: Palette.tint)
 
@@ -76,6 +75,10 @@ const POP_TIME := 0.18
 const BREAK_TIME := 0.6
 
 var level := 1
+## Where the bolt (its left) and the streak (its left) go, in this control's
+## coordinates (set by hud.gd).
+var bolt_x := -400.0
+var streak_x := 400.0
 var _bar := 0.0
 var _size := 1.0
 var _pending := 0.0
@@ -89,13 +92,14 @@ var _latest_level := 1      # the real level (shown once a chain's result is don
 var _level_up := -1.0       # seconds into the level-up (-1 = none)
 var _bits: Array = []       # [pos, vel, life, max_life, colour]: sparks off the blade
 var _edge_timer := 0.0
+var _blade_arcs: Array[PackedVector2Array] = []   # lightning on the katana (level-up / about to)
 
 var _charge := 0.0
 var _charged := false
 var _charge_pop := 0.0
 ## Golden (she has her reward colour): her PERFECT chains charge double
 ## (main.gd CHARGE_GOLDEN_PERFECT). The bolt shows it: gold glow and rim,
-## gold sparks rising, an "x2" badge, and a bigger pop with a ring per gain.
+## gold sparks rising, and a bigger pop with a ring per gain.
 var _boosted := false
 var _discharge := 0.0   # 1 as a full bolt empties (the power-up used), fading
 var _boost_ring := 0.0
@@ -158,6 +162,7 @@ func _process(delta: float) -> void:
 	if _arc_timer <= 0.0:
 		_arc_timer = 0.06
 		_strike_arcs()
+		_strike_blade_arcs()
 	queue_redraw()
 
 
@@ -229,6 +234,49 @@ func _start_level_up() -> void:
 		_bits.append([p, v, life, life, Color(1, 0.95, 0.7) if i % 3 == 0 else Color.WHITE])
 
 
+## True while this chain's kills (not counted yet) would fill the blade:
+## finishing the chain levels up.
+func _will_level() -> bool:
+	return _result.is_empty() and _level_up < 0.0 and _pending > 0.0 and _bar + _pending >= _size - 0.001
+
+
+## Lightning on the katana: big bolts all round it through a level-up, small
+## ones crackling along the blade while a level-up is coming.
+func _strike_blade_arcs() -> void:
+	_blade_arcs.clear()
+	var w := BLADE.x
+	if _level_up >= 0.0 and _level_up < LEVEL_UP_TIME * 0.8:
+		for n in 6:
+			var x := _rng.randf_range(0.0, w)
+			var up := _rng.randf() < 0.5
+			var a := Vector2(x, _top(x) if up else _bottom(x))
+			var b := a + Vector2(_rng.randf_range(-40.0, 40.0), _rng.randf_range(-34.0, -14.0) if up else _rng.randf_range(14.0, 34.0))
+			_blade_arcs.append(_zigzag(a, b, 6, 7.0))
+		for n in 2:   # and along it
+			var x0 := _rng.randf_range(0.0, w - 80.0)
+			_blade_arcs.append(_zigzag(Vector2(x0, _centre(x0)), Vector2(x0 + 80.0, _centre(x0 + 80.0)), 8, 6.0))
+	elif _will_level():
+		for n in 2:
+			var x0 := _rng.randf_range(0.0, w - 50.0)
+			var x1 := x0 + _rng.randf_range(30.0, 60.0)
+			_blade_arcs.append(_zigzag(Vector2(x0, _centre(x0)), Vector2(x1, _centre(x1)), 6, 6.0))
+
+
+func _zigzag(a: Vector2, b: Vector2, n: int, jag: float) -> PackedVector2Array:
+	var nrm := (b - a).orthogonal().normalized()
+	var pts := PackedVector2Array()
+	for i in n + 1:
+		var t := float(i) / n
+		pts.append(a.lerp(b, t) + nrm * (0.0 if i == 0 or i == n else _rng.randf_range(-jag, jag)))
+	return pts
+
+
+func _draw_blade_arcs() -> void:
+	for arc in _blade_arcs:
+		draw_polyline(arc, Color(STREAK_GOLD, 0.35), 5.0, true)
+		draw_polyline(arc, Color(1, 0.97, 0.85, 0.95), 1.6, true)
+
+
 ## Sparks off the leading edge of the fill while a chain's kills count.
 func _edge_sparks() -> void:
 	var x := _growing_edge()
@@ -257,13 +305,13 @@ func _growing_edge() -> float:
 
 # --- the blade ---------------------------------------------------------------
 
-## A katana, as drawn here: the whole sword on one gentle arc (sori), the
+## A katana, as drawn here: a level grip, the blade curving up from the guard (sori), the
 ## spine (top, the inside of the curve) running straight on into the point,
 ## the cutting edge (bottom, the outside) sweeping up to meet it there, and
 ## the blade narrowing a little toward the point. x: pixels along the blade
 ## (negative: the hilt).
 func _arc(x: float) -> float:
-	return -SORI * pow((x - ARC_LOW) / (BLADE.x - ARC_LOW), 2.0)
+	return -SORI * pow(maxf(x, 0.0) / BLADE.x, 2.0)   # (0 along the grip: it's level)
 
 
 func _spine(x: float) -> float:
@@ -331,16 +379,19 @@ func _draw_blade() -> void:
 			filled = lerpf(w, filled, ease(k, 0.5))
 		var pending := minf(w * _pending / _size, w - filled)
 		if pending > 0.0:
-			_fill(filled, filled + pending, PENDING)
+			if _will_level():
+				# This chain will level up once it's done: its part glows gold and
+				# pulses, and lightning crackles along the blade (_draw_blade_arcs).
+				var beat := 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.012)
+				_fill(filled, filled + pending, READY.lerp(Color(1, 1, 0.9), 0.35 * beat))
+			else:
+				_fill(filled, filled + pending, PENDING)
 		if filled > 0.0:
 			_fill(0.0, filled, STEEL)
 			if _level_up < 0.0 and filled / w >= NEAR_FULL:
-				# Nearly there: a shimmer in her colour runs along the steel.
-				var col := Palette.tint(CHARGE_COLOR)
-				var beat := 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.008)
-				_fill(0.0, filled, Color(col, 0.18 + 0.17 * beat))
+				# Nearly there: a glint keeps running along the steel.
 				var g := fmod(Time.get_ticks_msec() * 0.0009, 1.0) * (filled + 60.0) - 30.0
-				_fill(g - 18.0, g + 18.0, Color(1, 1, 1, 0.45))
+				_fill(maxf(g - 18.0, 0.0), minf(g + 18.0, filled), Color(1, 1, 1, 0.55))
 		if _gleam >= 0.0 and filled > 0.0:
 			# A shine sweeping out along what's filled.
 			var gx := lerpf(-20.0, filled + 20.0, ease(_gleam, 0.6))
@@ -359,7 +410,10 @@ func _draw_blade() -> void:
 	outline.append(outline[0])
 	if _level_up >= 0.0:
 		var glow := 1.0 - clampf(_level_up / LEVEL_UP_TIME, 0.0, 1.0)
-		draw_polyline(outline, Color(Palette.tint(CHARGE_COLOR), 0.5 * glow), 10.0 * glow + 2.0, true)
+		draw_polyline(outline, Color(STREAK_GOLD, 0.55 * glow), 10.0 * glow + 2.0, true)
+	elif _will_level():
+		var beat := 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.012)
+		draw_polyline(outline, Color(STREAK_GOLD, 0.25 + 0.3 * beat), 5.0 + 3.0 * beat, true)
 	if _pulse > 0.0:
 		draw_polyline(outline, Color(1, 1, 1, 0.35 * _pulse), 6.0 * _pulse + 2.0, true)
 	draw_polyline(outline, Color(1, 1, 1, 0.4 + 0.6 * _pulse), 1.5, true)
@@ -422,8 +476,8 @@ func _draw_hilt() -> void:
 	var guard_x := -HABAKI - TSUBA.x
 	var grip0 := guard_x - TSUKA
 	var h := BLADE.y + 3.0
-	# The grip: yellow under, black wrap crossing over (yellow diamonds between).
-	draw_colored_polygon(_band(grip0, guard_x, h), HILT_YELLOW)
+	# The grip: black under, yellow wrap crossing over (black diamonds between).
+	draw_colored_polygon(_band(grip0, guard_x, h), HILT_BLACK)
 	var x := grip0
 	while x < guard_x - 0.1:
 		var x1 := minf(x + WRAP_STEP, guard_x)
@@ -432,9 +486,9 @@ func _draw_hilt() -> void:
 		var c1 := _centre(x1)
 		var cm := _centre(xm)
 		# A black band crossing from each corner to the middle, top and bottom.
-		# (They meet in the middle, so the yellow left between is a row of solid diamonds.)
-		draw_colored_polygon(PackedVector2Array([Vector2(x, c0 - h / 2.0), Vector2(x1, c1 - h / 2.0), Vector2(xm, cm + 0.5)]), HILT_BLACK)
-		draw_colored_polygon(PackedVector2Array([Vector2(x, c0 + h / 2.0), Vector2(x1, c1 + h / 2.0), Vector2(xm, cm - 0.5)]), HILT_BLACK)
+		# (They meet in the middle, so the black left between is a row of solid diamonds.)
+		draw_colored_polygon(PackedVector2Array([Vector2(x, c0 - h / 2.0), Vector2(x1, c1 - h / 2.0), Vector2(xm, cm + 0.5)]), HILT_YELLOW)
+		draw_colored_polygon(PackedVector2Array([Vector2(x, c0 + h / 2.0), Vector2(x1, c1 + h / 2.0), Vector2(xm, cm - 0.5)]), HILT_YELLOW)
 		x = x1
 	var outline := _band(grip0, guard_x, h)
 	outline.append(outline[0])
@@ -459,8 +513,7 @@ func _hilt_left() -> float:
 # --- the power-up bolt -------------------------------------------------------
 
 func _bolt_origin() -> Vector2:
-	var lv_w := FONT.get_string_size(_level_text(), HORIZONTAL_ALIGNMENT_LEFT, -1, LEVEL_SIZE).x
-	return Vector2(_hilt_left() - GAP_LEVEL - lv_w - GAP_BOLT - BOLT_SIZE.x, BLADE.y / 2.0 - BOLT_SIZE.y / 2.0)
+	return Vector2(bolt_x, BLADE.y / 2.0 - BOLT_SIZE.y / 2.0)
 
 
 func _bolt_poly(o: Vector2, scale_by := 1.0) -> PackedVector2Array:
@@ -534,13 +587,6 @@ func _draw_boost_front(o: Vector2) -> void:
 	for sp in _sparks:   # gold sparks rising off it
 		var a: float = clampf(sp[2] / 0.3, 0.0, 1.0)
 		draw_rect(Rect2(sp[0] - Vector2(1.5, 1.5), Vector2(3, 3)), Color(gold.lightened(0.3), a))
-	# The badge: double charge.
-	var beat := 1.0 + 0.08 * sin(Time.get_ticks_msec() * 0.009) + 0.25 * _charge_pop
-	var at := o + Vector2(BOLT_SIZE.x - 2.0, 6.0)
-	draw_set_transform(at, -0.12, Vector2.ONE * beat)
-	draw_string_outline(FONT, Vector2(0, 0), "x2", HORIZONTAL_ALIGNMENT_LEFT, -1, 18, 5, Color(0.12, 0.07, 0.0, 0.9))
-	draw_string(FONT, Vector2(0, 0), "x2", HORIZONTAL_ALIGNMENT_LEFT, -1, 18, gold)
-	draw_set_transform(Vector2.ZERO)
 
 
 func _draw_bolt() -> void:
@@ -605,7 +651,7 @@ func _streak_colour(n: int) -> Color:
 
 
 func _draw_streak() -> void:
-	var x := BLADE.x + GAP_STREAK
+	var x := streak_x
 	var mid := BLADE.y / 2.0
 	var cap_col := _streak_colour(_streak)
 	draw_string(FONT, Vector2(x, mid - 15.0), "FLAWLESS", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(cap_col, 0.65))
@@ -639,9 +685,12 @@ func _draw_streak() -> void:
 
 # --- all of it ---------------------------------------------------------------
 
-## How far it reaches left and right of its origin (for centring it).
+## How far the level and the katana reach left and right of its origin
+## (hud.gd centres them, and places the bolt and the streak out toward the
+## screen's edges: bolt_x, streak_x).
 func extent() -> Vector2:
-	return Vector2(_bolt_origin().x, BLADE.x + GAP_STREAK + 80.0)
+	var lv_w := FONT.get_string_size(_level_text(), HORIZONTAL_ALIGNMENT_LEFT, -1, LEVEL_SIZE).x
+	return Vector2(_hilt_left() - GAP_LEVEL - lv_w, BLADE.x)
 
 
 func _level_text() -> String:
@@ -665,6 +714,7 @@ func _draw() -> void:
 	draw_set_transform(c * (1.0 - sc), 0.0, Vector2.ONE * sc)
 	_draw_hilt()
 	_draw_blade()
+	_draw_blade_arcs()
 	draw_set_transform(Vector2.ZERO)
 	for b in _bits:
 		var a: float = b[2] / b[3]

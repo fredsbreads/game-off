@@ -166,16 +166,21 @@ run upside down.
   power-up meter as a lightning bolt that fills from the bottom and crackles
   once it's full, stays full while the power-up plays, and empties with a
   white flash at its finale's strike (while she's golden, PERFECT chains charge double: the bolt
-  glows gold with a gold rim, gold sparks rise off it, an "x2" badge sits on
-  it, and each gain pops bigger with a gold ring); the level; the level bar as a katana (the whole sword on one gentle
-  arc, grip rising behind the guard and blade toward the tip; a black wrap
-  over a yellow grip showing yellow diamonds, a black guard edge-on, a pale
-  gold collar, a temper line along the blade) whose blade fills from the guard
+  glows gold with a gold rim, gold sparks rise off it, and each gain pops
+  bigger with a gold ring); the level; the level bar as a katana (a straight, level grip: yellow
+  wrap over black, black diamonds between; a black guard edge-on, a pale
+  gold collar; the blade curving gently up from the guard, a temper line
+  along it) whose blade fills from the guard
   to the tip (grey: this chain's kills so far; gold: PERFECT's bonus growing
   in, sparks off its edge; grey pieces breaking off: a dropped chain's lost
-  half; a shine sweeps it as a chain is added; it shimmers in her colour
-  once 80% full; a level-up flashes it white, swells it, bursts sparks off it
-  and pops the level in gold before the blade drains to the new level);
+  half; a shine sweeps it as a chain is added; a glint runs along it once
+  80% full; once this chain's kills would fill it, they glow pulsing gold
+  and lightning crackles along the blade (finishing the chain levels up);
+  a level-up flashes it white, swells it, wraps it in lightning, bursts
+  sparks off it and pops the level in gold before the blade drains to the
+  new level). The bolt sits out toward the left edge and the streak toward
+  the right, the level and katana centred between them. A streak finisher's
+  or the power-up finale's kill counts on the streak once that's over;
   and the Flawless Streak, which pops with every kill (bigger, with a ring, at
   10, 25, 50 and every 25 after), turns gold at 50 and shatters in red when
   it breaks.

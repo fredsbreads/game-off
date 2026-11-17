@@ -241,8 +241,15 @@ func set_progress(level: int, bar: float, bar_size: float, pending: int, ceiling
 	_top.visible = not menu.visible   # (hidden behind the title screen)
 	_top.set_progress(level, bar, bar_size, pending)
 	var view := get_viewport().get_visible_rect().size
+	# The bolt and the streak out toward the edges; the level and the katana
+	# centred between them.
+	var bolt_left := view.x * 0.09
+	var streak_left := view.x - 200.0
+	var mid := (bolt_left + TopBar.BOLT_SIZE.x + streak_left) / 2.0
 	var ext := _top.extent()
-	_top.position = Vector2((view.x - (ext.y - ext.x)) / 2.0 - ext.x, maxf(ceiling_y * 0.5, 34.0) - TopBar.BLADE.y / 2.0)
+	_top.position = Vector2(mid - (ext.x + ext.y) / 2.0, maxf(ceiling_y * 0.5, 34.0) - TopBar.BLADE.y / 2.0)
+	_top.bolt_x = bolt_left - _top.position.x
+	_top.streak_x = streak_left - _top.position.x
 
 
 ## The power-up meter: value out of full; charged = full and ready.
