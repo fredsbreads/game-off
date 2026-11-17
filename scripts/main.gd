@@ -22,7 +22,7 @@ const START_LEVELS := [1, 5, 10, 15]
 static var _session_start_level := 1
 ## The tutorial (see _start_tutorial), once per session: no enemies until she has
 ## done each move once (Tap Left, Tap Right, Tap Both); then the first enemy
-## comes in twice as far off as at the start of a run (2 x Level.RUNWAY_TILES ahead of her).
+## comes in a screen's width ahead of her (CameraRig.VIEW_TILES: just past the right edge).
 var _tutorial := false
 var _tutorial_moves := {}
 static var _tutorial_seen := false   # done this session (not saved: a new visit shows it again)
@@ -427,7 +427,7 @@ func _tutorial_move(move: int) -> void:
 	# The game starts: the first enemy a little past the right edge.
 	level.spawn_hold = false
 	# (From her, not the camera: right after a teleport it hasn't caught up.)
-	level.push_cursor(player.x + Level.RUNWAY_TILES * 2.0)   # (twice the run-up at the start of a run: a breather after it)
+	level.push_cursor(player.x + CameraRig.VIEW_TILES)   # (a screen's width ahead of her: just past the right edge)
 	level.ensure_generated(player.x)
 
 
