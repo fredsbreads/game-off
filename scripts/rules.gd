@@ -85,6 +85,14 @@ static func in_kill_zone(move: int, enemy_x: float, landing_x: float) -> bool:
 	return d > -zone.x and d < zone.y
 
 
+## A knight she's fighting at dx tiles from her (knight - her) is within her
+## reach: a forward or diagonal teleport could still hit her (up to her far
+## kill-zone edge), or she's at most FORWARD behind. That knight strikes when
+## the freeze runs out, or as soon as she's running.
+static func knight_in_reach(dx: float) -> bool:
+	return dx >= -FORWARD and dx < FORWARD + kill_zone(Move.FORWARD).y
+
+
 ## True if the player is straight across from a knight (at knight_x in
 ## knight_row): the player's across teleport would hit the knight.
 static func knight_across(knight_x: float, knight_row: int, x: float, row: int) -> bool:

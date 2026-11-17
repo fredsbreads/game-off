@@ -1216,7 +1216,7 @@ func _pouncing_knight(run_from: float) -> Knight:
 		var k := e as Knight
 		if k == null or not k.alive:
 			continue
-		if k.engaged and absf(k.tile_x - player.x) <= Rules.FORWARD:
+		if k.engaged and Rules.knight_in_reach(k.tile_x - player.x):
 			return k
 		if Rules.knight_runs_past(k.tile_x, k.row, run_from, player.x, player.row):
 			return k
@@ -1242,7 +1242,7 @@ func _strikers(run_from := NAN) -> Array[Knight]:
 		var k := e as Knight
 		if k == null or not k.alive:
 			continue
-		var fighting := k.engaged and absf(k.tile_x - player.x) <= Rules.FORWARD
+		var fighting := k.engaged and Rules.knight_in_reach(k.tile_x - player.x)
 		var passed := not is_nan(run_from) and Rules.knight_runs_past(k.tile_x, k.row, run_from, player.x, player.row)
 		if fighting or passed or Rules.knight_across(k.tile_x, k.row, player.x, player.row):
 			found.append(k)

@@ -172,7 +172,7 @@ static func knight_pounces(enemies: Array[Vector2], mask: int, from_x: float, x:
 			continue
 		var e := enemies[i]
 		var engaged := i > 0 and int(knights[i - 1]) == g
-		if engaged and absf(e.x - x) <= Rules.FORWARD:
+		if engaged and Rules.knight_in_reach(e.x - x):
 			return i
 		if Rules.knight_runs_past(e.x, int(e.y), from_x, x, row):
 			return i
