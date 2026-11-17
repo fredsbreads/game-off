@@ -106,7 +106,7 @@ const SHAKE_SCALE := 0.5
 
 func shake(duration: float, strength: float) -> void:
 	_shake_time = maxf(_shake_time, duration)
-	_shake_strength = maxf(_shake_strength, strength * SHAKE_SCALE)
+	_shake_strength = maxf(_shake_strength, strength * SHAKE_SCALE * Settings.shake)   # (the Screen shake option)
 
 
 func _punch_amount() -> float:

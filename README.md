@@ -23,6 +23,15 @@ The original single-row short/long version is kept on the `short-long-version` b
 Pause with `P` / `Esc` or the button in the top-right corner; any key or tap resumes.
 The game also pauses itself when the window or app loses focus.
 
+Options: the **Options** button on the start screen and the pause screen
+(or `O`): her flawless colour (or the default), music and sound-effect
+volume, screen shake, soft screen flashes, and reset to defaults. Tap a
+value's left part to step back, anywhere else on the row to step on; keys:
+Up/Down pick, Left/Right change, Esc goes back. Saved at once
+(`user://save.cfg`; in a browser that's the browser's storage for the site,
+so it lasts until the player clears it). See `scripts/settings.gd` and
+`scripts/options_menu.gd`.
+
 Practice mode: `N` (or the "Enemies" button on the pause screen) removes
 every enemy so you can play around with the teleports. Press again and they
 spawn again just off screen. It stays on across retries.
@@ -183,7 +192,7 @@ run upside down.
   `CHARGE_*`, `_auto_*` in `scripts/main.gd`.
 - **Her reward colour** is one setting: `COLOUR` at the top of
   `scripts/palette.gd` (default `"yellow"`; every name is in `COLOURS`
-  there). The pause screen's **Color** button steps through them (saved);
+  there). The player can pick another on the Options screen (saved);
   on a keyboard, **C** does too and shows the name (off with `CYCLE_KEY`).
 - **Screen shake** is scaled down globally by `SHAKE_SCALE` (0.5) in
   `scripts/camera_rig.gd` (1 = every shake as tuned).
@@ -270,6 +279,8 @@ scripts/
   camera_rig.gd         follow with fast catch-up after teleports, screen shake
   fx.gd                 trails, rings, slashes, particles, floating text
   hud.gd                progression bar, messages, rotate-device overlay, flash
+  settings.gd           the player's options, saved; the Music / SFX audio buses
+  options_menu.gd       the Options screen
   debug_tools.gd        bot / soak test / screenshots (only with command-line args)
 tools/validate_patterns.gd
 ```

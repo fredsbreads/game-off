@@ -231,6 +231,7 @@ func _ready() -> void:
 	for node in [level, fx, cam, freeze_effect, $EnemyLayer, $PlayerLayer]:
 		node.process_mode = Node.PROCESS_MODE_PAUSABLE
 	hud.process_mode = Node.PROCESS_MODE_ALWAYS
+	Settings.load_all()   # the player's options (and the Music / SFX buses)
 	_kill_sound = AudioStreamPlayer.new()
 	_kill_sound.stream = preload("res://assets/sounds/saber_cut.ogg")
 	_kill_sound.max_polyphony = 6   # chained kills overlap
@@ -294,6 +295,10 @@ func _ready() -> void:
 	_warn_sound = AudioStreamPlayer.new()
 	_warn_sound.stream = preload("res://assets/sounds/knight_warn.ogg")
 	add_child(_warn_sound)
+	for c in get_children():   # every sound effect follows the Sound effects volume
+		if c is AudioStreamPlayer:
+			(c as AudioStreamPlayer).bus = "SFX"
+	hud.options.changed.connect(_on_option_changed)
 	if not OS.get_cmdline_user_args().is_empty():
 		debug = DebugTools.new()
 		debug.main = self
@@ -301,7 +306,6 @@ func _ready() -> void:
 	if LEVEL_CHOICE and progression.level == 1:   # (not set by the debug --level option)
 		progression.level = _load_setting("start_level", 1)
 		level.level = progression.level
-	Palette.use_colour(_load_colour())   # the one picked last (pause screen / C), else COLOUR
 	Palette.set_pink(0.0)   # every run starts red (her colour is the streak reward)
 	player.x = START_X
 	level.start_x = START_X
@@ -336,6 +340,7 @@ func _ready() -> void:
 	cam.snap(player.x)
 	best_score = _load_best()
 	hud.show_start(best_score)
+	hud.set_options_button_visible(true)
 	_prewarm()
 	if LEVEL_CHOICE:
 		hud.show_level_choice(progression.level)
@@ -360,18 +365,24 @@ func _unhandled_input(event: InputEvent) -> void:
 	# Only real new presses do anything: no key repeats, no fake click after a tap.
 	if not _is_fresh_press(event):
 		return
+	# The Options screen, while it's open, takes every press.
+	if hud.options.visible:
+		get_viewport().set_input_as_handled()
+		if event is InputEventKey or event is InputEventScreenTouch or event is InputEventMouseButton:
+			hud.options.handle(event, Vector2.ZERO if event is InputEventKey else _screen_pos(event))
+		return
+	if (get_tree().paused or state == State.READY) and _is_options_press(event):
+		get_viewport().set_input_as_handled()
+		if state == State.READY:
+			_start_music()   # (so its volume can be heard while it's set)
+		hud.options.open()
+		return
 	if get_tree().paused:
 		# The "Flip screen" button (upright phones) turns the game 180 degrees.
 		var tap: bool = (event is InputEventScreenTouch or event is InputEventMouseButton) and event.pressed
 		if tap and hud.flip_button_contains(_screen_pos(event)):
 			get_viewport().set_input_as_handled()
 			JavaScriptBridge.eval("window.redFlashSetFlip(!window.redFlashFlip)", true)
-			return
-		if tap and hud.colour_button_contains(_screen_pos(event)):
-			get_viewport().set_input_as_handled()
-			Palette.next_colour()
-			_save_colour()
-			hud.refresh_colour_button()
 			return
 		if (tap and hud.enemies_button_contains(_screen_pos(event))) or _is_enemies_key(event):
 			get_viewport().set_input_as_handled()
@@ -425,6 +436,22 @@ func _unhandled_input(event: InputEvent) -> void:
 		State.OVER:
 			if _state_time >= RETRY_DELAY:
 				get_tree().reload_current_scene()
+
+
+## The Options button (start screen, pause screen), or the O key.
+func _is_options_press(event: InputEvent) -> bool:
+	if event is InputEventKey:
+		return event.pressed and event.physical_keycode == KEY_O
+	var touch: bool = event is InputEventScreenTouch and event.pressed
+	var click: bool = event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT
+	return (touch or click) and hud.options_button_contains(_screen_pos(event))
+
+
+## An option changed on the Options screen: a sound previews the new
+## sound-effects volume.
+func _on_option_changed(key: String) -> void:
+	if key == "sfx" or key == "reset":
+		_perfect_sound.play()
 
 
 func _set_paused(value: bool) -> void:
@@ -1037,8 +1064,8 @@ func _finisher_level_up(grade: String) -> void:
 ## in Palette.COLOURS (shown at once, at any level, with its name).
 func _cycle_colour() -> void:
 	var name := Palette.next_colour()
-	_save_colour()
-	hud.refresh_colour_button()
+	Settings.colour = name
+	Settings.save_all()
 	Palette.set_pink(1.0)
 	var above := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row) - Rules.TILE * 1.8)
 	if player.row == Rules.Row.CEILING:
@@ -1858,21 +1885,10 @@ func _start_music() -> void:
 		music.stream = stream
 		music.volume_db = MUSIC_DB
 		music.process_mode = Node.PROCESS_MODE_ALWAYS
+		music.bus = "Music"   # (the Music volume)
 		get_tree().root.add_child(music)
 	if not music.playing:
 		music.play()
-
-
-## Her level-10 colour (picked on the pause screen) is kept between visits.
-func _save_colour() -> void:
-	var cfg := ConfigFile.new()
-	cfg.load(SAVE_PATH)
-	cfg.set_value("settings", "colour", Palette.colour_name)
-	cfg.save(SAVE_PATH)
-
-
-func _load_colour() -> String:
-	return String(_load_setting("colour", Palette.colour_name))
 
 
 func _load_setting(key: String, default: Variant) -> Variant:

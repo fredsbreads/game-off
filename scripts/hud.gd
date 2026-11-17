@@ -50,8 +50,11 @@ const FLIP_BUTTON_SIZE := Vector2(300, 64)
 # Practice mode toggle on the pause screen (N on a keyboard), plus a small
 # note in the corner while enemies are off.
 var _enemies_button: Control
-# Her level-10 colour (Palette), stepped through on the pause screen.
-var _colour_button: Control
+# Opens the Options screen (on the start screen and the pause screen).
+var _options_button: Control
+var _on_pause_screen := false
+## The Options screen itself (main.gd passes it presses while it's open).
+var options: OptionsMenu
 # The start screen's "Start at level" choice (1 or 5).
 var _level_button: Control
 var _start_level := 1
@@ -172,12 +175,12 @@ func _ready() -> void:
 	_enemies_button.visible = false
 	_enemies_button.draw.connect(_draw_enemies_button)
 	add_child(_enemies_button)
-	_colour_button = Control.new()
-	_colour_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_colour_button.size = FLIP_BUTTON_SIZE
-	_colour_button.visible = false
-	_colour_button.draw.connect(_draw_colour_button)
-	add_child(_colour_button)
+	_options_button = Control.new()
+	_options_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_options_button.size = FLIP_BUTTON_SIZE
+	_options_button.visible = false
+	_options_button.draw.connect(_draw_options_button)
+	add_child(_options_button)
 	_level_button = Control.new()
 	_level_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_level_button.size = FLIP_BUTTON_SIZE
@@ -188,6 +191,9 @@ func _ready() -> void:
 	_enemies_off_label.text = "NO ENEMIES (N)"
 	_enemies_off_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.6))
 	_enemies_off_label.visible = false
+
+	options = OptionsMenu.new()
+	add_child(options)   # over everything but the "turn your phone" screen
 
 	_rotate = _rect(Color(0.05, 0.05, 0.07, 1))
 	_rotate.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -232,8 +238,8 @@ func _process(delta: float) -> void:
 	# The pause screen's buttons, side by side under the message (so they fit
 	# on an upright phone too).
 	var shown: Array[Control] = []
-	for b in [_flip_button, _enemies_button, _colour_button]:
-		if b.visible:
+	for b in [_flip_button, _enemies_button, _options_button]:
+		if b.visible and _on_pause_screen:
 			shown.append(b)
 	var gap := 16.0
 	var row := shown.size() * FLIP_BUTTON_SIZE.x + maxf(shown.size() - 1, 0) * gap
@@ -242,6 +248,8 @@ func _process(delta: float) -> void:
 		b.position = Vector2(x, view.y * 0.5 + 55.0)
 		x += FLIP_BUTTON_SIZE.x + gap
 	_level_button.position = Vector2((view.x - FLIP_BUTTON_SIZE.x) / 2.0, view.y * 0.5 + 55.0)
+	if not _on_pause_screen:   # the start screen: under the level choice (if it's there)
+		_options_button.position = _level_button.position + Vector2(0, (FLIP_BUTTON_SIZE.y + 14.0) if _level_button.visible else 0.0)
 
 
 ## True on a phone/tablet held sideways in the browser: play is upright there.
@@ -477,8 +485,8 @@ func show_paused(paused: bool, can_flip: bool = false) -> void:
 	_pause_button.visible = not paused
 	_flip_button.visible = paused and can_flip
 	_enemies_button.visible = paused
-	_colour_button.visible = paused
-	_colour_button.queue_redraw()
+	_on_pause_screen = paused
+	_options_button.visible = paused
 	if paused:
 		_message_before_pause = _message.text
 		_message_visible_before_pause = _message.visible
@@ -510,26 +518,24 @@ func _draw_enemies_button() -> void:
 	_enemies_button.draw_string(font, Vector2((s.x - w) / 2.0, s.y / 2.0 + size * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color.WHITE)
 
 
-func colour_button_contains(pos: Vector2) -> bool:
-	return _colour_button.visible and _colour_button.get_rect().grow(10.0).has_point(pos)
+func options_button_contains(pos: Vector2) -> bool:
+	return _options_button.visible and not options.visible and _options_button.get_rect().grow(10.0).has_point(pos)
 
 
-func refresh_colour_button() -> void:
-	_colour_button.queue_redraw()
+## The start screen's Options button (shown with the start message).
+func set_options_button_visible(value: bool) -> void:
+	_options_button.visible = value
 
 
-func _draw_colour_button() -> void:
+func _draw_options_button() -> void:
 	var s := FLIP_BUTTON_SIZE
-	_colour_button.draw_rect(Rect2(Vector2.ZERO, s), Color(1, 1, 1, 0.12))
-	_colour_button.draw_rect(Rect2(Vector2.ZERO, s), Color(1, 1, 1, 0.7), false, 2.0)
-	var sw := Rect2(Vector2(16, 14), Vector2(36, s.y - 28))
-	_colour_button.draw_rect(sw, Palette.swatch())
+	_options_button.draw_rect(Rect2(Vector2.ZERO, s), Color(1, 1, 1, 0.12))
+	_options_button.draw_rect(Rect2(Vector2.ZERO, s), Color(1, 1, 1, 0.7), false, 2.0)
 	var font := ThemeDB.fallback_font
-	var text := "Color: " + Palette.colour_name.capitalize()
-	var size := 24
+	var text := "Options (O)"
+	var size := 26
 	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
-	var left := sw.end.x + 10.0
-	_colour_button.draw_string(font, Vector2(left + (s.x - left - w) / 2.0, s.y / 2.0 + size * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color.WHITE)
+	_options_button.draw_string(font, Vector2((s.x - w) / 2.0, s.y / 2.0 + size * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color.WHITE)
 
 
 func flip_button_contains(pos: Vector2) -> bool:
@@ -559,6 +565,7 @@ func _draw_pause_button() -> void:
 func hide_message() -> void:
 	_message.visible = false
 	_level_button.visible = false
+	_options_button.visible = false
 
 
 ## The colour-change wave at screen x `x` (0..1, right to left), in
@@ -591,6 +598,7 @@ func flash(color: Color, duration: float) -> void:
 	if _flash_tween:
 		_flash_tween.kill()
 	_flash.color = color
+	_flash.color.a *= Settings.flashes   # the Screen flashes option
 	_flash_tween = create_tween()
 	_flash_tween.tween_property(_flash, "color:a", 0.0, duration)
 
