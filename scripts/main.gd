@@ -155,7 +155,7 @@ const AUTO_GAP_TILES := 12.0    # extra empty run after an auto-chain
 const AUTO_FINALE_FREEZE := 0.3  # (no last enemy to slash: the last kill holds this long, crackling, before the big strike)
 const AUTO_FINALE_CRACKLE := 0.05 # ...a crackle of lightning on her this often while it holds
 const NINJA_ALERT_PITCH := 1.35  # his alert: the knight's swish, higher and sharper
-const AUTO_SLASH_HOP := 0.2      # the finish's three slashes (the streak finisher's, at full speed): seconds between them
+const AUTO_SLASH_HOP := 0.2      # the finish's slashes (three; five when golden): seconds between them
 const AUTO_SLASH_TO_BANG := 0.2  # ...and from the third to the big strike
 const AUTO_FINALE_IMPACT := 0.14  # the big strike lands on a frozen, white-hot frame this long
 const AUTO_FINALE_DUCK_DB := -22.0 # the music drops by this through the hold (silence before the bang)
@@ -1374,7 +1374,8 @@ func _auto_finale(grade: String) -> void:
 	if not is_instance_valid(k):
 		get_tree().create_timer(AUTO_FINALE_FREEZE, false).timeout.connect(_auto_finale_strike.bind(grade, null))
 		return
-	# The three slashes of the streak finisher, at full speed: her hit has
+	# The three slashes of the streak finisher, at full speed (five when she's
+	# golden): her hit has
 	# landed (pose one, left of the enemy), she blinks to his other side, then
 	# back; he stays standing through them and falls with the big strike.
 	_finale_slashing = true
@@ -1392,10 +1393,16 @@ func _auto_finale(grade: String) -> void:
 			poses.append(p)
 	cam.hold_zoom(Vector2(k.tile_x * Rules.TILE, Rules.body_center_y(k.row)), AUTO_FINALE_ZOOM, 16.0, 0.5)
 	var t := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_STOP)   # (stops while paused)
-	t.tween_interval(AUTO_SLASH_HOP)
-	t.tween_callback(_auto_slash.bind(k, right_x, -1.0, poses[0]))
-	t.tween_interval(AUTO_SLASH_HOP)
-	t.tween_callback(_auto_slash.bind(k, left_x, 1.0, poses[1]))
+	# Golden: five slashes instead of three (two more blinks across him).
+	var order: Array = [poses[0], poses[1]]
+	if Palette.pink >= 1.0:
+		order += [player.last_pose(), poses[0]]
+	for i in order.size():
+		t.tween_interval(AUTO_SLASH_HOP)
+		if i % 2 == 0:
+			t.tween_callback(_auto_slash.bind(k, right_x, -1.0, order[i]))
+		else:
+			t.tween_callback(_auto_slash.bind(k, left_x, 1.0, order[i]))
 	t.tween_interval(AUTO_SLASH_TO_BANG)
 	t.tween_callback(_auto_finale_strike.bind(grade, k))
 
