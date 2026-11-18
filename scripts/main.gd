@@ -156,6 +156,7 @@ const AUTO_FINALE_FREEZE := 0.3  # (no last enemy to slash: the last kill holds 
 const AUTO_FINALE_CRACKLE := 0.05 # ...a crackle of lightning on her this often while it holds
 const NINJA_ALERT_PITCH := 1.35  # his alert: the knight's swish, higher and sharper
 const AUTO_SLASH_HOP := 0.2      # the finish's slashes (three; five when golden): seconds between them
+const AUTO_SLASH_HOP_GOLDEN := 0.15   # ...the golden finish's five, a little quicker
 const AUTO_SLASH_TO_BANG := 0.2  # ...and from the third to the big strike
 const AUTO_FINALE_IMPACT := 0.14  # the big strike lands on a frozen, white-hot frame this long
 const AUTO_FINALE_DUCK_DB := -22.0 # the music drops by this through the hold (silence before the bang)
@@ -1395,21 +1396,24 @@ func _auto_finale(grade: String) -> void:
 	var t := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_STOP)   # (stops while paused)
 	# Golden: five slashes instead of three (two more blinks across him).
 	var order: Array = [poses[0], poses[1]]
+	var hop := AUTO_SLASH_HOP
 	if Palette.pink >= 1.0:
 		order += [player.last_pose(), poses[0]]
+		hop = AUTO_SLASH_HOP_GOLDEN
+	player.hold_slash(hop)
 	for i in order.size():
-		t.tween_interval(AUTO_SLASH_HOP)
+		t.tween_interval(hop)
 		if i % 2 == 0:
-			t.tween_callback(_auto_slash.bind(k, right_x, -1.0, order[i]))
+			t.tween_callback(_auto_slash.bind(k, right_x, -1.0, order[i], hop))
 		else:
-			t.tween_callback(_auto_slash.bind(k, left_x, 1.0, order[i]))
+			t.tween_callback(_auto_slash.bind(k, left_x, 1.0, order[i], hop))
 	t.tween_interval(AUTO_SLASH_TO_BANG)
 	t.tween_callback(_auto_finale_strike.bind(grade, k))
 
 
 ## One of the finish's blinks: to to_x, facing `face`, in `pose` (the streak
 ## finisher's, at full speed).
-func _auto_slash(k: Enemy, to_x: float, face: float, pose: int) -> void:
+func _auto_slash(k: Enemy, to_x: float, face: float, pose: int, hop := AUTO_SLASH_HOP) -> void:
 	if state != State.PLAYING:
 		return
 	var from := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row))
@@ -1420,7 +1424,7 @@ func _auto_slash(k: Enemy, to_x: float, face: float, pose: int) -> void:
 	fx.strike(from, Vector2(to_x * Rules.TILE, Rules.body_center_y(player.row)))
 	player.strike_from(from_feet)
 	player.strike(pose)
-	player.hold_slash(AUTO_SLASH_HOP)
+	player.hold_slash(hop)
 	_play_strike(true)
 	hud.flash(FINISHER_STRIKE_FLASH, 0.1)
 	if is_instance_valid(k):
