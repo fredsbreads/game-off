@@ -533,7 +533,7 @@ func _begin_hold(title: String, name_the_move := true) -> void:
 ## the move. The move can be made at any
 ## point.
 const KUNAI_BEAT_TIME := 3.0
-const SKIP_PULSE_TIME := 4.0 * TAU / Hud.SKIP_PULSE_RATE   # four bounces
+const SKIP_PULSE_TIME := 3.0 * TAU / Hud.SKIP_PULSE_RATE   # three bounces
 
 var _kunai_beat := 0   # which of the first stop's words are up (1, 2, 3; 0: none): its lit boxes follow the katanas
 
