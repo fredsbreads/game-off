@@ -64,7 +64,9 @@ const BAND_PAD := 30.0
 const PAUSE_TITLE_H := 92.0
 const OVER_TITLE_H := 96.0
 const OVER_STATS_H := 104.0   # (room for "Started At N" under the level)
-const OVER_HINT_H := 48.0
+const OVER_HINT_H := 64.0
+const OVER_HINT_SIZE := 34     # "Tap Anywhere To Retry"
+const OVER_HINT_PULSE := 4.0   # its breathing (radians per second)
 # Practice mode toggle on the pause screen (N on a keyboard), plus a small
 # note in the corner while enemies are off.
 # Opens the Options screen (on the start screen and the pause screen).
@@ -295,9 +297,16 @@ func _process(delta: float) -> void:
 					"bolt": _top._charge_pop = 1.0
 					"streak": _top._pop = 1.0
 	_skip_button.position = Vector2(get_viewport().get_visible_rect().size.x - SKIP_BUTTON_SIZE.x - 16.0, get_viewport().get_visible_rect().size.y - SKIP_BUTTON_SIZE.y - 14.0)
+	if _skip_pulse > 0.0 and not get_tree().paused:
+		_skip_pulse = maxf(_skip_pulse - delta, 0.0)
+		_skip_button.pivot_offset = SKIP_BUTTON_SIZE   # (it grows out of its corner, staying on screen)
+		_skip_button.scale = Vector2.ONE * (1.0 + 0.15 * _skip_glow())
+		_skip_button.queue_redraw()
 	if _tut.visible and not get_tree().paused:
 		for k in _tut_lit:
 			_tut_lit[k] += delta
+		for k in _tut_bump:
+			_tut_bump[k] += delta
 		if _tut_fizzle >= 0.0:
 			_tut_fizzle += delta
 			if _tut_fizzle >= TUT_FIZZLE_TIME:
@@ -612,10 +621,17 @@ func _draw_backdrop() -> void:
 			c.draw_line(Vector2(dx, sy + 10.0), Vector2(dx, sy + 78.0), Color(1, 1, 1, 0.15 * a), 1.0)
 	if _over_hint == "":
 		return
-	# "Tap anywhere to retry", steady.
-	var hy := sy + OVER_STATS_H + 26.0
-	var hw := font.get_string_size(_over_hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 20).x
-	c.draw_string(font, Vector2((view.x - hw) / 2.0, hy), _over_hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color(1, 1, 1, 0.75 * a))
+	# "Tap anywhere to retry": big, in the title's red, glowing and
+	# breathing, so it reads as what to do (not the buttons under it).
+	var beat := 0.5 + 0.5 * sin(_over_t * OVER_HINT_PULSE)
+	var hs := int(OVER_HINT_SIZE * (1.0 + 0.06 * beat))
+	var hy := sy + OVER_STATS_H + 34.0
+	var hw := font.get_string_size(_over_hint, HORIZONTAL_ALIGNMENT_LEFT, -1, hs).x
+	var hpos := Vector2((view.x - hw) / 2.0, hy)
+	var red := MainMenu.TITLE_TEXT_RED
+	for j in 12:   # a glow, as the title's
+		c.draw_string(font, hpos + Vector2.RIGHT.rotated(j * TAU / 12.0) * 5.0, _over_hint, HORIZONTAL_ALIGNMENT_LEFT, -1, hs, Color(red, (0.05 + 0.07 * beat) * a))
+	c.draw_string(font, hpos, _over_hint, HORIZONTAL_ALIGNMENT_LEFT, -1, hs, Color(red.lerp(Color.WHITE, 0.25 * beat), a))
 
 
 ## A title in the title screen's red, with its soft glow.
@@ -849,6 +865,7 @@ var _coach: Control
 var _coach_title := ""
 var _coach_line := ""
 var _coach_points: Array = []   # "katana", "bolt"
+var coach_dim := true   # the spotlight dims around what it's about (false: just the glowing boxes)
 var _coach_t := 0.0
 var _coach_shake := 0.0
 var _coach_beat := 0.0
@@ -876,6 +893,14 @@ func set_level_quietly(lv: int) -> void:
 	_top.set_level_quietly(lv)
 
 
+## "Skip Tutorial" pulses (grows and glows red) for `seconds`, to be seen.
+var _skip_pulse := 0.0
+const SKIP_PULSE_RATE := 6.0   # radians per second of the pulse
+
+func pulse_skip(seconds: float) -> void:
+	_skip_pulse = seconds
+
+
 func set_skip_visible(on: bool) -> void:
 	_skip_on = on
 	_skip_button.visible = on and not get_tree().paused
@@ -885,10 +910,22 @@ func skip_button_contains(pos: Vector2) -> bool:
 	return _skip_button.visible and _skip_button.get_rect().has_point(pos)
 
 
+## 0..1: how lit the skip button's pulse is right now (0 when not pulsing).
+func _skip_glow() -> float:
+	if _skip_pulse <= 0.0:
+		return 0.0
+	var fade := minf(_skip_pulse / 0.4, 1.0)   # (eases out at the end)
+	return fade * (0.5 - 0.5 * cos(_skip_pulse * SKIP_PULSE_RATE))
+
+
 func _draw_skip_button() -> void:
 	var r := Rect2(Vector2.ZERO, SKIP_BUTTON_SIZE)
-	_skip_button.draw_rect(r, Color(0.04, 0.03, 0.04, 0.6))
-	_skip_button.draw_rect(r, Color(1, 1, 1, 0.5), false, 2.0)
+	var glow := _skip_glow()
+	var red := MainMenu.TITLE_TEXT_RED
+	_skip_button.draw_rect(r, Color(0.04, 0.03, 0.04, 0.6).lerp(Color(red, 0.95), glow))
+	for k in 3:   # a red glow round it while it pulses
+		_skip_button.draw_rect(r.grow(2.0 + k * 3.0), Color(red, (0.7 - k * 0.2) * glow), false, 3.0)
+	_skip_button.draw_rect(r, Color(1, 1, 1, 0.5 + 0.5 * glow), false, 2.0)
 	var font := ThemeDB.fallback_font
 	var size := 20
 	var text := "Skip Tutorial"
@@ -908,6 +945,8 @@ func _draw_spotlight(c: Control, v: Vector2) -> void:
 	var mid := TopBar.BLADE.y / 2.0
 	for what in _coach_points:
 		var r := Rect2()
+		if what is Rect2:   # (a spot in the play: main.gd works out where)
+			r = what
 		match what:
 			"katana":
 				var ext := _top.extent()
@@ -918,7 +957,7 @@ func _draw_spotlight(c: Control, v: Vector2) -> void:
 				r = Rect2(_top.position + Vector2(_top.streak_x - 6.0, mid - 26.0), Vector2(84.0, 56.0))
 		holes.append(r.grow(12.0))
 	# The dark, in strips around the holes.
-	var dark := Color(0, 0, 0, 0.62 * minf(_coach_t / 0.3, 1.0))
+	var dark := Color(0, 0, 0, (0.62 if coach_dim else 0.0) * minf(_coach_t / 0.3, 1.0))
 	var ys: Array[float] = [0.0, v.y]
 	for h in holes:
 		ys.append(clampf(h.position.y, 0.0, v.y))
@@ -985,9 +1024,15 @@ func _draw_coach() -> void:
 
 # --- the first-time tutorial --------------------------------------------------
 
+var _tut_count := {}   # key -> times done so far (shown "1/3")
+var _tut_bump := {}    # key -> seconds since its count went up (a small pop)
+var tutorial_reps := 3
+
 func show_tutorial(on_floor: bool) -> void:
 	tutorial_on_floor = on_floor
 	_tut_lit.clear()
+	_tut_count.clear()
+	_tut_bump.clear()
 	_tut_fizzle = -1.0
 	_tut_rng.randomize()
 	_tut.visible = true
@@ -995,6 +1040,14 @@ func show_tutorial(on_floor: bool) -> void:
 
 func tutorial_done(key: String) -> void:
 	_tut_lit[key] = 0.0
+
+
+## One more of a move: its count goes up (and it lights once it's done enough).
+func tutorial_count(key: String, n: int) -> void:
+	_tut_count[key] = n
+	_tut_bump[key] = 0.0
+	if n >= tutorial_reps:
+		_tut_lit[key] = 0.0
 
 
 func finish_tutorial() -> void:
@@ -1012,6 +1065,8 @@ func _draw_tutorial() -> void:
 		["right", "Tap Right" if touch else "Right", Vector2(1, 0)],
 		["both", "Tap Both" if touch else "Both", (Vector2(1, -1) if up else Vector2(1, 1)).normalized()],
 	]
+	for p in prompts:   # how many of each so far
+		p[1] += "  %d/%d" % [mini(int(_tut_count.get(p[0], 0)), tutorial_reps), tutorial_reps]
 	const SIZE := 34
 	const LINE := 58.0
 	const ARROW := 30.0   # the arrow's box (it's drawn in this square, left of the words)
@@ -1036,6 +1091,8 @@ func _draw_tutorial() -> void:
 		var lit := _tut_lit.has(key)
 		var t: float = _tut_lit.get(key, 0.0)
 		var pop := 1.0 + 0.3 * maxf(0.0, 1.0 - t / 0.25) if lit else 1.0   # a pop as it lights
+		if not lit and _tut_bump.has(key):   # (a smaller one as its count goes up)
+			pop = 1.0 + 0.15 * maxf(0.0, 1.0 - float(_tut_bump[key]) / 0.2)
 		var size := int(SIZE * pop)
 		var cy := top + i * LINE - drift
 		var col := Color(MainMenu.TITLE_TEXT_RED, fade) if lit else Color(1, 1, 1, 0.3 * fade)

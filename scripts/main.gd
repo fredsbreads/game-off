@@ -20,11 +20,9 @@ const START_LEVELS := [1, 5, 10, 15]
 ## The start level picked on the title screen: kept through this visit (back
 ## to the title screen, retries) but not saved, so the game always opens on 1.
 static var _session_start_level := 1
-## The tutorial (see _start_tutorial), once per session: no enemies until she has
-## done each move once (Tap Left, Tap Right, Tap Both); then the first enemy
-## comes in a screen's width ahead of her (CameraRig.VIEW_TILES: just past the right edge).
+## The tutorial (see _start_tutorial): no enemies until each move has been
+## made three times (forward, shift, diagonal); then the lessons.
 var _tutorial := false
-var _tutorial_moves := {}
 var _run_start_level := 1
 var _run_origin_x := START_X   # where the run's distance counts from (after the tutorial: where it ended)
 # Every kill gets a short hit freeze (invert flash).
@@ -447,7 +445,7 @@ var _lesson_kills := 0
 var _save_auto := false      # (unused now: the player makes the save)
 var _save_done := false      # time has stopped for the save: the player's turn
 # Before the save is taught, she's let run into the first one: she dies (the
-# usual death), "Running into an enemy kills you", then time rewinds.
+# usual death), "Running Into An Enemy Kills You", then time rewinds.
 var _save_rewound := false
 var _rewind_pending := false
 var _save_pair_x := 0.0
@@ -526,6 +524,71 @@ func _begin_hold(title: String, name_the_move := true) -> void:
 	_clear_pending()
 	_hold_move = _lesson_pick()
 	hud.show_coach(title, _move_words(_hold_move) if name_the_move else "")
+	hud._coach_t = 0.0   # (a new stop, even with the same words: it pops again, and TEXT_BUFFER starts over)
+	_hold_buffered = chain == 0   # (in a combo already: presses go straight through)
+
+
+## The first stop (one enemy in reach): the katana that's turned red on him
+## is lit in the dim ("Red Katana = Killable Enemy"); then "Kill Him" and
+## the move. The move can be made at any
+## point.
+const KUNAI_BEAT_TIME := 3.0
+const SKIP_PULSE_TIME := 4.0 * TAU / Hud.SKIP_PULSE_RATE   # four bounces
+
+var _kunai_beat := 0   # which of the first stop's words are up (1, 2, 3; 0: none): its lit boxes follow the katanas
+
+func _begin_kunai_hold() -> void:
+	_begin_hold("Red Katana = Killable Enemy", false)
+	_kunai_beat = 2
+	hud.show_coach(hud._coach_title, "", _kunai_spots())
+	var t := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_STOP)
+	t.tween_interval(KUNAI_BEAT_TIME)
+	t.tween_callback(func() -> void:
+		if _tut_hold and _kunai_beat == 2:
+			_kunai_beat = 0
+			hud.show_coach("Kill Him", _move_words(_hold_move)))
+
+
+## Where the words point, on screen: all three katanas (beat 1: the free
+## part), or the red one with the enemy it's on (beat 2: the first
+## stop). (Each frame: they move with her, and the red one is still gliding
+## onto him when time stops.)
+func _kunai_spots() -> Array:
+	var spots: Array = []
+	if _kunai_beat == 1:
+		for m in player._markers:
+			spots.append(_screen_rect(m, m.get_rect()).grow(12.0))
+	elif _kunai_beat == 2:
+		var lit: int = {Rules.Move.FORWARD: 0, Rules.Move.VERTICAL: 1, Rules.Move.DIAGONAL: 2}.get(_hold_move, 0)
+		var marker: Sprite2D = player._markers[lit]
+		var on := _screen_rect(marker, marker.get_rect())
+		var target: Enemy = null
+		for e in level.enemies:
+			if e.alive and (target == null or absf(e.tile_x - player.x) < absf(target.tile_x - player.x)):
+				target = e
+		if target:
+			var c := get_viewport().canvas_transform * Vector2(target.tile_x * Rules.TILE, Rules.body_center_y(target.row))
+			on = on.merge(Rect2(c - Vector2(Rules.TILE * 0.6, Rules.TILE * 0.9), Vector2(Rules.TILE * 1.2, Rules.TILE * 1.8)))
+		spots.append(on.grow(12.0))
+	return spots
+
+
+## `local` (in `item`'s own space) on the screen.
+func _screen_rect(item: CanvasItem, local: Rect2) -> Rect2:
+	var x := item.get_global_transform_with_canvas()
+	var r := Rect2(x * local.position, Vector2.ZERO)
+	for p in [local.position + Vector2(local.size.x, 0), local.end, local.position + Vector2(0, local.size.y)]:
+		r = r.expand(x * p)
+	return r
+
+
+## The tutorial's words have only just come up: presses are dropped for
+## TEXT_BUFFER, so they're seen before anything's done.
+const TEXT_BUFFER := 0.5
+var _hold_buffered := false   # this stop has the TEXT_BUFFER (not one mid-combo: there it's free to go on)
+
+func _coach_fresh() -> bool:
+	return hud._coach.visible and hud._coach_t < TEXT_BUFFER
 
 
 ## A move in a lesson that doesn't kill: blocked.
@@ -537,7 +600,7 @@ func _wrong_move() -> void:
 		var above := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row) - Rules.TILE * 1.4)
 		if player.row == Rules.Row.CEILING:
 			above.y += Rules.TILE * 2.8
-		text_fx.text(above, "Not yet", 24, Color(1, 0.4, 0.4), Rules.RUN_SPEED * Rules.TILE if player.running else 0.0, 0.6)
+		text_fx.text(above, "Wait", 24, Color(1, 0.4, 0.4), Rules.RUN_SPEED * Rules.TILE if player.running else 0.0, 0.6)
 
 
 ## A press the tutorial isn't taking right now (its words, the rewind): told so.
@@ -557,6 +620,9 @@ func _lesson_frame() -> bool:
 		_clear_pending()   # (the game's in control)
 		return true
 	if _tut_hold:
+		if _hold_buffered and _coach_fresh():
+			_clear_pending()   # (just up: a moment to read it first)
+			return true
 		var move := _take_pending_move(true)
 		if move == Rules.Move.NONE:
 			return true
@@ -574,11 +640,12 @@ func _lesson_frame() -> bool:
 			if kills > _lesson_kills:
 				_lesson = Lesson.CHAIN
 			elif not _chain_targets(player.x, player.row).is_empty():
-				_begin_hold("Red Enemy = Killable")
+				_begin_kunai_hold()
 				return true
 		Lesson.CHAIN:
 			if chain == 0 and kills == _lesson_kills + 1 and not _chain_targets(player.x, player.row).is_empty():
-				_begin_hold("Red Enemy = Killable")   # (the chain's first: a stop too)
+				_begin_hold("All Enemies Are Killable", false)   # (the chain's first: a stop too)
+				hud.show_coach(hud._coach_title, "Kill Him")
 				return true
 			if kills >= _lesson_kills + 1 + CHAIN_STEPS.split(" ").size() + 1 and chain == 0:
 				# The save: a stacked pair, across from each other, run at.
@@ -654,6 +721,21 @@ func _after_rewind() -> void:
 	hud.set_pause_button_visible(true)
 
 
+## Skip pressed while the tutorial shows her dying, or while it rewinds:
+## she's back on her feet at once (no death left on screen), running.
+func _undo_tutorial_death() -> void:
+	if state == State.DYING and _rewind_pending:
+		_rewind()   # (back to playing: her killer and the death's effects cleared)
+	if not _rewinding:
+		return
+	if is_instance_valid(_rw_killer):
+		_rw_killer.unattack(1.0)
+	_rw_killer = null
+	_pink_shift_sound.stop()
+	player.revive()
+	_after_rewind()
+
+
 ## The rewind's sign: a small ◀◀, top left.
 func _make_rewind_layer() -> void:
 	_rw_layer = CanvasLayer.new()
@@ -676,7 +758,7 @@ func _make_rewind_layer() -> void:
 ## (onto the other one of the pair: a chain starts).
 func _save_stop() -> void:
 	_save_done = true
-	_begin_hold("Point blank in a tricky spot? Shift vertically!")
+	_begin_hold("Point Blank In A Tricky Spot? Shift Vertically!")
 
 
 ## The tutorial is over (its chain levelled the katana up to 1, or it was
@@ -688,12 +770,14 @@ func _finish_tutorial(skipped: bool) -> void:
 	_lesson = Lesson.NONE
 	_tut_hold = false
 	_save_auto = false
-	if _rewinding:
+	if _rewinding and not skipped:
 		_after_rewind()
 		hud.hide_coach()
 	_tutorial = false
+	hud.coach_dim = true
 	_set_save_flag("tutorial_done")
 	if skipped:
+		_undo_tutorial_death()
 		hud.finish_tutorial()
 		hud.hide_coach()
 		_clear_pending()
@@ -720,10 +804,12 @@ func _finish_tutorial(skipped: bool) -> void:
 			hud.set_level_quietly(_tutorial_target)
 		# Before the run: no enemies while what chains do is said, the
 		# katana and the bolt (then the flawless number) popping; then Start.
-		hud.show_coach("Successful chains build up your level and lightning", "", ["katana", "bolt"])
+		hud.show_coach("Fill Your Katana To Level Up", "Perfect Combos Fill It Faster", ["katana"])
 		var t := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_STOP)
 		t.tween_interval(LESSON_METERS_TIME)
-		t.tween_callback(hud.show_coach.bind("Perfect Chains = No Survivors. Kill everyone!", "", ["streak"]))
+		t.tween_callback(hud.show_coach.bind("Combos Also Charge Up Your", "Red Flash", ["bolt"]))
+		t.tween_interval(LESSON_METERS_TIME)
+		t.tween_callback(hud.show_coach.bind("Perfect Chains = No Survivors. Kill Everyone!", "", ["streak"]))
 		t.tween_interval(LESSON_METERS_TIME)
 		t.tween_callback(hud.show_coach.bind("", "Start!"))   # (in red)
 		t.tween_interval(START_WORD_TIME)
@@ -777,37 +863,56 @@ func _set_save_flag(key: String) -> void:
 	cfg.save(SAVE_PATH)
 
 
-## The first Play of each session: no enemies, and the three moves to try.
+## The tutorial's first part: no enemies, free play: "Tap Left", "Tap Right",
+## "Tap Both" (any order), each counted to three ("Teleport To Your
+## Katanas" under them, her katanas lit). Once all three are done the
+## lessons start, on the floor: if she's on the ceiling then, she's asked
+## to shift back down first (free play goes on till she's there).
+const DRILL_REPS := 3
+var _drill_counts := {}   # "left" / "right" / "both" -> times done
+var _drill_done := false  # all three counted: waiting for her to be on the floor
+
 func _start_tutorial() -> void:
 	_tutorial = true
-	_tutorial_moves.clear()
+	_drill_counts = {}
+	_drill_done = false
 	level.spawn_hold = true
 	level.rebuild_ahead(player.x - 1.0)   # (the enemies already laid go)
+	hud.tutorial_reps = DRILL_REPS
 	hud.show_tutorial(player.row == Rules.Row.FLOOR)
 	hud.set_skip_visible(true)
+	hud.pulse_skip(SKIP_PULSE_TIME)   # (right away: it can be skipped)
+	hud.coach_dim = false   # (free play: her katanas lit, nothing dimmed)
+	_kunai_beat = 1
+	hud.show_coach("Teleport To Your Katanas", "", _kunai_spots())
 
 
-## A move she made during the tutorial: its prompt lights up; all three done ends it.
+func _drill_key(move: int) -> String:
+	return {Rules.Move.VERTICAL: "left", Rules.Move.FORWARD: "right", Rules.Move.DIAGONAL: "both"}.get(move, "")
+
+
+## A move she made in the free part: its count goes up; all three done (and
+## her on the floor) ends it.
 func _tutorial_move(move: int) -> void:
-	var key: String = {Rules.Move.VERTICAL: "left", Rules.Move.FORWARD: "right", Rules.Move.DIAGONAL: "both"}.get(move, "")
-	if key == "":
-		return
-	hud.tutorial_done(key)   # (lights it, or pops it again: every time she makes that move)
-	if _tutorial_moves.has(key):
-		return
-	_tutorial_moves[key] = true
-	if _tutorial_moves.size() < 3:
+	var key := _drill_key(move)
+	if key != "" and int(_drill_counts.get(key, 0)) < DRILL_REPS:
+		_drill_counts[key] = int(_drill_counts.get(key, 0)) + 1
+		hud.tutorial_count(key, _drill_counts[key])
+	for k in ["left", "right", "both"]:
+		if int(_drill_counts.get(k, 0)) < DRILL_REPS:
+			return
+	if not _drill_done:
+		_drill_done = true
+		hud.finish_tutorial()   # the prompts fizzle out
+	if player.row != Rules.Row.FLOOR:
+		_kunai_beat = 0
+		hud.show_coach("Back To The Floor", _move_words(Rules.Move.VERTICAL))
 		return
 	_tutorial = false
-	hud.finish_tutorial()   # the prompts fizzle out
-	if progression.level == 0:
-		_start_lessons()
-		return
-	# The game starts: the first enemy a little past the right edge.
-	level.spawn_hold = false
-	# (From her, not the camera: right after a teleport it hasn't caught up.)
-	level.push_cursor(player.x + CameraRig.VIEW_TILES)   # (a screen's width ahead of her: just past the right edge)
-	level.ensure_generated(player.x)
+	_kunai_beat = 0
+	hud.hide_coach()
+	hud.coach_dim = true
+	_start_lessons()
 
 
 # --- input ---------------------------------------------------------------
@@ -868,7 +973,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		_set_paused(true)
 		return
-	if state == State.PLAYING and _is_skip_press(event):
+	if (state == State.PLAYING or (state == State.DYING and _rewind_pending)) and _is_skip_press(event):
 		get_viewport().set_input_as_handled()
 		_finish_tutorial(true)
 		return
@@ -1198,9 +1303,9 @@ func _physics_process(delta: float) -> void:
 				# The chain's freeze holds until she makes the right move.
 				_hitstop = 0.0
 				if _lesson == Lesson.SAVE:
-					_begin_hold("Now finish the combo", false)   # (their own move to find)
+					_begin_hold("Now Finish The Combo", false)   # (their own move to find)
 				else:
-					_begin_hold("Combos stop time")
+					_begin_hold("Combos Stop Time")
 			elif _lesson != Lesson.NONE and _hitstop <= 0.0 and _lesson_frame():
 				pass
 			elif _hitstop > 0.0 and not _auto and not _finale_hold and not _finishing and _ninja_strikes(false):
@@ -1245,6 +1350,11 @@ func _physics_process(delta: float) -> void:
 	Palette.tick(delta)
 	_update_knight_threats()
 	_update_pause_visuals()
+	if _kunai_beat > 0:
+		if _tut_hold or _tutorial:
+			hud._coach_points = _kunai_spots()
+		else:
+			_kunai_beat = 0   # (the move was made: the words are gone)
 	if _tut_hold:
 		freeze_effect.set_state(0.0, 1.0)
 		player.frozen = true
@@ -1380,6 +1490,8 @@ func _step() -> void:
 			if _would_slash(move, press_x):
 				player.x = press_x
 
+	if move != Rules.Move.NONE and _tutorial and _coach_fresh():
+		move = Rules.Move.NONE   # (its words just up: a moment to read them first)
 	if move != Rules.Move.NONE and _lesson == Lesson.SAVE and not _save_done:
 		move = Rules.Move.NONE   # (the save: no moves on the way in, until time stops)
 		_wrong_move()
@@ -2444,7 +2556,7 @@ func _end_chain(grade: String, word: String = "") -> void:
 func _die(kind: String, killer: Enemy = null) -> void:
 	if _lesson == Lesson.SAVE and not _save_rewound:
 		_rewind_pending = true   # (the tutorial: shown dying, then it rewinds)
-		hud.show_coach("Running into an enemy kills you")
+		hud.show_coach("Running Into An Enemy Kills You")
 	state = State.DYING
 	hud.set_pause_button_visible(false)
 	_state_time = 0.0

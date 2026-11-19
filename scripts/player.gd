@@ -505,6 +505,8 @@ func run_backwards() -> void:
 
 func end_rewind() -> void:
 	rewinding = false
+	if alive:
+		_play("run")   # (forwards again: the rewind left it playing backwards)
 
 
 ## Back on her feet (the tutorial's rewind after it shows her dying): whole
