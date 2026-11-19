@@ -347,9 +347,9 @@ func _ready() -> void:
 		var start := _session_start_level
 		progression.level = start if start in _unlocked_start_levels() else 1
 		level.level = progression.level
-	# Never played the tutorial: Play starts it (level 0). Picked on the title
-	# screen's level choice: the same.
-	if (not debug and not _save_flag("tutorial_done")) or (debug and debug.tutorial):
+	# Never pressed Play before: Play starts the tutorial (level 0). Picked on
+	# the title screen's level choice: the same.
+	if (not debug and not _save_flag("played")) or (debug and debug.tutorial):
 		progression.level = 0
 	if progression.level == 0:
 		level.level = 1
@@ -411,8 +411,9 @@ func score() -> int:
 
 func begin() -> void:
 	_run_start_level = progression.level   # (the death screen says if it wasn't 1)
-	if progression.level >= 1:
-		_set_save_flag("played")   # (a run, not the tutorial: the level choice can show)
+	# The first Play (whatever comes of it, the tutorial too): from now on the
+	# title screen has the level choice, on 1, and Play doesn't start the tutorial.
+	_set_save_flag("played")
 	hud.menu.close()
 	state = State.PLAYING
 	player.running = true
@@ -2600,8 +2601,8 @@ func _unlocked_start_levels() -> Array:
 	cfg.load(SAVE_PATH)
 	var reached := int(cfg.get_value("progress", "max_level", 1))
 	var out := START_LEVELS.filter(func(l: int) -> bool: return l == 1 or reached >= l + 1)
-	# The tutorial (0), once it's been done and a run played.
-	if _save_flag("tutorial_done") and _save_flag("played"):
+	# The tutorial (0), once Play has been pressed (before that, Play is the tutorial).
+	if _save_flag("played"):
 		out.push_front(0)
 	return out
 
