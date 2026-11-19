@@ -621,8 +621,9 @@ func _draw_backdrop() -> void:
 			c.draw_line(Vector2(dx, sy + 10.0), Vector2(dx, sy + 78.0), Color(1, 1, 1, 0.15 * a), 1.0)
 	if _over_hint == "":
 		return
-	# "Tap anywhere to retry": big, in the title's red, glowing and
-	# breathing, so it reads as what to do (not the buttons under it).
+	# "Tap anywhere to retry": big, in the title's red, glowing, gently
+	# growing and shrinking (its colour stays), so it reads as what to do
+	# (not the buttons under it).
 	# (It grows by scaling the drawing, smoothly: a font size only comes in
 	# whole steps, which made the pulse jump.)
 	var beat := 0.5 + 0.5 * sin(_over_t * OVER_HINT_PULSE)
@@ -630,12 +631,12 @@ func _draw_backdrop() -> void:
 	var hy := sy + OVER_STATS_H + 34.0
 	var hw := font.get_string_size(_over_hint, HORIZONTAL_ALIGNMENT_LEFT, -1, hs).x
 	var centre := Vector2(view.x / 2.0, hy - hs * 0.35)
-	c.draw_set_transform(centre, 0.0, Vector2.ONE * (1.0 + 0.06 * beat))
+	c.draw_set_transform(centre, 0.0, Vector2.ONE * (1.0 + 0.03 * beat))
 	var hpos := Vector2(-hw / 2.0, hs * 0.35)
 	var red := MainMenu.TITLE_TEXT_RED
 	for j in 12:   # a glow, as the title's
-		c.draw_string(font, hpos + Vector2.RIGHT.rotated(j * TAU / 12.0) * 5.0, _over_hint, HORIZONTAL_ALIGNMENT_LEFT, -1, hs, Color(red, (0.05 + 0.07 * beat) * a))
-	c.draw_string(font, hpos, _over_hint, HORIZONTAL_ALIGNMENT_LEFT, -1, hs, Color(red.lerp(Color.WHITE, 0.25 * beat), a))
+		c.draw_string(font, hpos + Vector2.RIGHT.rotated(j * TAU / 12.0) * 5.0, _over_hint, HORIZONTAL_ALIGNMENT_LEFT, -1, hs, Color(red, 0.08 * a))
+	c.draw_string(font, hpos, _over_hint, HORIZONTAL_ALIGNMENT_LEFT, -1, hs, Color(red, a))
 	c.draw_set_transform(Vector2.ZERO)
 
 
