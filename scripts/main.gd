@@ -25,8 +25,8 @@ static var _session_start_level := 1
 ## comes in a screen's width ahead of her (CameraRig.VIEW_TILES: just past the right edge).
 var _tutorial := false
 var _tutorial_moves := {}
-static var _tutorial_seen := false   # done this session (not saved: a new visit shows it again)
 var _run_start_level := 1
+var _run_origin_x := START_X   # where the run's distance counts from (after the tutorial: where it ended)
 # Every kill gets a short hit freeze (invert flash).
 const KILL_HIT := 0.06
 # If another enemy is under any marker where you land, the
@@ -282,6 +282,11 @@ func _ready() -> void:
 	_dropped_sound.stream = preload("res://assets/sounds/too_slow.ogg")
 	_dropped_sound.volume_db = 0.0
 	add_child(_dropped_sound)
+	_wrong_sound = AudioStreamPlayer.new()   # (the lessons: a move that's blocked)
+	_wrong_sound.stream = preload("res://assets/sounds/too_slow.ogg")
+	_wrong_sound.pitch_scale = 1.3
+	_wrong_sound.bus = "SFX"
+	add_child(_wrong_sound)
 	# One player, one voice: each move's strike cuts off the last one, so a
 	# chain is a run of cracks rather than a wash.
 	_teleport_sound = AudioStreamPlayer.new()
@@ -337,7 +342,15 @@ func _ready() -> void:
 		var start := _session_start_level
 		progression.level = start if start in _unlocked_start_levels() else 1
 		level.level = progression.level
+	# Never played the tutorial: Play starts it (level 0). Picked on the title
+	# screen's level choice: the same.
+	if (not debug and not _save_flag("tutorial_done")) or (debug and debug.tutorial):
+		progression.level = 0
+	if progression.level == 0:
+		level.level = 1
+		level.spawn_hold = true   # (the tutorial lays its own enemies)
 	Palette.set_pink(0.0)   # every run starts red (her colour is the streak reward)
+	_make_rewind_layer()
 	player.x = START_X
 	level.start_x = START_X
 	level.enemy_parent = $EnemyLayer
@@ -398,8 +411,321 @@ func begin() -> void:
 	_start_music()
 	hud.hide_message()
 	hud.set_pause_button_visible(true)
-	if not debug and not _tutorial_seen:
-		_start_tutorial()
+	if progression.level == 0:
+		_start_tutorial()   # (level 0 is the tutorial)
+
+
+## The tutorial's lessons, after the three moves (once per session, until
+## they're done): one enemy alone on the floor (time stops when it's in reach:
+## kill it), then a chain, D F (time stops while she can chain), then the
+## katana and the power-up bolt filling. Until they're done, only a move that
+## kills goes: any other is blocked (a thud, the words shake).
+enum Lesson { NONE, FIRST_KILL, CHAIN, SAVE }
+var _lesson := Lesson.NONE
+var _tut_hold := false        # time stopped for a lesson, waiting for the right move
+var _wrong_sound: AudioStreamPlayer
+var _lesson_kills := 0
+# The save (the last lesson): she's run at by a stacked pair (no moves on
+# the way); just before she's cut down, time stops ("About to get slashed?"):
+# the player teleports across onto the other one, then finishes the chain.
+var _save_auto := false      # (unused now: the player makes the save)
+var _save_done := false      # time has stopped for the save: the player's turn
+# Before the save is taught, she's let run into the first one: she dies (the
+# usual death), "Running into an enemy kills you", then time rewinds.
+var _save_rewound := false
+var _rewind_pending := false
+var _save_pair_x := 0.0
+const REWIND_AT := DEATH_FREEZE + 1.2   # seconds into her death that it rewinds
+# The rewind: her death backwards (her fall, his slash, UNFALL_TIME), then
+# her run backwards (RUN_BACK_TIME), then on again.
+const UNFALL_TIME := 0.5
+const RUN_BACK_TIME := 0.5
+var _rewinding := false
+var _rw_t := 0.0
+var _rw_killer: Enemy = null
+var _rw_layer: CanvasLayer
+var _rw_fx: Control
+# The save's chain: two stacked pairs. The second is a little more than a
+# forward teleport past the first (6.7 tiles), so when time stops only the
+# teleport across is lit; after her first kill (landing 0.7 short) it's in
+# reach. She escapes across, cuts down the one that would have got her, then
+# diagonal onto the next pair, and across to the last.
+const SAVE_SHAPE := [Vector2(0, 0), Vector2(0, 1), Vector2(6.7, 1), Vector2(6.7, 0)]
+# The chain lesson: D F D (it ends back on the floor, where the save comes).
+const CHAIN_STEPS := "D F D"
+const SAVE_STOP_AT := 0.4     # tiles short of being cut down that time stops (the teleport across still reaches)
+const LESSON_METERS_TIME := 4.0   # seconds each of the closing words stays up
+const START_WORD_TIME := 1.0      # ...and "Start!"
+
+
+func _start_lessons() -> void:
+	_lesson = Lesson.FIRST_KILL
+	_lesson_kills = kills
+	# One enemy alone on the floor, a screen's width ahead; the chain after it.
+	var first := player.x + CameraRig.VIEW_TILES
+	level.lay("", "tutorial: one enemy", first, Rules.Row.FLOOR)
+	var chain_x := first + Patterns.BREAK + 6.0
+	level.lay(CHAIN_STEPS, "tutorial: chain", chain_x, Rules.Row.FLOOR)
+	# The save's group: the usual gap after the chain's last enemy (the chain
+	# ends on the floor, so it's run into there).
+	var chain_shape: Array = Patterns.parse(CHAIN_STEPS)["enemies"]
+	_save_pair_x = chain_x + float(chain_shape.back().x) + Patterns.BREAK
+	level.lay_shape(SAVE_SHAPE, "tutorial: save", _save_pair_x, Rules.Row.FLOOR)
+	level.spawn_hold = true   # nothing else until the lessons are over
+
+
+## The move's name as the moves tutorial says it.
+func _move_words(move: int) -> String:
+	var name: String = {Rules.Move.VERTICAL: "Left", Rules.Move.FORWARD: "Right", Rules.Move.DIAGONAL: "Both"}.get(move, "")
+	return ("Tap " if Hud.is_touch() else "Press ") + name
+
+
+## The first move that kills from where she is (FORWARD, VERTICAL, DIAGONAL), or NONE.
+func _killing_move() -> int:
+	for move in [Rules.Move.FORWARD, Rules.Move.VERTICAL, Rules.Move.DIAGONAL]:
+		if _would_slash(move):
+			return move
+	return Rules.Move.NONE
+
+
+## The move a lesson's stop names: the nearest kill (so no enemy is left
+## behind; level: across, then diagonal, then forward). Any move that kills
+## goes, though: it can end CLEAN instead of PERFECT.
+func _lesson_pick() -> int:
+	var best := Rules.Move.NONE
+	var best_x := INF
+	for move in [Rules.Move.VERTICAL, Rules.Move.DIAGONAL, Rules.Move.FORWARD]:
+		var tx: float = player.x + Rules.move_dx(move)
+		var trow: int = (1 - player.row) if Rules.move_flips_row(move) else player.row
+		for e in level.enemies_hit_by(move, tx, trow):
+			if e.tile_x < best_x - 0.01:
+				best = move
+				best_x = e.tile_x
+	return best
+
+var _hold_move := Rules.Move.NONE
+
+func _begin_hold(title: String, name_the_move := true) -> void:
+	_tut_hold = true
+	_clear_pending()
+	_hold_move = _lesson_pick()
+	hud.show_coach(title, _move_words(_hold_move) if name_the_move else "")
+
+
+## A move in a lesson that doesn't kill: blocked.
+func _wrong_move() -> void:
+	_wrong_sound.play()
+	hud.coach_shake()
+
+
+## Each frame of the lessons (PLAYING). Returns true while time is stopped.
+func _lesson_frame() -> bool:
+	if _rewinding:
+		_clear_pending()
+		_rewind_frame(get_physics_process_delta_time())
+		return true
+	if _save_auto:
+		_clear_pending()   # (the game's in control)
+		return true
+	if _tut_hold:
+		var move := _take_pending_move(true)
+		if move == Rules.Move.NONE:
+			return true
+		if not _would_slash(move):
+			_wrong_move()   # (any move that kills goes: the one named is just the nearest)
+			return true
+		_tut_hold = false
+		hud.hide_coach()
+		_last_forward = move == Rules.Move.FORWARD or move == Rules.Move.DIAGONAL
+		_last_vertical = move == Rules.Move.VERTICAL or move == Rules.Move.DIAGONAL
+		_teleport(move)
+		return true
+	match _lesson:
+		Lesson.FIRST_KILL:
+			if kills > _lesson_kills:
+				_lesson = Lesson.CHAIN
+			elif not _chain_targets(player.x, player.row).is_empty():
+				_begin_hold("Red Enemy = Killable")
+				return true
+		Lesson.CHAIN:
+			if kills >= _lesson_kills + 1 + CHAIN_STEPS.split(" ").size() + 1 and chain == 0:
+				# The save: a stacked pair, across from each other, run at.
+				_lesson = Lesson.SAVE
+				_save_done = false
+				_save_rewound = false
+		Lesson.SAVE:
+			if not _save_done and _save_rewound:
+				for e in level.enemies:
+					var ahead: float = e.tile_x - player.x
+					if e.alive and e.row == player.row and ahead > 0.0 and ahead <= Rules.HIT_RADIUS + SAVE_STOP_AT \
+							and _would_slash(Rules.Move.VERTICAL):
+						_save_stop()
+						return true
+	return false
+
+
+## The tutorial's rewind: after she's been shown dying, she's back on her feet
+## a little way before the pair (laid again), and the save is taught.
+func _rewind() -> void:
+	_rewind_pending = false
+	_save_rewound = true
+	_rw_killer = _killer
+	state = State.PLAYING
+	_state_time = 0.0
+	for f in [fx, blood_fx, text_fx, player.zap_fx]:
+		f.frozen = false
+		f.time_scale = 1.0
+		f.clear_all()   # (her blood and the slash: not yet)
+	_killer = null
+	_second_killer = null
+	_warn_sound.stop()
+	if Palette.pink > 0.0:
+		Palette.set_pink(0.0)
+	cam.hold_zoom(Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row)), 0.0, 6.0)
+	hud.hide_coach()
+	_clear_pending()
+	_rewinding = true
+	_rw_t = 0.0
+	_rw_layer.visible = true
+	player.unfall(0.0)
+	if is_instance_valid(_rw_killer):
+		_rw_killer.unattack(0.0)
+	_pink_shift_sound.pitch_scale = 0.7
+	_pink_shift_sound.play()
+
+
+## Each frame of the rewind (from _lesson_frame).
+func _rewind_frame(delta: float) -> void:
+	_rw_t += delta
+	if _rw_t < UNFALL_TIME:
+		var k := _rw_t / UNFALL_TIME
+		player.unfall(maxf(k, 0.001))
+		if is_instance_valid(_rw_killer):
+			_rw_killer.unattack(maxf(k, 0.001))
+		return
+	if not player.alive:   # her death undone: now she runs backwards
+		if is_instance_valid(_rw_killer):
+			_rw_killer.unattack(1.0)
+		player.run_backwards()
+	if _rw_t < UNFALL_TIME + RUN_BACK_TIME:
+		player.x -= Rules.RUN_SPEED * delta
+		return
+	_after_rewind()
+
+
+func _after_rewind() -> void:
+	_rewinding = false
+	_rw_layer.visible = false
+	_pink_shift_sound.pitch_scale = 1.0
+	player.end_rewind()
+	player.running = true   # (straight on: running at them again)
+	hud.set_pause_button_visible(true)
+
+
+## The rewind's sign: a small ◀◀, top left.
+func _make_rewind_layer() -> void:
+	_rw_layer = CanvasLayer.new()
+	_rw_layer.layer = 100
+	_rw_layer.visible = false
+	add_child(_rw_layer)
+	_rw_fx = Control.new()
+	_rw_fx.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_rw_fx.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_rw_fx.draw.connect(func() -> void:
+		var c := Color(1, 1, 1, 0.8)
+		var o := Vector2(28, 28)
+		for n in 2:
+			var x0 := o.x + n * 16.0
+			_rw_fx.draw_colored_polygon(PackedVector2Array([Vector2(x0, o.y + 9), Vector2(x0 + 15, o.y), Vector2(x0 + 15, o.y + 18)]), c))
+	_rw_layer.add_child(_rw_fx)
+
+
+## Just before she's cut down: time stops, and the player teleports across
+## (onto the other one of the pair: a chain starts).
+func _save_stop() -> void:
+	_save_done = true
+	_begin_hold("Point blank in a tricky spot? Shift vertically!")
+
+
+## The tutorial is over (its chain levelled the katana up to 1, or it was
+## skipped): the run starts here, at level 1, from nothing (its kills, streak
+## and distance don't count). Remembered: Play won't start it again.
+func _finish_tutorial(skipped: bool) -> void:
+	_lesson = Lesson.NONE
+	_tut_hold = false
+	_save_auto = false
+	if _rewinding:
+		_after_rewind()
+		hud.hide_coach()
+	_tutorial = false
+	_set_save_flag("tutorial_done")
+	_session_start_level = 1   # (a retry is a run, not the tutorial again)
+	if skipped:
+		hud.finish_tutorial()
+		hud.hide_coach()
+		_clear_pending()
+		# Its enemies go (those on screen too).
+		level.rebuild_ahead(cam.left() / Rules.TILE - 2.0)
+		progression.level = 1
+		progression.bar = 0.0
+		level.bar_room = progression.bar_size()
+	else:
+		# Before the run: no enemies while what chains do is said, the
+		# katana and the bolt (then the flawless number) popping; then Start.
+		hud.show_coach("Successful chains build up your level and lightning", "", ["katana", "bolt"])
+		var t := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_STOP)
+		t.tween_interval(LESSON_METERS_TIME)
+		t.tween_callback(hud.show_coach.bind("Perfect Chains = No Survivors. Kill everyone!", "", ["streak"]))
+		t.tween_interval(LESSON_METERS_TIME)
+		t.tween_callback(hud.show_coach.bind("", "Start!"))   # (in red)
+		t.tween_interval(START_WORD_TIME)
+		t.tween_callback(_start_run_after_tutorial)
+	level.level = progression.level
+	# The run starts from nothing: the power-up meter too (so no auto-chain
+	# comes straight after the tutorial).
+	charge = 0
+	_charged = false
+	player.charged = false
+	_run_start_level = 1
+	_run_origin_x = player.x
+	distance = 0.0
+	kills = 0
+	kill_score = 0
+	sweep = 0
+	best_sweep = 0
+	best_chain = 0
+	perfect_chains = 0
+	hud.set_skip_visible(false)
+	if skipped:
+		_start_run_after_tutorial()
+
+
+## The run proper: enemies from just past the right edge, distance from here.
+func _start_run_after_tutorial() -> void:
+	if state != State.PLAYING:
+		return
+	hud.hide_coach()
+	_run_origin_x = player.x
+	distance = 0.0
+	level.spawn_hold = false
+	level.push_cursor(player.x + CameraRig.VIEW_TILES)
+	level.ensure_generated(player.x)
+
+
+## Flags kept in the save file ("progress" section): "tutorial_done", "played".
+func _save_flag(key: String) -> bool:
+	var cfg := ConfigFile.new()
+	cfg.load(SAVE_PATH)
+	return bool(cfg.get_value("progress", key, false))
+
+
+func _set_save_flag(key: String) -> void:
+	if debug:   # (test runs don't change it)
+		return
+	var cfg := ConfigFile.new()
+	cfg.load(SAVE_PATH)
+	cfg.set_value("progress", key, true)
+	cfg.save(SAVE_PATH)
 
 
 ## The first Play of each session: no enemies, and the three moves to try.
@@ -409,6 +735,7 @@ func _start_tutorial() -> void:
 	level.spawn_hold = true
 	level.rebuild_ahead(player.x - 1.0)   # (the enemies already laid go)
 	hud.show_tutorial(player.row == Rules.Row.FLOOR)
+	hud.set_skip_visible(true)
 
 
 ## A move she made during the tutorial: its prompt lights up; all three done ends it.
@@ -423,8 +750,10 @@ func _tutorial_move(move: int) -> void:
 	if _tutorial_moves.size() < 3:
 		return
 	_tutorial = false
-	_tutorial_seen = true
 	hud.finish_tutorial()   # the prompts fizzle out
+	if progression.level == 0:
+		_start_lessons()
+		return
 	# The game starts: the first enemy a little past the right edge.
 	level.spawn_hold = false
 	# (From her, not the camera: right after a teleport it hasn't caught up.)
@@ -473,6 +802,9 @@ func _unhandled_input(event: InputEvent) -> void:
 					_set_paused(false)
 			"options":
 				hud.open_options(true)
+			"skip":   # (the tutorial) straight into the run
+				_set_paused(false)
+				_finish_tutorial(true)
 			"flip":   # (upright phones) turns the game 180 degrees
 				JavaScriptBridge.eval("window.redFlashSetFlip(!window.redFlashFlip)", true)
 			"menu":   # leave the run for the title screen
@@ -486,6 +818,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	if state == State.PLAYING and (event.is_action_pressed("pause") or _is_pause_button_press(event)):
 		get_viewport().set_input_as_handled()
 		_set_paused(true)
+		return
+	if state == State.PLAYING and _is_skip_press(event):
+		get_viewport().set_input_as_handled()
+		_finish_tutorial(true)
 		return
 	if LEVEL_CHOICE and state == State.READY and _start_level_input(event):
 		get_viewport().set_input_as_handled()
@@ -596,6 +932,13 @@ func _is_menu_key(event: InputEvent) -> bool:
 
 
 ## The Options button (pause screen), or the O key (title or pause screen).
+## A tap or click on the tutorial's "Skip Tutorial" button.
+func _is_skip_press(event: InputEvent) -> bool:
+	var touch: bool = event is InputEventScreenTouch and event.pressed
+	var click: bool = event is InputEventMouseButton and event.pressed
+	return (touch or click) and hud.skip_button_contains(_screen_pos(event))
+
+
 func _is_options_press(event: InputEvent) -> bool:
 	if event is InputEventKey:
 		return event.pressed and event.physical_keycode == KEY_O
@@ -799,6 +1142,15 @@ func _physics_process(delta: float) -> void:
 		State.PLAYING:
 			if hud.needs_portrait():
 				pass
+			elif (_lesson == Lesson.CHAIN or _lesson == Lesson.SAVE) and _hitstop > 0.0 and _pause_is_chain and _chain_awaiting and not _tut_hold:
+				# The chain's freeze holds until she makes the right move.
+				_hitstop = 0.0
+				if _lesson == Lesson.SAVE:
+					_begin_hold("Now finish the combo", false)   # (their own move to find)
+				else:
+					_begin_hold("Combos stop time")
+			elif _lesson != Lesson.NONE and _hitstop <= 0.0 and _lesson_frame():
+				pass
 			elif _hitstop > 0.0 and not _auto and not _finale_hold and not _finishing and _ninja_strikes(false):
 				# Landed right in front of a ninja, too close to reach him: he comes at once.
 				_clear_pending()
@@ -831,11 +1183,20 @@ func _physics_process(delta: float) -> void:
 		State.DYING:
 			var speed := _death_speed()
 			player.animate_death(delta * speed)
+			if _rewind_pending and _state_time >= REWIND_AT:
+				_rewind()
+				return
 			if _state_time >= DEATH_FREEZE + DEATH_SLOWMO + DEATH_ANIM_TIME * 0.4:
 				_game_over()
 
 	_update_knight_threats()
 	_update_pause_visuals()
+	if _tut_hold:
+		freeze_effect.set_state(0.0, 1.0)
+		player.frozen = true
+		fx.frozen = true
+		blood_fx.frozen = true
+		text_fx.frozen = true
 	var run_px := Rules.RUN_SPEED * Rules.TILE if moving else 0.0
 	cam.follow(player.x, run_px, delta)
 	# The real top-left of the view (a zoom can pan it left of cam.left()).
@@ -880,7 +1241,7 @@ func _update_pause_visuals() -> void:
 		_grey_bridge = GREY_BRIDGE
 	else:
 		_grey_bridge = maxf(_grey_bridge - get_process_delta_time(), 0.0)
-	var grey := chain_pause or (state == State.PLAYING and chain > 0 and _grey_bridge > 0.0)
+	var grey := chain_pause or _tut_hold or (state == State.PLAYING and chain > 0 and _grey_bridge > 0.0)
 	freeze_effect.set_state(1.0 if flashing else 0.0, 1.0 if grey and not flashing else 0.0)
 	# The basic grunts hold still in their idle while it's grey.
 	for e in level.enemies:
@@ -965,6 +1326,13 @@ func _step() -> void:
 			if _would_slash(move, press_x):
 				player.x = press_x
 
+	if move != Rules.Move.NONE and _lesson == Lesson.SAVE and not _save_done:
+		move = Rules.Move.NONE   # (the save: no moves on the way in, until time stops)
+	if move != Rules.Move.NONE and player.cooldown == 0 and _lesson != Lesson.NONE \
+			and not _would_slash(move):
+		_wrong_move()   # (the lessons: only a move that kills)
+		move = Rules.Move.NONE
+
 	# 1. teleport (ignored while on cooldown)
 	if move != Rules.Move.NONE and player.cooldown == 0:
 		_last_forward = move == Rules.Move.FORWARD or move == Rules.Move.DIAGONAL
@@ -984,7 +1352,7 @@ func _step() -> void:
 	# 2. run
 	var run_from := player.x
 	player.x += Rules.RUN_SPEED / Rules.PHYSICS_FPS
-	distance = player.x - START_X
+	distance = player.x - _run_origin_x
 
 	# 3. running into an enemy in your row
 	var touching := level.enemies_at(player.x, Rules.HIT_RADIUS, player.row)
@@ -1067,7 +1435,7 @@ func _teleport(move: int) -> void:
 	# A combo never runs a frame, so build the level ahead here too (otherwise
 	# a long chain outruns it and the next enemies pop in when it ends).
 	level.ensure_generated(player.x)
-	distance = to_x - START_X
+	distance = to_x - _run_origin_x
 	var to := Vector2(to_x * Rules.TILE, Rules.body_center_y(to_row))
 	if move != Rules.Move.VERTICAL:
 		# Forward and diagonal: the line runs at sword height, along the throw.
@@ -1786,6 +2154,8 @@ func _chain_targets(x: float, row: int) -> Array[Enemy]:
 func _bot_acts_in_pause() -> void:
 	if not (debug and debug.bot) or not _pause_is_chain or _pressed_during_pause or _auto:
 		return
+	if _pause_elapsed < debug.bot_delay:
+		return
 	# The same pick as the auto-chain (nearest first, across first, a plain
 	# enemy before a knight level with him), so nothing is let go.
 	var move := _auto_pick(false)
@@ -1935,6 +2305,8 @@ func _end_chain(grade: String, word: String = "") -> void:
 		hud.show_chain_result(grade, chain_points, old_bar, old_size, old_level)
 		# One sound: a level-up outranks the PERFECT that earned it, and
 		# either replaces the last kill's saber cut.
+		if levelled and _lesson != Lesson.NONE and progression.level == 1:
+			_finish_tutorial.call_deferred(false)   # (its chain levelled up to 1: the run begins)
 		if levelled:
 			# The PERFECT sound with an impact under it.
 			_level_up_sound.pitch_scale = JINGLE_PITCH * _jitter()
@@ -1980,6 +2352,9 @@ func _end_chain(grade: String, word: String = "") -> void:
 
 
 func _die(kind: String, killer: Enemy = null) -> void:
+	if _lesson == Lesson.SAVE and not _save_rewound:
+		_rewind_pending = true   # (the tutorial: shown dying, then it rewinds)
+		hud.show_coach("Running into an enemy kills you")
 	state = State.DYING
 	hud.set_pause_button_visible(false)
 	_state_time = 0.0
@@ -2047,6 +2422,8 @@ func _update_death_visuals() -> void:
 func _game_over() -> void:
 	state = State.OVER
 	_state_time = 0.0
+	if progression.level >= 1 and _lesson == Lesson.NONE and not _tutorial:
+		_set_save_flag("played")   # (a run, not the tutorial: the level choice can show)
 	var final_score := score()
 	var new_best := final_score > best_score
 	if new_best:
@@ -2146,7 +2523,11 @@ func _unlocked_start_levels() -> Array:
 	var cfg := ConfigFile.new()
 	cfg.load(SAVE_PATH)
 	var reached := int(cfg.get_value("progress", "max_level", 1))
-	return START_LEVELS.filter(func(l: int) -> bool: return l == 1 or reached >= l + 1)
+	var out := START_LEVELS.filter(func(l: int) -> bool: return l == 1 or reached >= l + 1)
+	# The tutorial (0), once it's been done and a run played.
+	if _save_flag("tutorial_done") and _save_flag("played"):
+		out.push_front(0)
+	return out
 
 
 ## want: a level, or 0 = the next one unlocked, -1 = the one before.

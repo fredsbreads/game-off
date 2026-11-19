@@ -169,6 +169,12 @@ func zap_line(a: Vector2, b: Vector2, vel: Vector2 = Vector2.ZERO) -> void:
 	_items.append({"kind": "bolt", "t": 0.0, "life": randf_range(0.06, 0.12), "node": s, "vel": vel})
 
 
+## Removes everything (the tutorial's rewind: none of it has happened yet).
+func clear_all() -> void:
+	for i in range(_items.size() - 1, -1, -1):
+		_remove(i)
+
+
 ## Removes the lightning arcs (so frozen lightning can flicker: redrawn each time).
 func clear_bolts() -> void:
 	for i in range(_items.size() - 1, -1, -1):

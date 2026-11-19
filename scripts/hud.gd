@@ -77,6 +77,10 @@ var options: OptionsMenu
 var _menu_button: Control
 # The pause screen's "Main Menu" button (leaves the run for the title screen).
 var _pause_menu_button: Control
+var _pause_skip_button: Control   # (the tutorial) "Skip Tutorial"
+var _skip_button: Control         # ...and the one on screen while it plays
+var _skip_on := false
+const SKIP_BUTTON_SIZE := Vector2(170, 44)
 var _over_options_button: Control
 var _on_over_screen := false
 # ...and "Resume". The pause screen's buttons stand in a column under
@@ -148,6 +152,12 @@ func _ready() -> void:
 	_tut.visible = false
 	_tut.draw.connect(_draw_tutorial)
 	add_child(_tut)
+	_coach = Control.new()
+	_coach.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_coach.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_coach.visible = false
+	_coach.draw.connect(_draw_coach)
+	add_child(_coach)
 
 	# Pause button, top-right. Drawn only; main.gd hit-tests taps against it
 	# (touch doesn't emulate mouse in this project, so Buttons won't see taps).
@@ -195,6 +205,19 @@ func _ready() -> void:
 	_pause_menu_button.visible = false
 	_pause_menu_button.draw.connect(_draw_pause_btn.bind(_pause_menu_button, "Main Menu"))
 	add_child(_pause_menu_button)
+	_pause_skip_button = Control.new()
+	_pause_skip_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_pause_skip_button.size = FLIP_BUTTON_SIZE
+	_pause_skip_button.visible = false
+	_pause_skip_button.draw.connect(_draw_pause_btn.bind(_pause_skip_button, "Skip Tutorial"))
+	add_child(_pause_skip_button)
+	# The tutorial's own "Skip Tutorial", bottom right.
+	_skip_button = Control.new()
+	_skip_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_skip_button.size = SKIP_BUTTON_SIZE
+	_skip_button.visible = false
+	_skip_button.draw.connect(_draw_skip_button)
+	add_child(_skip_button)
 	_menu_button = Control.new()
 	_menu_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_menu_button.size = FLIP_BUTTON_SIZE
@@ -258,6 +281,20 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	if _coach.visible and not get_tree().paused:
+		_coach_t += delta
+		_coach_shake = maxf(_coach_shake - delta, 0.0)
+		_coach.queue_redraw()
+		# What it's about, in the top bar, pops again and again.
+		_coach_beat -= delta
+		if _coach_beat <= 0.0 and not _coach_points.is_empty():
+			_coach_beat = COACH_BEAT
+			for what in _coach_points:
+				match what:
+					"katana": _top.pulse()
+					"bolt": _top._charge_pop = 1.0
+					"streak": _top._pop = 1.0
+	_skip_button.position = Vector2(get_viewport().get_visible_rect().size.x - SKIP_BUTTON_SIZE.x - 16.0, get_viewport().get_visible_rect().size.y - SKIP_BUTTON_SIZE.y - 14.0)
 	if _tut.visible and not get_tree().paused:
 		for k in _tut_lit:
 			_tut_lit[k] += delta
@@ -345,6 +382,7 @@ func open_options(over_game: bool) -> void:
 		_flip_button.visible = false
 		_options_button.visible = false
 		_pause_menu_button.visible = false
+		_pause_skip_button.visible = false
 		_resume_button.visible = false
 	options.open()
 
@@ -611,6 +649,9 @@ func show_paused(paused: bool, can_flip: bool = false) -> void:
 	_pause_can_flip = can_flip
 	_options_button.visible = paused
 	_pause_menu_button.visible = paused
+	_pause_skip_button.visible = paused and _skip_on
+	_coach.modulate.a = 0.0 if paused else 1.0   # (the lesson's words wait behind the pause screen)
+	_skip_button.visible = _skip_on and not paused
 	_resume_button.visible = paused
 	if paused:
 		if not _on_pause_screen:   # (not again on coming back from Options)
@@ -628,7 +669,7 @@ func show_paused(paused: bool, can_flip: bool = false) -> void:
 ## The pause screen's buttons, top to bottom (those showing).
 func pause_buttons() -> Array[Control]:
 	var out: Array[Control] = []
-	for b in [_resume_button, _options_button, _flip_button, _pause_menu_button]:
+	for b in [_resume_button, _options_button, _flip_button, _pause_skip_button, _pause_menu_button]:
 		if b.visible and _on_pause_screen:
 			out.append(b)
 	return out
@@ -664,11 +705,12 @@ func _pause_id(b: Control) -> String:
 	if b == _options_button: return "options"
 	if b == _flip_button: return "flip"
 	if b == _pause_menu_button: return "menu"
+	if b == _pause_skip_button: return "skip"
 	return "resume"
 
 
 func _redraw_pause_buttons() -> void:
-	for b in [_resume_button, _options_button, _flip_button, _pause_menu_button]:
+	for b in [_resume_button, _options_button, _flip_button, _pause_skip_button, _pause_menu_button]:
 		b.queue_redraw()
 
 
@@ -798,6 +840,143 @@ func _draw_rotate() -> void:
 	var ns := maxi(bs - 4, 12)
 	var nw := _rotate_font.get_string_size(PORTRAIT_NOTE, HORIZONTAL_ALIGNMENT_LEFT, -1, ns).x
 	c.draw_string(_rotate_font, Vector2(left + (w - nw) / 2.0, y + 88.0), PORTRAIT_NOTE, HORIZONTAL_ALIGNMENT_LEFT, -1, ns, Color(1, 1, 1, 0.5))
+
+
+# --- the tutorial's lessons (main.gd): a heading and a line, centred ---------
+# above the play, and arrows up to the katana or the power-up bolt.
+
+var _coach: Control
+var _coach_title := ""
+var _coach_line := ""
+var _coach_points: Array = []   # "katana", "bolt"
+var _coach_t := 0.0
+var _coach_shake := 0.0
+var _coach_beat := 0.0
+const COACH_BEAT := 0.55   # seconds between the pops of what it's about
+const COACH_SHAKE_TIME := 0.3
+
+
+## `line`: the move to make (in her red), or "". `points`: what in the top
+## bar it's about ("katana", "bolt", "streak"): that pops, over and over.
+func show_coach(title: String, line := "", points: Array = []) -> void:
+	if title != _coach_title or line != _coach_line:
+		_coach_t = 0.0
+	_coach_title = title
+	_coach_line = line
+	_coach_points = points
+	_coach.visible = true
+	_coach.queue_redraw()
+
+
+func hide_coach() -> void:
+	_coach.visible = false
+
+
+func set_skip_visible(on: bool) -> void:
+	_skip_on = on
+	_skip_button.visible = on and not get_tree().paused
+
+
+func skip_button_contains(pos: Vector2) -> bool:
+	return _skip_button.visible and _skip_button.get_rect().has_point(pos)
+
+
+func _draw_skip_button() -> void:
+	var r := Rect2(Vector2.ZERO, SKIP_BUTTON_SIZE)
+	_skip_button.draw_rect(r, Color(0.04, 0.03, 0.04, 0.6))
+	_skip_button.draw_rect(r, Color(1, 1, 1, 0.5), false, 2.0)
+	var font := ThemeDB.fallback_font
+	var size := 20
+	var text := "Skip Tutorial"
+	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+	_skip_button.draw_string(font, Vector2((r.size.x - w) / 2.0, r.size.y / 2.0 + size * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(1, 1, 1, 0.85))
+
+
+## The wrong move: the words shake.
+func coach_shake() -> void:
+	_coach_shake = COACH_SHAKE_TIME
+
+
+## The screen dims around what the words are about (the katana, the bolt,
+## the flawless number), each lit in a softly glowing box.
+func _draw_spotlight(c: Control, v: Vector2) -> void:
+	var holes: Array[Rect2] = []
+	var mid := TopBar.BLADE.y / 2.0
+	for what in _coach_points:
+		var r := Rect2()
+		match what:
+			"katana":
+				var ext := _top.extent()
+				r = Rect2(_top.position + Vector2(ext.x, mid - 22.0), Vector2(ext.y - ext.x, 44.0))
+			"bolt":
+				r = Rect2(_top.position + _top._bolt_origin(), TopBar.BOLT_SIZE)
+			"streak":
+				r = Rect2(_top.position + Vector2(_top.streak_x - 6.0, mid - 26.0), Vector2(84.0, 56.0))
+		holes.append(r.grow(12.0))
+	# The dark, in strips around the holes.
+	var dark := Color(0, 0, 0, 0.62 * minf(_coach_t / 0.3, 1.0))
+	var ys: Array[float] = [0.0, v.y]
+	for h in holes:
+		ys.append(clampf(h.position.y, 0.0, v.y))
+		ys.append(clampf(h.end.y, 0.0, v.y))
+	ys.sort()
+	for i in ys.size() - 1:
+		var y0: float = ys[i]
+		var y1: float = ys[i + 1]
+		if y1 - y0 < 0.5:
+			continue
+		var spans: Array = []   # the holes' x spans in this strip
+		for h in holes:
+			if h.position.y <= y0 and h.end.y >= y1:
+				spans.append(Vector2(h.position.x, h.end.x))
+		spans.sort_custom(func(a: Vector2, b: Vector2) -> bool: return a.x < b.x)
+		var x := 0.0
+		for sp in spans:
+			if sp.x > x:
+				c.draw_rect(Rect2(x, y0, sp.x - x, y1 - y0), dark)
+			x = maxf(x, sp.y)
+		if x < v.x:
+			c.draw_rect(Rect2(x, y0, v.x - x, y1 - y0), dark)
+	# A soft glowing edge round each.
+	var pulse := 0.55 + 0.45 * sin(_coach_t * 5.0)
+	for h in holes:
+		for k in 3:
+			c.draw_rect(h.grow(k * 3.0), Color(1, 1, 1, (0.35 - k * 0.1) * pulse), false, 2.0)
+
+
+func _draw_coach() -> void:
+	var c := _coach
+	var v := c.size
+	var font := ThemeDB.fallback_font
+	var pop := 1.0 + 0.25 * maxf(0.0, 1.0 - _coach_t / 0.2)   # a pop as it appears
+	var shake := Vector2(sin(_coach_shake * 90.0) * 12.0 * (_coach_shake / COACH_SHAKE_TIME), 0.0)
+	# Under the floor (the play stays clear); with arrows, just under the top
+	# bar (nothing else is on screen then).
+	var cy := v.y * 0.86
+	if not _coach_points.is_empty():
+		_draw_spotlight(c, v)
+	var title_size := int(34 * pop)
+	var tw := font.get_string_size(_coach_title, HORIZONTAL_ALIGNMENT_LEFT, -1, title_size).x
+	var tpos := Vector2((v.x - tw) / 2.0, cy) + shake
+	# A dark band behind it, so it reads over the game.
+	var band_h := 104.0 if _coach_line != "" else 60.0
+	var band_y := cy - 46.0
+	var big := _coach_title == "" and _coach_line != ""   # (just the red word, big: "Start!")
+	if big:
+		band_h = 96.0
+		band_y = cy - 62.0
+	c.draw_rect(Rect2(0, band_y, v.x, band_h), Color(0.03, 0.02, 0.03, 0.55))
+	c.draw_string(font, tpos, _coach_title, HORIZONTAL_ALIGNMENT_LEFT, -1, title_size, Color.WHITE)
+	if _coach_line != "":
+		var red := MainMenu.TITLE_TEXT_RED
+		if _coach_shake > 0.0:
+			red = Color(1, 0.25, 0.25)
+		var ls := int((72 if big else 30) * pop)
+		var lw := font.get_string_size(_coach_line, HORIZONTAL_ALIGNMENT_LEFT, -1, ls).x
+		var lpos := Vector2((v.x - lw) / 2.0, (cy + 10.0) if big else (cy + 44.0)) + shake
+		for j in 12:   # a glow, as the title screen's
+			c.draw_string(font, lpos + Vector2.RIGHT.rotated(j * TAU / 12.0) * 5.0, _coach_line, HORIZONTAL_ALIGNMENT_LEFT, -1, ls, Color(red, 0.08))
+		c.draw_string(font, lpos, _coach_line, HORIZONTAL_ALIGNMENT_LEFT, -1, ls, red)
 
 
 # --- the first-time tutorial --------------------------------------------------

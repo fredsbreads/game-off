@@ -18,6 +18,9 @@ const KEEP_TAIL_FRAMES := 10
 
 var main: Node
 var bot := false
+var bot_no_empty := false   # --bot-no-empty: the bot only teleports onto an enemy (it runs between chains)
+var bot_delay := 0.0
+var tutorial := false   # --tutorial: the run is the tutorial (level 0)   # --bot-delay=S: in a chain's freeze, the bot waits this long before its move
 var autostart := false
 var soak_target := 0.0
 var shots_dir := ""
@@ -40,6 +43,9 @@ func _ready() -> void:
 		var value := parts[1] if parts.size() > 1 else ""
 		match key:
 			"bot": bot = true
+			"bot-delay": bot_delay = float(value)
+			"bot-no-empty": bot_no_empty = true
+			"tutorial": tutorial = true
 			"autostart": autostart = true
 			"soak": soak_target = float(value)
 			"seed": main.level.set_seed(int(value))
@@ -100,7 +106,14 @@ func think() -> int:
 		var expect: Array = _predicted.pop_front()
 		if absf(expect[0] - main.player.x) > 0.001 or expect[1] != main.player.row or expect[2] != main.player.cooldown:
 			print("  MISMATCH predicted x=%.4f row=%d cd=%d actual x=%.4f row=%d cd=%d" % [expect[0], expect[1], expect[2], main.player.x, main.player.row, main.player.cooldown])
-	return _plan.pop_front()
+	var planned: int = _plan.pop_front()
+	if bot_no_empty and planned != Rules.Move.NONE and main.player.cooldown == 0:
+		var tx: float = main.player.x + Rules.move_dx(planned)
+		var trow: int = (1 - main.player.row) if Rules.move_flips_row(planned) else main.player.row
+		if main.level.enemies_hit_by(planned, tx, trow).is_empty():
+			_replan_in = 0   # (it'll find another way, or run on)
+			return Rules.Move.NONE
+	return planned
 
 
 func _replan() -> void:

@@ -120,7 +120,7 @@ func _buttons() -> Array[String]:
 func _button_text(id: String) -> String:
 	match id:
 		"play": return "PLAY"
-		"level": return "Start At Level %d" % start_level
+		"level": return "Tutorial" if start_level == 0 else "Start At Level %d" % start_level
 		"flip": return "Flip Screen"
 		"options": return "Options"
 	return ""
@@ -371,8 +371,8 @@ func _draw_level_selector(r: Rect2, picked: bool) -> void:
 	draw_string(f, Vector2(r.position.x + 16.0, y), "<", HORIZONTAL_ALIGNMENT_LEFT, -1, LABEL_SIZE, arrow)
 	var gw := f.get_string_size(">", HORIZONTAL_ALIGNMENT_LEFT, -1, LABEL_SIZE).x
 	draw_string(f, Vector2(r.end.x - 16.0 - gw, y), ">", HORIZONTAL_ALIGNMENT_LEFT, -1, LABEL_SIZE, arrow)
-	var label := "Start Level "
-	var value := str(start_level)
+	var label := "Start Level " if start_level > 0 else ""
+	var value := str(start_level) if start_level > 0 else "Tutorial"   # (0: the tutorial)
 	var lw := f.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, LABEL_SIZE - 4).x
 	var vw := f.get_string_size(value, HORIZONTAL_ALIGNMENT_LEFT, -1, LABEL_SIZE + 4).x
 	var x := r.position.x + (r.size.x - lw - vw) / 2.0

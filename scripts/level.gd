@@ -223,6 +223,28 @@ func push_cursor(x: float) -> void:
 	_cursor = maxf(_cursor, x)
 
 
+## Lays enemies at exact spots: each Vector2 is (tiles from x, 0 = `row` /
+## 1 = the other row). The tutorial's, where step notation's 6-tile steps
+## don't fit.
+func lay_shape(shape: Array, name: String, x: float, row: int) -> void:
+	var enemies: Array[Vector2] = []
+	for v in shape:
+		enemies.append(v)
+	_cursor = x
+	_cursor_row = row
+	_append_pattern({"enemies": enemies, "name": name})
+
+
+## Lays a hand-made chain (step notation, see Patterns.parse) with its first
+## enemy at x in `row` (the tutorial's). The next chain goes after it as usual.
+func lay(steps: String, name: String, x: float, row: int) -> void:
+	var p := Patterns.parse(steps)
+	p["name"] = name
+	_cursor = x
+	_cursor_row = row
+	_append_pattern(p)
+
+
 ## Switches enemies off (removes every one) or back on (enemies spawn again
 ## from from_x, e.g. just off the right edge of the screen).
 func set_enemies_off(off: bool, from_x: float) -> void:

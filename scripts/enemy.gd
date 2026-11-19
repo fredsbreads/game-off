@@ -147,11 +147,34 @@ func attack(her_x := NAN) -> void:
 	if alive and _sprite:
 		if _idle_held:
 			hold_idle(false)
+		home_x = tile_x
 		if not is_nan(her_x):
 			tile_x = her_x + GRUNT_KILL_DISTANCE
 			position.x = tile_x * Rules.TILE
 		_sprite.play("attack")
 		_sprite.frame = ATTACK_START_FRAME
+
+
+## Where he stood before he stepped in to cut her down (see attack()).
+var home_x := 0.0
+var _unattack_from := 0.0
+
+
+## The tutorial's rewind: his slash, backwards, as he slides back to where he
+## stood (k: 0 to 1 over it). Then he's idle.
+func unattack(k: float) -> void:
+	if not _sprite:
+		return
+	if k <= 0.0:
+		_unattack_from = tile_x
+		_sprite.speed_scale = 1.0
+		_sprite.play_backwards("attack")
+	tile_x = lerpf(_unattack_from, home_x, clampf(k, 0.0, 1.0))
+	position.x = tile_x * Rules.TILE
+	if k >= 1.0:
+		tile_x = home_x
+		position.x = tile_x * Rules.TILE
+		_sprite.play("idle")
 
 
 func _on_animation_finished() -> void:

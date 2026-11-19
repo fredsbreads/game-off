@@ -474,6 +474,62 @@ func die(_kind: String) -> void:
 		_make_ring()
 
 
+## The tutorial's rewind: her death, backwards (k: 0 to 1 over it): the fall
+## played in reverse, her dissolve undone, back to where she was hit.
+var rewinding := false   # (her animation is set by the rewind: none of her own)
+var _unfall_from := [0.0, Vector2.ZERO, 0.0]
+
+func unfall(k: float) -> void:
+	if k <= 0.0 or not rewinding:
+		rewinding = true
+		_unfall_from = [_dissolve, _death_offset, rotation]
+		_sprite.speed_scale = 1.0
+		_sprite.play_backwards("fall")
+		if zap_fx:
+			zap_fx.clear_bolts()
+	var f := 1.0 - clampf(k, 0.0, 1.0)
+	_dissolve = float(_unfall_from[0]) * f
+	_death_offset = Vector2(_unfall_from[1]) * f
+	rotation = float(_unfall_from[2]) * f
+	if _dissolve_material:
+		_dissolve_material.set_shader_parameter("amount", _dissolve)
+
+
+## ...then running backwards (her run, in reverse).
+func run_backwards() -> void:
+	revive()
+	rewinding = true
+	_play("run")
+	_sprite.play_backwards("run")
+
+
+func end_rewind() -> void:
+	rewinding = false
+
+
+## Back on her feet (the tutorial's rewind after it shows her dying): whole
+## again, running.
+func revive() -> void:
+	alive = true
+	_death_offset = Vector2.ZERO
+	_death_velocity = Vector2.ZERO
+	rotation = 0.0
+	_dissolve = 0.0
+	frozen = false
+	_sprite.material = Palette.sprite_material()
+	if _katana:
+		_katana.queue_free()
+		_katana = null
+	if zap_fx:
+		zap_fx.clear_bolts()
+		zap_fx.bolt_alpha = 1.0
+	if _ring and not (charged or auto_chain):
+		_ring.queue_free()
+		_ring = null
+	_striking = false
+	_play("run" if running else "idle")
+
+
 func _make_ring() -> void:
 	_ring = Sprite2D.new()
 	_ring.texture = Fx.BOLT_SHEETS[Fx.Bolt.RING]
@@ -541,7 +597,7 @@ func _process(delta: float) -> void:
 	if not alive and _ring and _dissolve >= RING_GONE_AT:
 		_ring.queue_free()
 		_ring = null
-	if not alive and zap_fx and _dissolve < 0.95:
+	if not alive and zap_fx and _dissolve < 0.95 and not rewinding:
 		_flicker_timer -= delta
 		if _flicker_timer <= 0.0:
 			_flicker_timer = FLICKER_EVERY
@@ -557,7 +613,7 @@ func _process(delta: float) -> void:
 	if _hidden_left > 0.0:
 		_hidden_left -= delta
 		_sprite.visible = _hidden_left <= 0.0
-	if alive:
+	if alive and not rewinding:
 		_strike_time += delta
 		if _striking and not frozen and _strike_time >= STRIKE_MIN:
 			_striking = false   # moving again: back to running
@@ -565,7 +621,8 @@ func _process(delta: float) -> void:
 			var want := "run" if running else "idle"
 			if _sprite.animation != want:
 				_play(want)
-	_sprite.speed_scale = 0.0 if frozen else 1.0
+	if not rewinding:
+		_sprite.speed_scale = 0.0 if frozen else 1.0
 
 	_update_charge_look(delta)
 	_update_markers(delta)
