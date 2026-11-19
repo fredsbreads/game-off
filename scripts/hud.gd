@@ -1005,7 +1005,7 @@ func _draw_coach() -> void:
 	var tw := font.get_string_size(_coach_title, HORIZONTAL_ALIGNMENT_LEFT, -1, title_size).x
 	var tpos := Vector2((v.x - tw) / 2.0, cy) + shake
 	# A dark band behind it, so it reads over the game.
-	var band_h := (104.0 + (_coach_line_size - COACH_LINE_SIZE)) if _coach_line != "" else 60.0
+	var band_h := (104.0 + 0.7 * (_coach_line_size - COACH_LINE_SIZE)) if _coach_line != "" else 60.0
 	var band_y := cy - 46.0
 	var big := _coach_title == "" and _coach_line != ""   # (just the red word, big: "Start!")
 	if big:
@@ -1019,7 +1019,7 @@ func _draw_coach() -> void:
 			red = Color(1, 0.25, 0.25)
 		var ls := int((72 if big else _coach_line_size) * pop)
 		var lw := font.get_string_size(_coach_line, HORIZONTAL_ALIGNMENT_LEFT, -1, ls).x
-		var lpos := Vector2((v.x - lw) / 2.0, (cy + 10.0) if big else (cy + 14.0 + _coach_line_size)) + shake
+		var lpos := Vector2((v.x - lw) / 2.0, (cy + 10.0) if big else (cy + 44.0 + 0.7 * (_coach_line_size - COACH_LINE_SIZE))) + shake   # (a bigger line: the same gap under the words, its caps' tops level with the usual)
 		for j in 12:   # a glow, as the title screen's
 			c.draw_string(font, lpos + Vector2.RIGHT.rotated(j * TAU / 12.0) * 5.0, _coach_line, HORIZONTAL_ALIGNMENT_LEFT, -1, ls, Color(red, 0.08))
 		c.draw_string(font, lpos, _coach_line, HORIZONTAL_ALIGNMENT_LEFT, -1, ls, red)
