@@ -125,6 +125,7 @@ const FINISHER_HOLD := 0.8         # after the level-up, the freeze frame holds 
 # Every finisher after the first in a run is the quick one: the same three
 # slashes and colour change, at about the power-up finish's pace.
 const FINISHER_QUICK_HOP := 0.2
+const FINISHER_RAINBOW_HOP := 0.3   # the rainbow has five strikes, so they come faster
 const FINISHER_QUICK_BOLT_FPS := 12.0
 const FINISHER_QUICK_AFTER := 0.1
 const FINISHER_QUICK_SWEEP := 0.35
@@ -1576,7 +1577,7 @@ func _finisher(k: Enemy, grade: String, to_rainbow := false) -> void:
 		_set_save_flag("rainbow_unlocked")   # (Options now offers "Flawless Rainbow")
 		if Settings.rainbow:
 			Palette.set_rainbow(true)
-	_fin_hop = FINISHER_QUICK_HOP if quick else FINISHER_HOP
+	_fin_hop = FINISHER_QUICK_HOP if quick else (FINISHER_RAINBOW_HOP if to_rainbow else FINISHER_HOP)
 	_fin_strike_fps = 18.0 if quick else FINISHER_STRIKE_FPS
 	_fin_bolt_fps = FINISHER_QUICK_BOLT_FPS if quick else FINISHER_BOLT_FPS
 	_fin_after = FINISHER_QUICK_AFTER if quick else FINISHER_SWEEP_AFTER
