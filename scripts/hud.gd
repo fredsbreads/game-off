@@ -633,7 +633,7 @@ func _draw_backdrop() -> void:
 	var centre := Vector2(view.x / 2.0, hy - hs * 0.35)
 	c.draw_set_transform(centre, 0.0, Vector2.ONE * (1.0 + 0.03 * beat))
 	var hpos := Vector2(-hw / 2.0, hs * 0.35)
-	var red := Palette.secondary()   # (the Flawless Color picked in Options)
+	var red := Palette.setting_secondary()   # (the Flawless Color setting: not the rainbow's colour of the moment)
 	for j in 12:   # a glow, as the title's
 		c.draw_string(font, hpos + Vector2.RIGHT.rotated(j * TAU / 12.0) * 5.0, _over_hint, HORIZONTAL_ALIGNMENT_LEFT, -1, hs, Color(red, 0.08 * a))
 	c.draw_string(font, hpos, _over_hint, HORIZONTAL_ALIGNMENT_LEFT, -1, hs, Color(red, a))

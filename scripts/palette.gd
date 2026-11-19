@@ -46,6 +46,15 @@ static func secondary() -> Color:
 	return Color.from_hsv(float(_hsv[0]), minf(1.0, 0.82 * float(_hsv[1])), minf(1.0, 1.0 * float(_hsv[2])))
 
 
+## secondary() as the Flawless Color setting gives it, whatever's on screen
+## right now (mid-rainbow, the rainbow's colour; golden or not, the same).
+static func setting_secondary() -> Color:
+	var hsv: Array = COLOURS[colour_name]
+	if float(hsv[0]) < 0.0:
+		return Color(0.95, 0.15, 0.2)
+	return Color.from_hsv(float(hsv[0]), minf(1.0, 0.82 * float(hsv[1])), minf(1.0, 1.0 * float(hsv[2])))
+
+
 ## True with Red (Original) picked: her colour never changes.
 static func keeps_red() -> bool:
 	return float(_hsv[0]) < 0.0
