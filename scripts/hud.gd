@@ -867,6 +867,7 @@ var _coach_line := ""
 var _coach_points: Array = []   # "katana", "bolt"
 var _coach_line_size := 30
 const COACH_LINE_SIZE := 30   # the red line under the words (the move): a name can be bigger
+var coach_points_fn := Callable()   # (set: the spots are asked for as it draws, so they're where things are this frame)
 var coach_dim := true   # the spotlight dims around what it's about (false: just the glowing boxes)
 var _coach_t := 0.0
 var _coach_shake := 0.0
@@ -946,6 +947,8 @@ func coach_shake() -> void:
 func _draw_spotlight(c: Control, v: Vector2) -> void:
 	var holes: Array[Rect2] = []
 	var mid := TopBar.BLADE.y / 2.0
+	if coach_points_fn.is_valid():
+		_coach_points = coach_points_fn.call()
 	for what in _coach_points:
 		var r := Rect2()
 		if what is Rect2:   # (a spot in the play: main.gd works out where)

@@ -1350,11 +1350,11 @@ func _physics_process(delta: float) -> void:
 	Palette.tick(delta)
 	_update_knight_threats()
 	_update_pause_visuals()
-	if _kunai_beat > 0:
-		if _tut_hold or _tutorial:
-			hud._coach_points = _kunai_spots()
-		else:
-			_kunai_beat = 0   # (the move was made: the words are gone)
+	if _kunai_beat > 0 and not (_tut_hold or _tutorial):
+		_kunai_beat = 0   # (the move was made: the words are gone)
+	# The lit boxes follow the katanas as the screen's drawn (worked out here,
+	# a frame early, they'd trail behind as she and the camera move).
+	hud.coach_points_fn = _kunai_spots if _kunai_beat > 0 else Callable()
 	if _tut_hold:
 		freeze_effect.set_state(0.0, 1.0)
 		player.frozen = true
