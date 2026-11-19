@@ -872,6 +872,10 @@ func hide_coach() -> void:
 	_coach.visible = false
 
 
+func set_level_quietly(lv: int) -> void:
+	_top.set_level_quietly(lv)
+
+
 func set_skip_visible(on: bool) -> void:
 	_skip_on = on
 	_skip_button.visible = on and not get_tree().paused

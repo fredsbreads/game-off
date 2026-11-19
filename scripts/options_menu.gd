@@ -28,6 +28,7 @@ const STEPS_SHAKE := [0.0, 0.5, 1.0]   # None, Soft, Full (left to right; it goe
 # key, label (actions have no key; their label is the button text)
 const ROWS := [
 	{"key": "colour", "label": "Flawless Color"},
+	{"key": "rainbow", "label": "Flawless Rainbow"},   # (only once she's had it: see open())
 	{"key": "music", "label": "Music"},
 	{"key": "sfx", "label": "Sound Effects"},
 	{"key": "shake", "label": "Camera Shake & Zoom"},   # (screen shake and the camera's zooms in)
@@ -52,6 +53,8 @@ func _ready() -> void:
 
 func open() -> void:
 	_rows = ROWS.duplicate()
+	if not Settings.rainbow_unlocked():
+		_rows = _rows.filter(func(r: Dictionary) -> bool: return r.get("key", "") != "rainbow")
 	if Hud.rotated:
 		_rows.insert(_rows.size() - 2, FLIP_ROW)
 	_selected = 0
@@ -135,7 +138,7 @@ func _step(i: int, dir: int) -> void:
 	if at == -1:   # (a saved value between steps: the nearest one)
 		at = _nearest(values, Settings.get_value(key))
 	# Colours, flashes and shake go round; volumes stop at their ends.
-	var to := posmod(at + dir, values.size()) if key in ["colour", "flashes", "shake"] else clampi(at + dir, 0, values.size() - 1)
+	var to := posmod(at + dir, values.size()) if key in ["colour", "rainbow", "flashes", "shake"] else clampi(at + dir, 0, values.size() - 1)
 	if to == at:
 		return
 	Settings.set_value(key, values[to])
@@ -148,6 +151,7 @@ func _values(key: String) -> Array:
 	match key:
 		"colour":   # (the default's own colour isn't listed again under its name)
 			return ["default"] + Palette.COLOURS.keys().filter(func(k: String) -> bool: return k != Palette.COLOUR)
+		"rainbow": return [true, false]
 		"music", "sfx": return STEPS_VOLUME
 		"shake": return STEPS_SHAKE
 		"flashes": return [0.0, Settings.FLASH_SOFT, 1.0]   # None, Soft, Full
@@ -169,6 +173,8 @@ func _value_text(key: String) -> String:
 	match key:
 		"colour":
 			return ("%s (Default)" % Palette.display_name(Palette.COLOUR)) if v == "default" else Palette.display_name(String(v))
+		"rainbow":
+			return "Enabled" if bool(v) else "Disabled"
 		"shake":
 			return "Full" if float(v) >= 0.99 else ("None" if float(v) <= 0.001 else "Soft")
 		"music", "sfx":

@@ -193,6 +193,15 @@ func set_progress(lv: int, bar: float, bar_size: float, pending: int) -> void:
 	_show_level(_result["level"] if not _result.is_empty() else lv)
 
 
+## The level, shown at once (no level-up: the tutorial skipped to level 1).
+func set_level_quietly(lv: int) -> void:
+	level = lv
+	_shown_level = lv
+	_latest_level = lv
+	_level_up = -1.0
+	_result = {}
+
+
 func _show_level(lv: int) -> void:
 	level = lv
 	if _shown_level >= 0 and level > _shown_level:

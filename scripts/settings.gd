@@ -18,7 +18,19 @@ static var shake := 1.0
 static var flashes := 1.0
 const FLASH_SOFT := 0.3
 
-const DEFAULTS := {"colour": "default", "music": 1.0, "sfx": 1.0, "shake": 1.0, "flashes": 1.0}
+## The rainbow at a flawless streak of 100 (the "Flawless Rainbow" option,
+## offered once she's had it): off = she keeps her flawless colour.
+static var rainbow := true
+
+const DEFAULTS := {"colour": "default", "rainbow": true, "music": 1.0, "sfx": 1.0, "shake": 1.0, "flashes": 1.0}
+
+
+## True once she's reached the rainbow in any run (kept in the save file):
+## the Options screen then offers "Flawless Rainbow".
+static func rainbow_unlocked() -> bool:
+	var cfg := ConfigFile.new()
+	cfg.load(SAVE_PATH)
+	return bool(cfg.get_value("progress", "rainbow_unlocked", false))
 
 
 static func load_all() -> void:
@@ -27,6 +39,7 @@ static func load_all() -> void:
 	colour = String(cfg.get_value("settings", "colour", DEFAULTS["colour"]))
 	if colour == Palette.COLOUR:
 		colour = "default"   # (the default's own colour, picked by name before it was dropped from the list)
+	rainbow = bool(cfg.get_value("settings", "rainbow", DEFAULTS["rainbow"]))
 	music = float(cfg.get_value("settings", "music", DEFAULTS["music"]))
 	sfx = float(cfg.get_value("settings", "sfx", DEFAULTS["sfx"]))
 	shake = float(cfg.get_value("settings", "shake", DEFAULTS["shake"]))
@@ -52,6 +65,7 @@ static func reset() -> void:
 static func get_value(key: String) -> Variant:
 	match key:
 		"colour": return colour
+		"rainbow": return rainbow
 		"music": return music
 		"sfx": return sfx
 		"shake": return shake
@@ -62,6 +76,7 @@ static func get_value(key: String) -> Variant:
 static func set_value(key: String, value: Variant) -> void:
 	match key:
 		"colour": colour = String(value)
+		"rainbow": rainbow = bool(value)
 		"music": music = float(value)
 		"sfx": sfx = float(value)
 		"shake": shake = float(value)

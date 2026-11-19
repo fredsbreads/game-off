@@ -79,11 +79,85 @@ static func use_colour(name: String) -> void:
 		push_warning("Palette: no colour called '%s', using ember" % name)
 		name = "ember"
 	colour_name = name
-	_hsv = COLOURS[name]
+	_hsv = COLOURS[name].duplicate()
 	RenderingServer.global_shader_parameter_set("accent_hue", float(_hsv[0]))
 	RenderingServer.global_shader_parameter_set("accent_sat", float(_hsv[1]))
 	RenderingServer.global_shader_parameter_set("accent_val", float(_hsv[2]))
 	RenderingServer.global_shader_parameter_set("accent2", secondary())   # (her katana's hilt)
+
+
+# --- The rainbow (a flawless streak of 100) ----------------------------------
+# Her colour fades from one of these to the next, RAINBOW_STEP seconds each,
+# whatever colour is picked in Options; in an auto-chain it steps on every hit.
+
+## Its own list (not the Options colours): twelve hues round the wheel, her
+## red first, and an indigo between blue and violet. [name, hue, sat x, val x]
+## as in COLOURS ("red" here is her red as a hue: 0.99).
+const RAINBOW_ORDER := [
+	["red", 0.99, 1.0, 1.0], ["ember", 0.045, 1.0, 1.0], ["orange", 0.07, 1.0, 1.0],
+	["yellow", 0.14, 0.95, 1.05], ["lime", 0.22, 0.95, 0.95], ["green", 0.33, 0.95, 0.85],
+	["teal", 0.47, 1.0, 0.8], ["cyan", 0.53, 0.9, 1.0], ["blue", 0.61, 0.95, 1.0],
+	["indigo", 0.68, 0.95, 1.0], ["violet", 0.74, 0.85, 1.0], ["magenta", 0.85, 0.9, 0.95],
+]
+const RAINBOW_STEP := 1.0
+static var rainbow := false
+## While true (an auto-chain, a finisher), the rainbow doesn't fade on its own.
+static var rainbow_hold := false
+static var _rainbow_t := 0.0
+
+
+## On: the rainbow takes over her colour. Off: back to the colour picked.
+static func set_rainbow(on: bool) -> void:
+	if on == rainbow:
+		return
+	rainbow = on
+	if on:
+		# From the colour she has (one not in it, e.g. Pink: from her red).
+		_rainbow_t = 0.0
+		for i in RAINBOW_ORDER.size():
+			if RAINBOW_ORDER[i][0] == colour_name:
+				_rainbow_t = float(i)
+		tick(0.0)
+	else:
+		use_colour(colour_name)
+
+
+## The next colour at once (a hit in an auto-chain, a finisher's slash).
+static func rainbow_next() -> void:
+	rainbow_at(floorf(_rainbow_t) + 1.0)
+
+
+## Jump to a point in the rainbow (0 = its first colour, 1 = the next...).
+static func rainbow_at(t: float) -> void:
+	if not rainbow:
+		return
+	_rainbow_t = fposmod(t, float(RAINBOW_ORDER.size()))
+	tick(0.0)
+
+
+static func rainbow_pos() -> float:
+	return _rainbow_t
+
+
+## Called every frame (main.gd): fades the rainbow on.
+static func tick(delta: float) -> void:
+	if not rainbow:
+		return
+	var n := RAINBOW_ORDER.size()
+	if not rainbow_hold:
+		_rainbow_t = fposmod(_rainbow_t + delta / RAINBOW_STEP, float(n))
+	var i := int(_rainbow_t)
+	var f := _rainbow_t - float(i)
+	var a: Array = RAINBOW_ORDER[i].slice(1)
+	var b: Array = RAINBOW_ORDER[(i + 1) % n].slice(1)
+	var dh := fposmod(float(b[0]) - float(a[0]) + 0.5, 1.0) - 0.5   # (the short way round)
+	_hsv[0] = fposmod(float(a[0]) + dh * f, 1.0)
+	_hsv[1] = lerpf(float(a[1]), float(b[1]), f)
+	_hsv[2] = lerpf(float(a[2]), float(b[2]), f)
+	RenderingServer.global_shader_parameter_set("accent_hue", float(_hsv[0]))
+	RenderingServer.global_shader_parameter_set("accent_sat", float(_hsv[1]))
+	RenderingServer.global_shader_parameter_set("accent_val", float(_hsv[2]))
+	RenderingServer.global_shader_parameter_set("accent2", secondary())
 
 
 ## The next colour in COLOURS (the C key). Returns its name.

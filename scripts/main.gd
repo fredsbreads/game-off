@@ -140,6 +140,10 @@ var _fin_hold := FINISHER_HOLD
 # The reward: a flawless streak (kills in a row, no enemy let go, no chain
 # dropped) this long; the next chain that ends on a kill plays the finisher.
 const STREAK_REWARD := 50
+const RAINBOW_STREAK := 100   # ...and the rainbow (see Palette.set_rainbow)
+var _rainbowed_before := false
+var _rainbow_tier := false   # a streak of RAINBOW_STREAK reached (whether or not the rainbow's shown)
+var _fin_rainbow := false   # this finisher is the rainbow one (five slashes)
 # The auto-chain power-up: a meter filled by finished chains (CLEAN 1,
 # PERFECT 2, CHARGE_FULL to fill). Full = she's charged; her next kill that
 # has a chain after it sets it off: the rest of that chain plays itself,
@@ -351,6 +355,7 @@ func _ready() -> void:
 		level.spawn_hold = true   # (the tutorial lays its own enemies)
 	Palette.set_pink(0.0)   # every run starts red (her colour is the streak reward)
 	_make_rewind_layer()
+	Palette.set_rainbow(false)
 	player.x = START_X
 	level.start_x = START_X
 	level.enemy_parent = $EnemyLayer
@@ -405,6 +410,8 @@ func score() -> int:
 
 func begin() -> void:
 	_run_start_level = progression.level   # (the death screen says if it wasn't 1)
+	if progression.level >= 1:
+		_set_save_flag("played")   # (a run, not the tutorial: the level choice can show)
 	hud.menu.close()
 	state = State.PLAYING
 	player.running = true
@@ -516,12 +523,25 @@ func _begin_hold(title: String, name_the_move := true) -> void:
 func _wrong_move() -> void:
 	_wrong_sound.play()
 	hud.coach_shake()
+	if not hud._coach.visible or hud._coach_title == "":
+		# No words up: say so by her.
+		var above := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row) - Rules.TILE * 1.4)
+		if player.row == Rules.Row.CEILING:
+			above.y += Rules.TILE * 2.8
+		text_fx.text(above, "Not yet", 24, Color(1, 0.4, 0.4), Rules.RUN_SPEED * Rules.TILE if player.running else 0.0, 0.6)
+
+
+## A press the tutorial isn't taking right now (its words, the rewind): told so.
+func _refuse_pending() -> void:
+	if _pending_forward or _pending_vertical:
+		_wrong_move()
+	_clear_pending()
 
 
 ## Each frame of the lessons (PLAYING). Returns true while time is stopped.
 func _lesson_frame() -> bool:
 	if _rewinding:
-		_clear_pending()
+		_refuse_pending()
 		_rewind_frame(get_physics_process_delta_time())
 		return true
 	if _save_auto:
@@ -548,6 +568,9 @@ func _lesson_frame() -> bool:
 				_begin_hold("Red Enemy = Killable")
 				return true
 		Lesson.CHAIN:
+			if chain == 0 and kills == _lesson_kills + 1 and not _chain_targets(player.x, player.row).is_empty():
+				_begin_hold("Red Enemy = Killable")   # (the chain's first: a stop too)
+				return true
 			if kills >= _lesson_kills + 1 + CHAIN_STEPS.split(" ").size() + 1 and chain == 0:
 				# The save: a stacked pair, across from each other, run at.
 				_lesson = Lesson.SAVE
@@ -669,6 +692,16 @@ func _finish_tutorial(skipped: bool) -> void:
 		progression.level = 1
 		progression.bar = 0.0
 		level.bar_room = progression.bar_size()
+		hud.set_level_quietly(1)   # (no level-up show: it was skipped)
+		# As if the run had just started: on the floor, nothing going on.
+		player.row = Rules.Row.FLOOR
+		player.cooldown = 0
+		chain = 0
+		chain_points = 0
+		_chain_awaiting = false
+		_hitstop = 0.0
+		_tut_hold = false
+		player.frozen = false
 	else:
 		# Before the run: no enemies while what chains do is said, the
 		# katana and the bolt (then the flawless number) popping; then Start.
@@ -704,6 +737,7 @@ func _finish_tutorial(skipped: bool) -> void:
 func _start_run_after_tutorial() -> void:
 	if state != State.PLAYING:
 		return
+	_set_save_flag("played")   # (a run: the level choice can show)
 	hud.hide_coach()
 	_run_origin_x = player.x
 	distance = 0.0
@@ -950,6 +984,8 @@ func _is_options_press(event: InputEvent) -> bool:
 ## An option changed on the Options screen: a sound previews the new
 ## sound-effects volume (the clash of a duel: what you hear most).
 func _on_option_changed(key: String) -> void:
+	if key == "rainbow" or key == "reset":   # (turned on or off with the rainbow reached: at once)
+		Palette.set_rainbow(_rainbow_tier and Settings.rainbow)
 	if key == "colour" or key == "reset":
 		# Her markers are coloured in code each frame, which stops while paused:
 		# recolour them now, so a colour picked over the game shows at once.
@@ -1189,6 +1225,8 @@ func _physics_process(delta: float) -> void:
 			if _state_time >= DEATH_FREEZE + DEATH_SLOWMO + DEATH_ANIM_TIME * 0.4:
 				_game_over()
 
+	Palette.rainbow_hold = _auto or _finale_hold or _finishing
+	Palette.tick(delta)
 	_update_knight_threats()
 	_update_pause_visuals()
 	if _tut_hold:
@@ -1328,6 +1366,7 @@ func _step() -> void:
 
 	if move != Rules.Move.NONE and _lesson == Lesson.SAVE and not _save_done:
 		move = Rules.Move.NONE   # (the save: no moves on the way in, until time stops)
+		_wrong_move()
 	if move != Rules.Move.NONE and player.cooldown == 0 and _lesson != Lesson.NONE \
 			and not _would_slash(move):
 		_wrong_move()   # (the lessons: only a move that kills)
@@ -1492,6 +1531,8 @@ func _teleport(move: int) -> void:
 			# a kill (whoever it is): the triple slash, and she takes on her colour.
 			if _auto:
 				_auto_finale(grade)   # (never the streak finisher: only her own chains earn that)
+			elif sweep >= RAINBOW_STREAK and Palette.pink >= 1.0 and not _rainbow_tier and is_instance_valid(_last_felled):
+				_finisher(_last_felled, grade, true)   # the rainbow (100)
 			elif sweep >= STREAK_REWARD and Palette.pink <= 0.0 and is_instance_valid(_last_felled):
 				_finisher(_last_felled, grade)
 			else:
@@ -1504,11 +1545,22 @@ func _teleport(move: int) -> void:
 ## freeze frame while her colour sweeps across the screen; then the chain
 ## ends. The enemy stays standing until it's over, then falls. She keeps the colour
 ## until the streak breaks (_break_streak).
-func _finisher(k: Enemy, grade: String) -> void:
+func _finisher(k: Enemy, grade: String, to_rainbow := false) -> void:
 	# The whole thing the first time in a run; after that, the quick one. With
 	# Red (Hair) picked, always the quick one (no colour changes to show).
+	# The rainbow's (100): five slashes, a new colour on each.
 	var quick := _finished_before or Palette.keeps_red()
 	_finished_before = true
+	_fin_rainbow = to_rainbow
+	if to_rainbow:
+		# Quick the second time in a run, or with the rainbow turned off in
+		# Options (no colours to show: she keeps hers).
+		quick = _rainbowed_before or not Settings.rainbow
+		_rainbowed_before = true
+		_rainbow_tier = true
+		_set_save_flag("rainbow_unlocked")   # (Options now offers "Flawless Rainbow")
+		if Settings.rainbow:
+			Palette.set_rainbow(true)
 	_fin_hop = FINISHER_QUICK_HOP if quick else FINISHER_HOP
 	_fin_strike_fps = 18.0 if quick else FINISHER_STRIKE_FPS
 	_fin_bolt_fps = FINISHER_QUICK_BOLT_FPS if quick else FINISHER_BOLT_FPS
@@ -1538,16 +1590,25 @@ func _finisher(k: Enemy, grade: String) -> void:
 	var focus := Vector2(k.tile_x * Rules.TILE, Rules.body_center_y(k.row))
 	cam.hold_zoom(focus, FINISHER_ZOOM, 10.0, 0.5)   # centred on the enemy
 	var t := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_STOP)   # (stops while paused)
-	t.tween_interval(_fin_hop)
-	t.tween_callback(_finisher_strike.bind(k, right_x, -1.0, poses[0], ""))
-	t.tween_interval(_fin_hop)
-	t.tween_callback(_finisher_strike.bind(k, left_x, 1.0, poses[1], grade))
+	var order: Array = [poses[0], poses[1]]
+	if to_rainbow:
+		order += [player.last_pose(), poses[0]]
+	for i in order.size():
+		t.tween_interval(_fin_hop)
+		var last := i == order.size() - 1
+		t.tween_callback(_finisher_strike.bind(k, right_x if i % 2 == 0 else left_x, -1.0 if i % 2 == 0 else 1.0, order[i], grade if last else ""))
 	# The freeze frame: pink sweeps across her, then the level-up.
 	t.tween_interval(_fin_after)
-	# A wave across the whole screen, right to left.
+	# A wave across the whole screen, right to left. The rainbow's: every
+	# colour in turn as it crosses.
+	var from_t := [0.0]   # (where the slashes left the rainbow, when the wave starts)
+	t.tween_callback(func() -> void: from_t[0] = Palette.rainbow_pos())
 	var sweep := func(at: float) -> void:
 		var x := lerpf(1.03, -0.03, at)
-		Palette.sweep_to(x)
+		if to_rainbow:
+			Palette.rainbow_at(from_t[0] + at * Palette.RAINBOW_ORDER.size())   # (nothing with the rainbow off)
+		else:
+			Palette.sweep_to(x)
 		hud.show_sweep(x, Palette.flash_colour())
 	t.tween_callback(_pink_shift_sound.play)
 	t.tween_method(sweep, 0.0, 1.0, _fin_sweep)
@@ -1566,6 +1627,8 @@ func _finisher_strike(k: Enemy, to_x: float, face: float, pose: int, grade: Stri
 	var dir := signf(to_x - player.x)
 	player.x = to_x
 	player.facing = face
+	if _fin_rainbow:
+		Palette.rainbow_next()   # a new colour on each slash
 	fx.strike(from, Vector2(to_x * Rules.TILE, Rules.body_center_y(player.row)), false, _fin_strike_fps)
 	player.strike_from(from_feet)
 	player.strike(pose)
@@ -1793,6 +1856,7 @@ func _auto_slash(k: Enemy, to_x: float, face: float, pose: int, hop := AUTO_SLAS
 	player.strike_from(from_feet)
 	player.strike(pose)
 	player.hold_slash(hop)
+	Palette.rainbow_next()
 	_play_strike(true)
 	hud.flash(FINISHER_STRIKE_FLASH, 0.1)
 	if is_instance_valid(k):
@@ -1830,6 +1894,7 @@ func _auto_finale_strike(grade: String, k: Enemy) -> void:
 	cam.hold_zoom(body, 0.0, 3.0)
 	cam.punch(body, 0.15, 0.6)
 	cam.shake(AUTO_FINALE_SHAKE_TIME, AUTO_FINALE_SHAKE)
+	Palette.rainbow_next()
 	_auto_finale_sound.play()
 	_auto_finale_layer.pitch_scale = 0.85   # deeper than a knight's last hit
 	_auto_finale_layer.play()
@@ -1944,10 +2009,15 @@ func _has_debut(enemies: Array) -> bool:
 ## back to 0, and if she had her colour, she loses it, with a crack.
 func _break_streak() -> void:
 	sweep = 0
+	_rainbow_tier = false
 	if Palette.pink > 0.0 and not _finishing:
 		_lose_colour_sound.pitch_scale = _jitter()
 		_lose_colour_sound.play()
-		create_tween().set_pause_mode(Tween.TWEEN_PAUSE_STOP).tween_method(Palette.set_pink, Palette.pink, 0.0, LOSE_COLOUR_TIME)
+		var t := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_STOP)
+		t.tween_method(Palette.set_pink, Palette.pink, 0.0, LOSE_COLOUR_TIME)
+		t.tween_callback(func() -> void:
+			if sweep < STREAK_REWARD:
+				Palette.set_rainbow(false))   # (back to her picked colour, for next time)
 
 
 func _finisher_done(k: Enemy, focus: Vector2) -> void:
@@ -2208,6 +2278,8 @@ func _kill(e: Enemy) -> void:
 	kill_score += points
 	sweep += 1
 	best_sweep = maxi(best_sweep, sweep)
+	if _auto:
+		Palette.rainbow_next()   # (the rainbow: a new colour on every hit of the auto-chain)
 	if knight and knight.hits_left() > 1:
 		_clash(knight)
 		return
@@ -2328,6 +2400,8 @@ func _end_chain(grade: String, word: String = "") -> void:
 			var gain := int(CHARGE_GAIN.get(grade, 0))
 			if grade == "PERFECT" and Palette.pink >= 1.0:
 				gain = CHARGE_GOLDEN_PERFECT   # golden: her perfect chains count double
+			if grade == "PERFECT" and _rainbow_tier:
+				gain = CHARGE_FULL   # the rainbow: a perfect chain fills it in one go
 			_add_charge(gain)
 		if grade != "SINGLE":
 			var above := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row) - Rules.TILE * 1.4)
