@@ -347,13 +347,10 @@ func _ready() -> void:
 		var start := _session_start_level
 		progression.level = start if start in _unlocked_start_levels() else 1
 		level.level = progression.level
-	# Never pressed Play before: Play starts the tutorial (level 0). Picked on
-	# the title screen's level choice: the same.
-	if (not debug and not _save_flag("played")) or (debug and debug.tutorial):
-		progression.level = 0
-	if progression.level == 0:
+	if debug and debug.tutorial:
+		progression.level = 0   # (test runs: the tutorial only with --tutorial)
 		level.level = 1
-		level.spawn_hold = true   # (the tutorial lays its own enemies)
+		level.spawn_hold = true
 	Palette.set_pink(0.0)   # every run starts red (her colour is the streak reward)
 	_make_rewind_layer()
 	Palette.set_rainbow(false)
@@ -392,7 +389,7 @@ func _ready() -> void:
 	_prewarm()
 	if _retry:
 		_retry = false
-		begin()   # a retry goes straight into the run
+		begin(false)   # a retry goes straight into the run (no tutorial)
 	else:
 		# The level choice shows once a later start level is unlocked.
 		hud.menu.open(progression.level, LEVEL_CHOICE and _unlocked_start_levels().size() > 1)
@@ -409,11 +406,19 @@ func score() -> int:
 	return int(distance) + kill_score
 
 
-func begin() -> void:
+## `play`: started with Play on the title screen, which always begins with the
+## tutorial (it can be skipped); the run then starts at the level picked.
+func begin(play := true) -> void:
 	_run_start_level = progression.level   # (the death screen says if it wasn't 1)
-	# The first Play (whatever comes of it, the tutorial too): from now on the
-	# title screen has the level choice, on 1, and Play doesn't start the tutorial.
 	_set_save_flag("played")
+	if play and not debug:
+		_tutorial_target = progression.level
+		progression.level = 0
+		progression.bar = 0.0
+		level.level = 1
+		level.spawn_hold = true
+		level.bar_room = progression.bar_size()
+		hud.set_level_quietly(0)
 	hud.menu.close()
 	state = State.PLAYING
 	player.running = true
@@ -675,6 +680,8 @@ func _save_stop() -> void:
 ## The tutorial is over (its chain levelled the katana up to 1, or it was
 ## skipped): the run starts here, at level 1, from nothing (its kills, streak
 ## and distance don't count). Remembered: Play won't start it again.
+var _tutorial_target := 1   # the start level picked: the run starts there after the tutorial
+
 func _finish_tutorial(skipped: bool) -> void:
 	_lesson = Lesson.NONE
 	_tut_hold = false
@@ -684,17 +691,16 @@ func _finish_tutorial(skipped: bool) -> void:
 		hud.hide_coach()
 	_tutorial = false
 	_set_save_flag("tutorial_done")
-	_session_start_level = 1   # (a retry is a run, not the tutorial again)
 	if skipped:
 		hud.finish_tutorial()
 		hud.hide_coach()
 		_clear_pending()
 		# Its enemies go (those on screen too).
 		level.rebuild_ahead(cam.left() / Rules.TILE - 2.0)
-		progression.level = 1
+		progression.level = _tutorial_target
 		progression.bar = 0.0
 		level.bar_room = progression.bar_size()
-		hud.set_level_quietly(1)   # (no level-up show: it was skipped)
+		hud.set_level_quietly(_tutorial_target)   # (no level-up show: it was skipped)
 		# As if the run had just started: on the floor, nothing going on.
 		player.row = Rules.Row.FLOOR
 		player.cooldown = 0
@@ -705,6 +711,11 @@ func _finish_tutorial(skipped: bool) -> void:
 		_tut_hold = false
 		player.frozen = false
 	else:
+		if _tutorial_target > 1:   # (a later start level picked: the run's there)
+			progression.level = _tutorial_target
+			progression.bar = 0.0
+			level.bar_room = progression.bar_size()
+			hud.set_level_quietly(_tutorial_target)
 		# Before the run: no enemies while what chains do is said, the
 		# katana and the bolt (then the flawless number) popping; then Start.
 		hud.show_coach("Successful chains build up your level and lightning", "", ["katana", "bolt"])
@@ -721,7 +732,7 @@ func _finish_tutorial(skipped: bool) -> void:
 	charge = 0
 	_charged = false
 	player.charged = false
-	_run_start_level = 1
+	_run_start_level = progression.level
 	_run_origin_x = player.x
 	distance = 0.0
 	kills = 0
@@ -2601,9 +2612,6 @@ func _unlocked_start_levels() -> Array:
 	cfg.load(SAVE_PATH)
 	var reached := int(cfg.get_value("progress", "max_level", 1))
 	var out := START_LEVELS.filter(func(l: int) -> bool: return l == 1 or reached >= l + 1)
-	# The tutorial (0), once Play has been pressed (before that, Play is the tutorial).
-	if _save_flag("played"):
-		out.push_front(0)
 	return out
 
 
