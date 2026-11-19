@@ -406,12 +406,13 @@ func score() -> int:
 	return int(distance) + kill_score
 
 
-## `play`: started with Play on the title screen, which always begins with the
-## tutorial (it can be skipped); the run then starts at the level picked.
+## `play`: started with Play on the title screen, which begins with the
+## tutorial (it can be skipped) when the start level is 1; a later start
+## level goes straight into the run.
 func begin(play := true) -> void:
 	_run_start_level = progression.level   # (the death screen says if it wasn't 1)
 	_set_save_flag("played")
-	if play and not debug:
+	if play and not debug and progression.level == 1:   # (a later start level: straight into the run)
 		_tutorial_target = progression.level
 		progression.level = 0
 		progression.bar = 0.0
