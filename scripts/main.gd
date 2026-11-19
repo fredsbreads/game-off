@@ -988,6 +988,7 @@ func _on_option_changed(key: String) -> void:
 	if key == "rainbow" or key == "reset":   # (turned on or off with the rainbow reached: at once)
 		Palette.set_rainbow(_rainbow_tier and Settings.rainbow)
 	if key == "colour" or key == "reset":
+		text_fx.queue_redraw()   # (a PERFECT on screen takes the new colour, paused or not)
 		# Her markers are coloured in code each frame, which stops while paused:
 		# recolour them now, so a colour picked over the game shows at once.
 		player._update_markers(0.0)
@@ -2409,7 +2410,7 @@ func _end_chain(grade: String, word: String = "") -> void:
 			if player.row == Rules.Row.CEILING:
 				above.y += Rules.TILE * 2.8
 			text_fx.text(above, word if word != "" else grade, 30, (Palette.secondary() if grade == "PERFECT" else GRADE_COLORS[grade]), Rules.RUN_SPEED * Rules.TILE, GRADE_TEXT_LIFE,
-					-1.0 if player.row == Rules.Row.CEILING else 1.0)   # drift away from her row
+					-1.0 if player.row == Rules.Row.CEILING else 1.0, grade == "PERFECT")   # drift away from her row
 		if levelled:
 			level.level = progression.level
 			_note_level_reached(progression.level)

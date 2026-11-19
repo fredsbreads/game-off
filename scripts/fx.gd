@@ -185,8 +185,10 @@ func clear_bolts() -> void:
 ## Floating text at `pos`. `speed` (pixels/s) moves it forward: at the run
 ## speed it keeps pace with the player, so it stays put on screen instead of
 ## scrolling away with the world. `rise` 1 drifts it up as it fades, -1 down.
-func text(pos: Vector2, value: String, size: int, color: Color, speed := 0.0, life := 0.7, rise := 1.0) -> void:
-	_items.append({"kind": "text", "t": 0.0, "life": life, "pos": pos, "text": value, "size": size, "color": color, "speed": speed, "rise": rise})
+## `secondary`: in the colour picked in Options (Palette.secondary), kept up to
+## date if it's changed while the word is up (paused, in Options).
+func text(pos: Vector2, value: String, size: int, color: Color, speed := 0.0, life := 0.7, rise := 1.0, secondary := false) -> void:
+	_items.append({"kind": "text", "t": 0.0, "life": life, "pos": pos, "text": value, "size": size, "color": color, "speed": speed, "rise": rise, "secondary": secondary})
 
 
 func _process(real_delta: float) -> void:
@@ -286,7 +288,7 @@ func _draw() -> void:
 			"text":
 				var size: int = it["size"]
 				var value: String = it["text"]
-				var col: Color = it["color"]
+				var col: Color = Palette.secondary() if it.get("secondary", false) else it["color"]
 				col.a = 1.0 - k * k
 				var w := font.get_string_size(value, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
 				var base: Vector2 = it["pos"] + Vector2(float(it["speed"]) * float(it["t"]), 0.0)
