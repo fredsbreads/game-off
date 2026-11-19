@@ -1548,7 +1548,7 @@ func _teleport(move: int) -> void:
 ## until the streak breaks (_break_streak).
 func _finisher(k: Enemy, grade: String, to_rainbow := false) -> void:
 	# The whole thing the first time in a run; after that, the quick one. With
-	# Red (Hair) picked, always the quick one (no colour changes to show).
+	# Red (Original) picked, always the quick one (no colour changes to show).
 	# The rainbow's (100): five slashes, a new colour on each.
 	var quick := _finished_before or Palette.keeps_red()
 	_finished_before = true
