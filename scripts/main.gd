@@ -151,7 +151,8 @@ var _fin_rainbow := false   # this finisher is the rainbow one (five slashes)
 # next chain.
 const CHARGE_FULL := 10
 const CHARGE_GAIN := {"PERFECT": 2, "CLEAN": 1}
-const CHARGE_GOLDEN_PERFECT := 4   # a PERFECT while she has her reward colour (golden)
+const CHARGE_GOLDEN_PERFECT := 3   # a PERFECT while she has her reward colour (golden)
+const CHARGE_RAINBOW_PERFECT := 4  # ...and while she's rainbow (a flawless streak of 100)
 const AUTO_STEP := 0.1          # seconds between her auto-chain hops
 const AUTO_DUEL_STEP := 0.32    # ...after the first clash with a teleporter: the duel gets its weight
 const AUTO_DUEL_STEP_AGAIN := 0.12   # ...after her later clashes with the same teleporter and her last hit (about a hop)
@@ -1251,7 +1252,7 @@ func _physics_process(delta: float) -> void:
 		# The power-up playing: its bolt stays full until the finale's strike.
 		hud.set_charge(CHARGE_FULL, CHARGE_FULL, true, Palette.pink >= 1.0)
 	else:
-		hud.set_charge(charge, CHARGE_FULL, _charged, Palette.pink >= 1.0)   # (golden: PERFECT charges double)
+		hud.set_charge(charge, CHARGE_FULL, _charged, Palette.pink >= 1.0)   # (golden: PERFECT charges more)
 	var to_screen := get_viewport_rect().size.x / (CameraRig.VIEW_TILES * Rules.TILE)
 	hud.set_progress(progression.level, progression.bar, progression.bar_size(), chain_points,
 		(Rules.CEILING_Y - cam.top()) * to_screen)
@@ -2399,9 +2400,9 @@ func _end_chain(grade: String, word: String = "") -> void:
 		if not _auto and not _auto_ending:
 			var gain := int(CHARGE_GAIN.get(grade, 0))
 			if grade == "PERFECT" and Palette.pink >= 1.0:
-				gain = CHARGE_GOLDEN_PERFECT   # golden: her perfect chains count double
+				gain = CHARGE_GOLDEN_PERFECT   # golden: her perfect chains count more
 			if grade == "PERFECT" and _rainbow_tier:
-				gain = CHARGE_FULL   # the rainbow: a perfect chain fills it in one go
+				gain = CHARGE_RAINBOW_PERFECT   # the rainbow: more again
 			_add_charge(gain)
 		if grade != "SINGLE":
 			var above := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row) - Rules.TILE * 1.4)
