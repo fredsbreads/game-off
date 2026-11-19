@@ -599,7 +599,7 @@ func _draw_backdrop() -> void:
 	if _backdrop_mode == "pause":
 		_draw_glow_title(c, "PAUSED", 60, top + 62.0, view.x, a)
 		return
-	_draw_glow_title(c, "GAME OVER", 66, top + 64.0, view.x, a)
+	_draw_glow_title(c, "GAME OVER", 66, top + 64.0, view.x, a, MainMenu.TITLE_TEXT_RED, false)   # (the red of the title screen's RED FLASH)
 	# The stats: small labels over big numbers, side by side.
 	var font := ThemeDB.fallback_font
 	var col_w := 210.0
@@ -621,7 +621,7 @@ func _draw_backdrop() -> void:
 			c.draw_line(Vector2(dx, sy + 10.0), Vector2(dx, sy + 78.0), Color(1, 1, 1, 0.15 * a), 1.0)
 	if _over_hint == "":
 		return
-	# "Tap anywhere to retry": big, in the title's red, glowing, gently
+	# "Tap anywhere to retry": big, in the second colour, glowing, gently
 	# growing and shrinking (its colour stays), so it reads as what to do
 	# (not the buttons under it).
 	# (It grows by scaling the drawing, smoothly: a font size only comes in
@@ -633,7 +633,7 @@ func _draw_backdrop() -> void:
 	var centre := Vector2(view.x / 2.0, hy - hs * 0.35)
 	c.draw_set_transform(centre, 0.0, Vector2.ONE * (1.0 + 0.03 * beat))
 	var hpos := Vector2(-hw / 2.0, hs * 0.35)
-	var red := MainMenu.TITLE_TEXT_RED
+	var red := Palette.secondary()   # (the Flawless Color picked in Options)
 	for j in 12:   # a glow, as the title's
 		c.draw_string(font, hpos + Vector2.RIGHT.rotated(j * TAU / 12.0) * 5.0, _over_hint, HORIZONTAL_ALIGNMENT_LEFT, -1, hs, Color(red, 0.08 * a))
 	c.draw_string(font, hpos, _over_hint, HORIZONTAL_ALIGNMENT_LEFT, -1, hs, Color(red, a))
@@ -641,15 +641,16 @@ func _draw_backdrop() -> void:
 
 
 ## A title in the title screen's red, with its soft glow.
-func _draw_glow_title(c: Control, text: String, size: int, baseline: float, width: float, a: float) -> void:
+func _draw_glow_title(c: Control, text: String, size: int, baseline: float, width: float, a: float, red := MainMenu.TITLE_RED, sheen := true) -> void:
 	var font: Font = menu.title_font
 	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
 	var base := Vector2((width - w) / 2.0, baseline)
 	for i in 12:
 		var o := Vector2.RIGHT.rotated(i * TAU / 12.0) * 5.0
-		c.draw_string(font, base + o, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(MainMenu.TITLE_RED, 0.07 * a))
-	c.draw_string(font, base, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(MainMenu.TITLE_RED, a))
-	c.draw_string(font, base + Vector2(0, -2), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(1, 0.65, 0.68, 0.3 * a))
+		c.draw_string(font, base + o, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(red, 0.07 * a))
+	c.draw_string(font, base, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(red, a))
+	if sheen:
+		c.draw_string(font, base + Vector2(0, -2), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(1, 0.65, 0.68, 0.3 * a))
 
 
 func set_pause_button_visible(value: bool) -> void:
