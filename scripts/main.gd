@@ -591,22 +591,28 @@ func _coach_fresh() -> bool:
 	return hud._coach.visible and hud._coach_t < TEXT_BUFFER
 
 
-## A move in a lesson that doesn't kill: blocked.
+## A move in a lesson that doesn't kill, at a stop: blocked (a thud, the
+## words shake; "Wait" by her if there are none).
 func _wrong_move() -> void:
 	_wrong_sound.play()
 	hud.coach_shake()
 	if not hud._coach.visible or hud._coach_title == "":
-		# No words up: say so by her.
-		var above := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row) - Rules.TILE * 1.4)
-		if player.row == Rules.Row.CEILING:
-			above.y += Rules.TILE * 2.8
-		text_fx.text(above, "Wait", 24, Color(1, 0.4, 0.4), Rules.RUN_SPEED * Rules.TILE if player.running else 0.0, 0.6)
+		_say_wait()
+
+
+## A press the tutorial doesn't take while she's running: just "Wait" by
+## her (no thud, nothing shakes: the run goes on as it was).
+func _say_wait() -> void:
+	var above := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row) - Rules.TILE * 1.4)
+	if player.row == Rules.Row.CEILING:
+		above.y += Rules.TILE * 2.8
+	text_fx.text(above, "Wait", 24, Color(1, 0.4, 0.4), Rules.RUN_SPEED * Rules.TILE if player.running else 0.0, 0.6)
 
 
 ## A press the tutorial isn't taking right now (its words, the rewind): told so.
 func _refuse_pending() -> void:
 	if _pending_forward or _pending_vertical:
-		_wrong_move()
+		_say_wait()
 	_clear_pending()
 
 
@@ -1494,10 +1500,10 @@ func _step() -> void:
 		move = Rules.Move.NONE   # (its words just up: a moment to read them first)
 	if move != Rules.Move.NONE and _lesson == Lesson.SAVE and not _save_done:
 		move = Rules.Move.NONE   # (the save: no moves on the way in, until time stops)
-		_wrong_move()
+		_say_wait()
 	if move != Rules.Move.NONE and player.cooldown == 0 and _lesson != Lesson.NONE \
 			and not _would_slash(move):
-		_wrong_move()   # (the lessons: only a move that kills)
+		_say_wait()   # (the lessons: only a move that kills)
 		move = Rules.Move.NONE
 
 	# 1. teleport (ignored while on cooldown)
@@ -2061,6 +2067,17 @@ func _auto_finale_strike(grade: String, k: Enemy) -> void:
 ## effect is drawn once into an off-screen picture that's never shown, then
 ## thrown away.
 func _prewarm() -> void:
+	# In a browser each sound is readied the first time it plays (decoded on
+	# the spot: a hitch then, e.g. the tutorial's first blocked move): ready
+	# them all now, while the title screen's up.
+	if OS.has_feature("web"):
+		var streams: Array = [STRIKE_MOVE, STRIKE_KILL]
+		for c in get_children():
+			if c is AudioStreamPlayer and c.stream != null:
+				streams.append(c.stream)
+		for st in streams:
+			if not AudioServer.is_stream_registered_as_sample(st):
+				AudioServer.register_stream_as_sample(st)
 	var view := SubViewport.new()
 	view.size = Vector2i(256, 256)
 	view.transparent_bg = true
@@ -2082,6 +2099,10 @@ func _prewarm() -> void:
 	warm.bolt(Fx.Bolt.SPARKS, at, 0.0, Vector2.ONE, 20.0, 0, "cyan")
 	warm.strike(at - Vector2(100, 0), at, "cyan")
 	warm.text(at, "PERFECT", 30, Color.WHITE)
+	# Every floating word's letters, at each size they're shown in (a letter's
+	# first showing at a size is drawn then: on a phone, a hitch).
+	for size in [22, 24, 26, 28, 30, 32, 34]:
+		warm.text(at, "ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz +0123456789!?", size, Color.WHITE)
 	var plain := Fx.new()   # blood / sparks without her colour material
 	view.add_child(plain)
 	plain.blood(at, 1.0, 8, 0.1)

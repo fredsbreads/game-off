@@ -191,7 +191,10 @@ func text(pos: Vector2, value: String, size: int, color: Color, speed := 0.0, li
 	_items.append({"kind": "text", "t": 0.0, "life": life, "pos": pos, "text": value, "size": size, "color": color, "speed": speed, "rise": rise, "secondary": secondary})
 
 
-func _process(real_delta: float) -> void:
+## On the physics step, as she, the enemies and the camera move: stepped
+## per screen refresh, things drifting with her (the floating words) would
+## wobble against the world on a screen faster than 60 Hz.
+func _physics_process(real_delta: float) -> void:
 	# Lightning animations run on real time, frozen or not.
 	for i in range(_items.size() - 1, -1, -1):
 		var it := _items[i]
