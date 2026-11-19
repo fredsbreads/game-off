@@ -615,7 +615,7 @@ func _draw_backdrop() -> void:
 		c.draw_string(font, Vector2(cx - vw / 2.0, sy + 72.0), value, HORIZONTAL_ALIGNMENT_LEFT, -1, 46, Color(1, 1, 1, a))
 		if label == "LEVEL" and _over_start_note != "":
 			var nw := font.get_string_size(_over_start_note, HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x
-			c.draw_string(font, Vector2(cx - nw / 2.0, sy + 94.0), _over_start_note, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color(MainMenu.TITLE_RED.lightened(0.25), 0.9 * a))
+			c.draw_string(font, Vector2(cx - nw / 2.0, sy + 94.0), _over_start_note, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color(MainMenu.TITLE_TEXT_RED, a))   # (GAME OVER's red)
 		if i > 0:   # thin dividers between them
 			var dx := x0 + col_w * i
 			c.draw_line(Vector2(dx, sy + 10.0), Vector2(dx, sy + 78.0), Color(1, 1, 1, 0.15 * a), 1.0)
