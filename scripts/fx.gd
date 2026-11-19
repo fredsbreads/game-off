@@ -191,6 +191,20 @@ func text(pos: Vector2, value: String, size: int, color: Color, speed := 0.0, li
 	_items.append({"kind": "text", "t": 0.0, "life": life, "pos": pos, "text": value, "size": size, "color": color, "speed": speed, "rise": rise, "secondary": secondary})
 
 
+## Words drawn in the world were scaled with every zoom of the camera (the
+## small punch on each kill never quite stops while she's comboing): their
+## letters blurred a different way each frame, fuzzy while running, sharp
+## when paused. With `screen_space` (main.gd's words) the layer doesn't
+## follow the camera: a word is placed where its spot in the world is on
+## screen, on a whole pixel, at its own size.
+var screen_space := false
+
+func _on_screen(world: Vector2, offset := Vector2.ZERO) -> Vector2:
+	var final := get_viewport().get_final_transform()
+	var at := (final * (get_viewport().canvas_transform * world + offset)).round()
+	return final.affine_inverse() * at
+
+
 ## On the physics step, as she, the enemies and the camera move: stepped
 ## per screen refresh, things drifting with her (the floating words) would
 ## wobble against the world on a screen faster than 60 Hz.
@@ -296,5 +310,7 @@ func _draw() -> void:
 				var w := font.get_string_size(value, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
 				var base: Vector2 = it["pos"] + Vector2(float(it["speed"]) * float(it["t"]), 0.0)
 				var pos: Vector2 = base - Vector2(w / 2.0, k * 50.0 * float(it["rise"]))
+				if screen_space:
+					pos = _on_screen(base, -Vector2(w / 2.0, k * 50.0 * float(it["rise"])))
 				draw_string_outline(font, pos, value, HORIZONTAL_ALIGNMENT_LEFT, -1, size, 6, Color(0, 0, 0, col.a))
 				draw_string(font, pos, value, HORIZONTAL_ALIGNMENT_LEFT, -1, size, col)

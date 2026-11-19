@@ -373,10 +373,11 @@ func _ready() -> void:
 	Knight.front_parent = front_layer
 	var text_layer := CanvasLayer.new()
 	text_layer.layer = 8
-	text_layer.follow_viewport_enabled = true
+	text_layer.follow_viewport_enabled = false   # (on the screen, at their own size: see Fx.screen_space)
 	text_layer.process_mode = Node.PROCESS_MODE_PAUSABLE
 	add_child(text_layer)
 	text_fx = Fx.new()
+	text_fx.screen_space = true
 	text_layer.add_child(text_fx)
 	# Her effects too sit above the grey freeze filter, so they stay red in
 	# the "your move" pause instead of turning grey.
