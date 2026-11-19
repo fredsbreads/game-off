@@ -111,7 +111,7 @@ var _tut_rng := RandomNumberGenerator.new()
 var tutorial_on_floor := true   # (main.gd: she's on the floor: Tap Left goes up)
 const TUT_FIZZLE_TIME := 0.8
 
-const PAUSE_BUTTON_SIZE := 64.0
+const PAUSE_BUTTON_SIZE := 80.0
 const PAUSE_BUTTON_MARGIN := 14.0
 
 
