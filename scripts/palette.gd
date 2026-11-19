@@ -170,9 +170,10 @@ static func next_colour() -> String:
 ## Her lit-marker red in the colour in use (for the pause screen's swatch).
 static func swatch() -> Color:
 	var red := Color(0.95, 0.15, 0.2)
-	if float(_hsv[0]) < 0.0:
+	var hsv: Array = COLOURS[colour_name]   # (the colour picked, even mid-rainbow)
+	if float(hsv[0]) < 0.0:
 		return red
-	return Color.from_hsv(float(_hsv[0]), minf(1.0, red.s * float(_hsv[1])), minf(1.0, red.v * float(_hsv[2])))
+	return Color.from_hsv(float(hsv[0]), minf(1.0, red.s * float(hsv[1])), minf(1.0, red.v * float(hsv[2])))
 
 
 ## The screen flash when she changes over, in her new colour.

@@ -99,7 +99,7 @@ func handle(event: InputEvent, pos: Vector2) -> void:
 		var r := _row_rect(i)
 		# A button (Flip Screen, Reset To Defaults, Back) only takes taps on the
 		# box drawn for it; a setting's row takes them anywhere along it.
-		var area := _button_rect(i) if _rows[i].has("action") else r.grow_individual(0, ROW_GAP / 2.0, 0, ROW_GAP / 2.0)
+		var area := _button_rect(i) if _rows[i].has("action") else r.grow_individual(0, _gap() / 2.0, 0, _gap() / 2.0)
 		var touch_row: bool = Hud.is_touch() and _rows[i].has("key")
 		if touch_row:
 			# Touch screens: a setting takes taps right across the screen at its
@@ -186,8 +186,27 @@ func _value_text(key: String) -> String:
 
 # --- drawing ---------------------------------------------------------------
 
-func _top() -> float:
+## How much the rows, gaps and title shrink so it all fits the screen's
+## height (1 = full size: a phone on its side has less room).
+func _fit() -> float:
 	var h := TITLE_H + _rows.size() * (ROW_H + ROW_GAP)
+	return clampf((size.y - 12.0) / h, 0.6, 1.0)
+
+
+func _row_h() -> float:
+	return ROW_H * _fit()
+
+
+func _gap() -> float:
+	return ROW_GAP * _fit()
+
+
+func _title_h() -> float:
+	return TITLE_H * _fit()
+
+
+func _top() -> float:
+	var h := _title_h() + _rows.size() * (_row_h() + _gap())
 	return maxf((size.y - h) / 2.0, 8.0)
 
 
@@ -196,7 +215,7 @@ func _settings_bottom() -> float:
 	var bottom := 0.0
 	for i in _rows.size():
 		if _rows[i].has("key"):
-			bottom = _row_rect(i).end.y + ROW_GAP / 2.0
+			bottom = _row_rect(i).end.y + _gap() / 2.0
 	return bottom
 
 
@@ -208,7 +227,7 @@ func _button_rect(i: int) -> Rect2:
 
 func _row_rect(i: int) -> Rect2:
 	var w := minf(WIDTH, size.x - 32.0)
-	return Rect2(Vector2((size.x - w) / 2.0, _top() + TITLE_H + i * (ROW_H + ROW_GAP)), Vector2(w, ROW_H))
+	return Rect2(Vector2((size.x - w) / 2.0, _top() + _title_h() + i * (_row_h() + _gap())), Vector2(w, _row_h()))
 
 
 func _draw() -> void:
@@ -218,7 +237,7 @@ func _draw() -> void:
 	var font := ThemeDB.fallback_font
 	var title := "OPTIONS"
 	var tw := font.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, 36).x
-	draw_string(font, Vector2((size.x - tw) / 2.0, _top() + 40.0), title, HORIZONTAL_ALIGNMENT_LEFT, -1, 36, Color.WHITE)
+	draw_string(font, Vector2((size.x - tw) / 2.0, _top() + _title_h() * 0.62), title, HORIZONTAL_ALIGNMENT_LEFT, -1, 36, Color.WHITE)
 	for i in _rows.size():
 		var row: Dictionary = _rows[i]
 		var r := _row_rect(i)
