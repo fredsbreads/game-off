@@ -865,6 +865,8 @@ var _coach: Control
 var _coach_title := ""
 var _coach_line := ""
 var _coach_points: Array = []   # "katana", "bolt"
+var _coach_line_size := 30
+const COACH_LINE_SIZE := 30   # the red line under the words (the move): a name can be bigger
 var coach_dim := true   # the spotlight dims around what it's about (false: just the glowing boxes)
 var _coach_t := 0.0
 var _coach_shake := 0.0
@@ -875,11 +877,12 @@ const COACH_SHAKE_TIME := 0.3
 
 ## `line`: the move to make (in her red), or "". `points`: what in the top
 ## bar it's about ("katana", "bolt", "streak"): that pops, over and over.
-func show_coach(title: String, line := "", points: Array = []) -> void:
+func show_coach(title: String, line := "", points: Array = [], line_size := COACH_LINE_SIZE) -> void:
 	if title != _coach_title or line != _coach_line:
 		_coach_t = 0.0
 	_coach_title = title
 	_coach_line = line
+	_coach_line_size = line_size
 	_coach_points = points
 	_coach.visible = true
 	_coach.queue_redraw()
@@ -1002,7 +1005,7 @@ func _draw_coach() -> void:
 	var tw := font.get_string_size(_coach_title, HORIZONTAL_ALIGNMENT_LEFT, -1, title_size).x
 	var tpos := Vector2((v.x - tw) / 2.0, cy) + shake
 	# A dark band behind it, so it reads over the game.
-	var band_h := 104.0 if _coach_line != "" else 60.0
+	var band_h := (104.0 + (_coach_line_size - COACH_LINE_SIZE)) if _coach_line != "" else 60.0
 	var band_y := cy - 46.0
 	var big := _coach_title == "" and _coach_line != ""   # (just the red word, big: "Start!")
 	if big:
@@ -1014,9 +1017,9 @@ func _draw_coach() -> void:
 		var red := MainMenu.TITLE_TEXT_RED
 		if _coach_shake > 0.0:
 			red = Color(1, 0.25, 0.25)
-		var ls := int((72 if big else 30) * pop)
+		var ls := int((72 if big else _coach_line_size) * pop)
 		var lw := font.get_string_size(_coach_line, HORIZONTAL_ALIGNMENT_LEFT, -1, ls).x
-		var lpos := Vector2((v.x - lw) / 2.0, (cy + 10.0) if big else (cy + 44.0)) + shake
+		var lpos := Vector2((v.x - lw) / 2.0, (cy + 10.0) if big else (cy + 14.0 + _coach_line_size)) + shake
 		for j in 12:   # a glow, as the title screen's
 			c.draw_string(font, lpos + Vector2.RIGHT.rotated(j * TAU / 12.0) * 5.0, _coach_line, HORIZONTAL_ALIGNMENT_LEFT, -1, ls, Color(red, 0.08))
 		c.draw_string(font, lpos, _coach_line, HORIZONTAL_ALIGNMENT_LEFT, -1, ls, red)
