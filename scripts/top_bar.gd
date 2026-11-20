@@ -729,7 +729,7 @@ func _draw_streak() -> void:
 	var text := str(_streak)
 	var w := FONT.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 	var centre := Vector2(_streak_number_x(x, w), mid + 7.0)
-	var f := smoothstep(0.0, 1.0, fly)
+	var f := fly   # (main.gd's tween eases it)
 	var grow := lerpf(1.0, FLY_SCALE, f)
 	var cw := FONT.get_string_size("FLAWLESS", HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x
 	var cap_at := Vector2(_streak_number_x(x, cw), mid - 15.0)   # the caption's centre-baseline
