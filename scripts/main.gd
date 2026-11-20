@@ -1482,6 +1482,7 @@ func _step() -> void:
 	# A press during the cooldown waits (stays pending) and fires as soon as
 	# the cooldown ends, so mashing is rate-limited, never swallowed.
 	var move := Rules.Move.NONE
+	var snap_to := NAN   # (where the press was, if the move goes from there)
 	if debug and debug.bot:
 		move = debug.think()
 	else:
@@ -1497,7 +1498,7 @@ func _step() -> void:
 			# here, or a plain miss). Checking both ends covers the whole
 			# stretch between them: it's shorter than a landing zone.
 			if _would_slash(move, press_x):
-				player.x = press_x
+				snap_to = press_x   # (only once it's sure the move goes: below)
 
 	if move != Rules.Move.NONE and _tutorial and _coach_fresh():
 		move = Rules.Move.NONE   # (its words just up: a moment to read them first)
@@ -1505,9 +1506,14 @@ func _step() -> void:
 		move = Rules.Move.NONE   # (the save: no moves on the way in, until time stops)
 		_say_wait()
 	if move != Rules.Move.NONE and player.cooldown == 0 and _lesson != Lesson.NONE \
-			and not _would_slash(move):
+			and is_nan(snap_to) and not _would_slash(move):
 		_say_wait()   # (the lessons: only a move that kills)
 		move = Rules.Move.NONE
+	# Back to where the press was, now that the move's going ahead (a move the
+	# tutorial blocks leaves her where she is: pulled back then held, she
+	# lost ground, a hitch on the run).
+	if move != Rules.Move.NONE and not is_nan(snap_to):
+		player.x = snap_to
 
 	# 1. teleport (ignored while on cooldown)
 	if move != Rules.Move.NONE and player.cooldown == 0:
