@@ -61,6 +61,8 @@ const NINJA_HITS_MAX := 5
 # The master takes more still: 5-6.
 const MASTER_HITS_MIN := 5
 const MASTER_HITS_MAX := 6
+const SHADOW_HITS_MIN := 6   # the Shadow (shadow.gd): the most of all
+const SHADOW_HITS_MAX := 7
 
 # Scoring.
 const KILL_POINTS := 100        # multiplied by the chain count
@@ -123,6 +125,16 @@ static func master_diag_ahead(master_x: float, master_row: int, x: float, row: i
 static func master_diag_too_close(master_x: float, master_row: int, x: float, row: int) -> bool:
 	var d := master_x - x
 	return master_row != row and d >= kill_zone(Move.VERTICAL).y and d <= move_dx(Move.DIAGONAL) - kill_zone(Move.DIAGONAL).x
+
+
+## The Shadow also watches behind her (see shadow.gd): she's past it, to its
+## right, within a teleport's reach in either row (and not where her across
+## teleport still reaches it: the knight's rule covers that). It strikes.
+static func shadow_behind(shadow_x: float, shadow_row: int, x: float, row: int) -> bool:
+	var d := x - shadow_x
+	if d <= 0.0 or d > move_dx(Move.FORWARD):
+		return false
+	return not (shadow_row != row and in_kill_zone(Move.VERTICAL, shadow_x, x))
 
 
 ## True if the player is straight across from a knight (at knight_x in

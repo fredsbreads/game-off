@@ -166,6 +166,8 @@ static func _ninja_too_close(enemies: Array[Vector2], mask: int, x: float, row: 
 			return true
 		if Patterns.is_master_group(g) and Rules.master_diag_too_close(enemies[i].x, int(enemies[i].y), x, row):
 			return true
+		if Patterns.is_shadow_group(g) and Rules.shadow_behind(enemies[i].x, int(enemies[i].y), x, row):
+			return true
 	return false
 
 

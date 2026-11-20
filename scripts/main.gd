@@ -14,9 +14,9 @@ const START_X := 3.0
 # hidden and every run starts at level 1 (for playtesters). <<<
 const LEVEL_CHOICE := true
 # The levels it offers (5: straight to the knight's debut, 10: the ninja's,
-# 15: the master's);
+# 15: the master's, 20: the Shadow's);
 # the pick is kept between visits.
-const START_LEVELS := [1, 5, 10, 15]
+const START_LEVELS := [1, 5, 10, 15, 20]
 ## The start level picked on the title screen: kept through this visit (back
 ## to the title screen, retries) but not saved, so the game always opens on 1.
 static var _session_start_level := 1
@@ -2114,6 +2114,7 @@ func _prewarm() -> void:
 	warm.bolt(Fx.Bolt.SPARKS, at, 0.0, Vector2.ONE, 20.0, 0, true)
 	warm.bolt(Fx.Bolt.SPARKS, at, 0.0, Vector2.ONE, 20.0, 0, "cyan")
 	warm.strike(at - Vector2(100, 0), at, "cyan")
+	warm.strike(at - Vector2(100, 0), at, "shadow")
 	warm.text(at, "PERFECT", 30, Color.WHITE)
 	# Every floating word's letters, at each size they're shown in (a letter's
 	# first showing at a size is drawn then: on a phone, a hitch).

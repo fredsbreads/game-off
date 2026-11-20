@@ -106,6 +106,7 @@ var warned := false   # she's already given her wind-up swish once
 ## after that brings him at once).
 var forward_aggro := false
 var diag_aggro := false   # the master: diagonally too (see master.gd)
+var back_aggro := false   # the Shadow: behind her too (see shadow.gd)
 var ahead := false
 var alerted := false
 var _slashing := false   # the killing blow: green outline held
@@ -151,7 +152,8 @@ func watching(her_x: float, her_row: int) -> bool:
 ## a move he watches: he strikes.
 func too_close(her_x: float, her_row: int) -> bool:
 	return (forward_aggro and Rules.ninja_too_close(tile_x, row, her_x, her_row)) \
-			or (diag_aggro and Rules.master_diag_too_close(tile_x, row, her_x, her_row))
+			or (diag_aggro and Rules.master_diag_too_close(tile_x, row, her_x, her_row)) \
+			or (back_aggro and Rules.shadow_behind(tile_x, row, her_x, her_row))
 
 
 ## Her lightning's colour (Fx: "green"; the ninja's "cyan").

@@ -41,6 +41,10 @@ const BOLT_SHEETS_TINTED := {
 		Bolt.STRIKE: preload("res://assets/vfx/lightning_3_purple.png"),
 		Bolt.SPARKS: preload("res://assets/vfx/lightning_6_purple.png"),
 	},
+	"shadow": {   # the Shadow's: a black core, a red glow
+		Bolt.STRIKE: preload("res://assets/vfx/lightning_3_shadow.png"),
+		Bolt.SPARKS: preload("res://assets/vfx/lightning_6_shadow.png"),
+	},
 }
 
 
