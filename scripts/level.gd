@@ -50,8 +50,8 @@ var _knight_intro_done := false   # the debut level opens with a knight alone, o
 var _ninja_intro_done := false    # ...and his with a ninja alone
 var _master_intro_done := false   # ...and the master's
 var _shadow_intro_done := false   # ...and the Shadow's
-## Her debut waits while this is on (main.gd: while the power-up is charged
-## or playing), so it never plays through her; knight-free chains come instead.
+## Her debut waits while this is on (main.gd: while the auto-chain plays),
+## so it never plays through her; knight-free chains come instead.
 var debut_wait := false
 ## No new chains are laid while this is on (main.gd: during the auto-chain),
 ## so nothing new comes on screen mid-chain; when it's off again the next one

@@ -2156,11 +2156,13 @@ func _duck_music(db: float, seconds: float, delay := 0.0) -> void:
 	t.tween_property(music, "volume_db", db, seconds)
 
 
-## Her knight debut waits while the power-up is charged or playing (so it
-## never plays through her). If it's already laid but not on screen yet, it's
-## taken back (and comes later); see Level.debut_wait.
+## A teleporter's debut waits only while the auto-chain plays (so it never
+## plays through her); a charge merely held doesn't delay it (the charge
+## can't be spent on a debut, see _has_debut), so it always comes on time.
+## If it's already laid but not on screen yet, it's taken back (and comes
+## after the auto-chain); see Level.debut_wait.
 func _sync_debut_wait() -> void:
-	var wait := _charged or _auto
+	var wait := _auto
 	if wait and not level.debut_wait and level.debut_pending():
 		level.debut_wait = true
 		level.rebuild_ahead(cam.left() / Rules.TILE + CameraRig.VIEW_TILES + 3.0)
