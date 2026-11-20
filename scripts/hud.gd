@@ -639,7 +639,7 @@ func _draw_backdrop() -> void:
 			note = "NEW BEST"
 			note_col = Color(gold, a)
 		elif _over_stats[i].size() > 2:
-			note = "Best %d" % _over_stats[i][2]
+			note = "Best: %d" % _over_stats[i][2]
 		if note != "":
 			var ns := 15
 			var pop := 1.0
