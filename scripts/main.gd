@@ -2684,7 +2684,32 @@ func _game_over() -> void:
 	hud.show_game_over({
 		"distance": distance, "kills": kills, "best_chain": best_chain, "perfect_chains": perfect_chains, "best_sweep": best_sweep, "level": progression.level, "start_level": _run_start_level,
 		"score": final_score, "best": best_score, "new_best": new_best,
+		"bests": _update_bests(),
 	})
+
+
+## Her personal bests (kept in the save file, "bests"): the most kills and
+## the highest flawless streak in a run (from any start level), and the
+## highest level reached in a run started at level 1. Updated with this run;
+## returns {kills: [best, new], flawless: [...], level: [...]} ("new": beaten
+## just now, over an earlier best: a first run just sets them).
+func _update_bests() -> Dictionary:
+	var cfg := ConfigFile.new()
+	cfg.load(SAVE_PATH)
+	var out := {}
+	var changed := false
+	for entry in [["kills", kills, true], ["flawless", best_sweep, true], ["level", progression.level, _run_start_level == 1]]:
+		var key: String = entry[0]
+		var now: int = entry[1]
+		var old := int(cfg.get_value("bests", key, 0))
+		var beats: bool = entry[2] and now > old
+		if beats:
+			cfg.set_value("bests", key, now)
+			changed = true
+		out[key] = [maxi(old, now) if entry[2] else old, beats and old > 0]
+	if changed and not debug:   # (test runs don't touch them)
+		cfg.save(SAVE_PATH)
+	return out
 
 
 # --- save ------------------------------------------------------------------

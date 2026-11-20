@@ -50,7 +50,7 @@ var _pause_button: Control
 var _pause_dim: Control
 var _backdrop_mode := "pause"   # "pause" or "over"
 var _band := Rect2()            # the band (set in _process)
-var _over_stats: Array = []     # [[value, label], ...] on the game-over screen
+var _over_stats: Array = []     # [[value, label, best, new best], ...] on the game-over screen
 var _over_hint := ""
 var _over_start_note := ""   # e.g. "Started At 5" (under the level; empty from level 1)
 var _over_t := 0.0              # seconds the game-over screen has shown
@@ -509,7 +509,12 @@ func show_game_over(stats: Dictionary) -> void:
 		_message.text = lines
 		_message.visible = true
 		return
-	_over_stats = [[stats["kills"], "KILLS"], [stats["level"], "LEVEL"], [stats["best_sweep"], "PEAK FLAWLESS"]]
+	# Each with her best under it ([value, label, best, new best]).
+	var bests: Dictionary = stats.get("bests", {})
+	var row := func(v: int, label: String, key: String) -> Array:
+		var b: Array = bests.get(key, [v, false])
+		return [v, label, int(b[0]), bool(b[1])]
+	_over_stats = [row.call(stats["kills"], "KILLS", "kills"), row.call(stats["level"], "LEVEL", "level"), row.call(stats["best_sweep"], "PEAK FLAWLESS", "flawless")]
 	# A run that didn't start at level 1 says where it did, under its level.
 	var start: int = stats.get("start_level", 1)
 	_over_start_note = "Started At %d" % start if start > 1 else ""
@@ -616,10 +621,37 @@ func _draw_backdrop() -> void:
 		var vw := font.get_string_size(value, HORIZONTAL_ALIGNMENT_LEFT, -1, 46).x
 		var lw := font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
 		c.draw_string(font, Vector2(cx - lw / 2.0, sy + 20.0), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(1, 1, 1, 0.55 * a))   # (the label over its number)
-		c.draw_string(font, Vector2(cx - vw / 2.0, sy + 72.0), value, HORIZONTAL_ALIGNMENT_LEFT, -1, 46, Color(1, 1, 1, a))
+		# A new best: the number in the Flawless Color, glowing, and "NEW BEST"
+		# under it (popping in); else a quiet "Best N".
+		var fresh: bool = _over_stats[i].size() > 3 and _over_stats[i][3]
+		var gold := Palette.setting_secondary()
+		var vpos := Vector2(cx - vw / 2.0, sy + 72.0)
+		if fresh:
+			for j in 12:
+				c.draw_string(font, vpos + Vector2.RIGHT.rotated(j * TAU / 12.0) * 5.0, value, HORIZONTAL_ALIGNMENT_LEFT, -1, 46, Color(gold, 0.1 * a))
+		c.draw_string(font, vpos, value, HORIZONTAL_ALIGNMENT_LEFT, -1, 46, Color(gold, a) if fresh else Color(1, 1, 1, a))
+		var note := ""
+		var note_col := Color(1, 1, 1, 0.45 * a)
 		if label == "LEVEL" and _over_start_note != "":
-			var nw := font.get_string_size(_over_start_note, HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x
-			c.draw_string(font, Vector2(cx - nw / 2.0, sy + 94.0), _over_start_note, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color(MainMenu.TITLE_TEXT_RED, a))   # (GAME OVER's red)
+			note = _over_start_note   # (a run from a later level: no level best)
+			note_col = Color(MainMenu.TITLE_TEXT_RED, a)   # (GAME OVER's red)
+		elif fresh:
+			note = "NEW BEST"
+			note_col = Color(gold, a)
+		elif _over_stats[i].size() > 2:
+			note = "Best %d" % _over_stats[i][2]
+		if note != "":
+			var ns := 15
+			var pop := 1.0
+			if fresh:
+				ns = 16
+				pop = 1.0 + 0.35 * maxf(0.0, 1.0 - (_over_t - 0.35) / 0.25) if _over_t > 0.35 else 0.0
+			if pop > 0.0:
+				var nw := font.get_string_size(note, HORIZONTAL_ALIGNMENT_LEFT, -1, ns).x
+				var at := Vector2(cx, sy + 94.0 - ns * 0.35)
+				c.draw_set_transform(at, 0.0, Vector2.ONE * pop)
+				c.draw_string(font, Vector2(-nw / 2.0, ns * 0.35), note, HORIZONTAL_ALIGNMENT_LEFT, -1, ns, note_col)
+				c.draw_set_transform(Vector2.ZERO)
 		if i > 0:   # thin dividers between them
 			var dx := x0 + col_w * i
 			c.draw_line(Vector2(dx, sy + 10.0), Vector2(dx, sy + 78.0), Color(1, 1, 1, 0.15 * a), 1.0)
