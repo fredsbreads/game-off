@@ -131,6 +131,9 @@ const FINISHER_QUICK_HOLD := 0.2
 var _streak_shown := 0   # the flawless streak on screen (held through a finisher)
 var _finished_before := false   # the whole finisher has played once this run
 var _fin_hop := FINISHER_HOP
+const STREAK_FLY_IN := 0.14     # the first golden: the flawless number glides to the middle (and back) this long
+const STREAK_FLY_HOLD := 0.45    # ...and stays there this long
+var _fin_explain := false   # the first golden's pointer at the flawless number is up
 var _fin_strike_fps := FINISHER_STRIKE_FPS
 var _fin_bolt_fps := FINISHER_BOLT_FPS
 var _fin_after := FINISHER_SWEEP_AFTER
@@ -1697,6 +1700,10 @@ func _finisher(k: Enemy, grade: String, to_rainbow := false) -> void:
 		if Settings.rainbow:
 			Palette.set_rainbow(true)
 	_fin_hop = FINISHER_QUICK_HOP if quick else (FINISHER_RAINBOW_HOP if to_rainbow else FINISHER_HOP)
+	# The first golden of a run points at why, with light alone: as the
+	# flawless number ticks onto 50 (the sweep's end), all but it dims for a
+	# moment, then brightens again (see _finisher_level_up).
+	_fin_explain = not quick and not to_rainbow
 	_fin_strike_fps = 18.0 if quick else FINISHER_STRIKE_FPS
 	_fin_bolt_fps = FINISHER_QUICK_BOLT_FPS if quick else FINISHER_BOLT_FPS
 	_fin_after = FINISHER_QUICK_AFTER if quick else FINISHER_SWEEP_AFTER
@@ -1815,6 +1822,9 @@ func _finisher_level_up(grade: String) -> void:
 	# katana's bump (not after the hold that follows).
 	_streak_shown = sweep
 	_show_counts()
+	if _fin_explain:
+		_fin_explain = false
+		_light_on_streak()
 
 
 ## Testing colours: the C key switches her level-10 colour to the next one
@@ -2180,6 +2190,17 @@ func _finisher_done(k: Enemy, focus: Vector2) -> void:
 	_hitstop = 0.0
 	_pause_min = KILL_PAUSE_MIN
 	_clear_pending()
+
+
+## The flawless number glides to the middle of the screen, grows, stays a
+## moment, then glides back to its place.
+func _light_on_streak() -> void:
+	var top: Control = hud._top
+	top.fly_to = top.get_global_transform().affine_inverse() * (hud.get_viewport().get_visible_rect().size / 2.0)
+	var t := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_STOP)
+	t.tween_property(top, "fly", 1.0, STREAK_FLY_IN)   # (top_bar eases it: smoothstep, gentle at both ends)
+	t.tween_interval(STREAK_FLY_HOLD)
+	t.tween_property(top, "fly", 0.0, STREAK_FLY_IN)
 
 
 ## A knight that comes for her after she ran from run_from to where she is:

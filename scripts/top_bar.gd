@@ -715,21 +715,41 @@ func _streak_number_x(x: float, w: float) -> float:
 	return x + w / 2.0
 
 
+## 0..1: the flawless number (and its caption) glides from its place to
+## fly_to (in this node's space) and grows to FLY_SCALE (hud.gd moves it).
+var fly := 0.0
+var fly_to := Vector2.ZERO
+const FLY_SCALE := 3.0
+
 func _draw_streak() -> void:
 	var x := streak_x
 	var mid := BLADE.y / 2.0
 	var cap_col := _streak_colour(_streak)
-	draw_string(FONT, Vector2(x, mid - 15.0), "FLAWLESS", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(cap_col, 0.65))
 	var fs := 30
 	var text := str(_streak)
 	var w := FONT.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 	var centre := Vector2(_streak_number_x(x, w), mid + 7.0)
+	var f := smoothstep(0.0, 1.0, fly)
+	var grow := lerpf(1.0, FLY_SCALE, f)
+	var cw := FONT.get_string_size("FLAWLESS", HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x
+	var cap_at := Vector2(_streak_number_x(x, cw), mid - 15.0)   # the caption's centre-baseline
+	if f > 0.0:
+		var home := centre
+		centre = home.lerp(fly_to, f)
+		cap_at = centre + (cap_at - home) * grow
+	# While it's out (and coming back), the words are drawn at their full
+	# grown size and scaled down, so they stay sharp: drawn small and
+	# scaled up, they blurred. The caption brightens on its way out too.
+	var r := FLY_SCALE if f > 0.0 else 1.0   # (drawn this many times bigger)
+	draw_set_transform(cap_at, 0.0, Vector2.ONE * grow / r)
+	draw_string(FONT, Vector2(-cw * r / 2.0, 0.0), "FLAWLESS", HORIZONTAL_ALIGNMENT_LEFT, -1, int(12 * r), Color(cap_col, lerpf(0.65, 1.0, f)))
+	draw_set_transform(Vector2.ZERO)
 	# The pop: bigger right after a kill (more at a milestone), easing back.
 	var pop := ease(_pop, 2.0) * (0.6 if _pop_big else 0.3)
 	if _break_t < 0.0 or _break_t > 0.25:
-		draw_set_transform(centre, 0.0, Vector2.ONE * (1.0 + pop))
+		draw_set_transform(centre, 0.0, Vector2.ONE * (1.0 + pop) * grow / r)
 		var a := 1.0 if _break_t < 0.0 else clampf((_break_t - 0.25) / 0.2, 0.0, 1.0)
-		draw_string(FONT, Vector2(-w / 2.0, fs * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(_streak_colour(_streak), a))
+		draw_string(FONT, Vector2(-w * r / 2.0, fs * r * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1, int(fs * r), Color(_streak_colour(_streak), a))
 		draw_set_transform(Vector2.ZERO)
 	if _pop_big and _pop > 0.0:   # a ring bursting out at a milestone
 		draw_arc(centre, 14.0 + 30.0 * (1.0 - _pop), 0.0, TAU, 32, Color(_streak_colour(_streak), _pop * 0.8), 2.0, true)
