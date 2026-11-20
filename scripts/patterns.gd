@@ -78,14 +78,6 @@ const MASTER_FULL_LEVEL := 20
 # or more (a master has every ninja rule too): see is_ninja_group().
 const NINJA_GROUP := 1000
 const MASTER_GROUP := 2000
-const SHADOW_GROUP := 3000   # (the Shadow has every master rule too)
-# The Shadow (see shadow.gd): her debut level opens with her alone; from then
-# on a teleporter is the Shadow with SHADOW_SHARE at the debut level, rising
-# evenly to SHADOW_SHARE_MAX by SHADOW_FULL_LEVEL. The rest as above.
-const SHADOW_DEBUT_LEVEL := 20
-const SHADOW_SHARE := 0.15
-const SHADOW_SHARE_MAX := 0.25
-const SHADOW_FULL_LEVEL := 25
 # Two teleporters side by side in a chain: this often their duels interleave
 # (see _build): you fight both at once, but each one's every blink is one move
 # from where you hit her, so neither needs the other to reach her next spot.
@@ -211,18 +203,6 @@ static func is_master_group(group: int) -> bool:
 	return group >= MASTER_GROUP
 
 
-static func is_shadow_group(group: int) -> bool:
-	return group >= SHADOW_GROUP
-
-
-## The share of teleporters that are the Shadow.
-static func shadow_share(level: int) -> float:
-	if level < SHADOW_DEBUT_LEVEL:
-		return 0.0
-	var t := clampf(float(level - SHADOW_DEBUT_LEVEL) / float(SHADOW_FULL_LEVEL - SHADOW_DEBUT_LEVEL), 0.0, 1.0)
-	return lerpf(SHADOW_SHARE, SHADOW_SHARE_MAX, t)
-
-
 ## A random chain for a generated level: a length from chain_length_range,
 ## each step F, V or D with equal odds. Knights (see knight_chance) take
 ## KNIGHT_HITS_MIN-MAX spots (a ninja NINJA_HITS_MIN-MAX): where she
@@ -235,12 +215,11 @@ static func shadow_share(level: int) -> float:
 ## _overlaps). The validator runs the full solver check on samples.
 ## knights = false: no knights in it (before her debut); ninjas = false: no
 ## ninjas (before his); masters = false: no masters.
-static func generate(level: int, rng: RandomNumberGenerator, knights := true, ninjas := true, masters := true, shadows := true) -> Dictionary:
+static func generate(level: int, rng: RandomNumberGenerator, knights := true, ninjas := true, masters := true) -> Dictionary:
 	var lengths := chain_length_range(level)
 	var chance := knight_chance(level) if knights else 0.0
 	var share := ninja_share(level) if ninjas else 0.0
 	var mshare := master_share(level) if masters else 0.0
-	var sshare := shadow_share(level) if shadows else 0.0
 	for _attempt in 40:
 		var n := rng.randi_range(lengths.x, lengths.y)
 		# Spend n spots: a plain enemy takes one, a knight her hits.
@@ -250,11 +229,7 @@ static func generate(level: int, rng: RandomNumberGenerator, knights := true, ni
 			if left >= Rules.KNIGHT_HITS_MIN and rng.randf() < chance:
 				# A master (5-6 hits), a ninja (4-5) or a knight (3-4), each only
 				# if there's room for it (else the next one down).
-				if left >= Rules.SHADOW_HITS_MIN and rng.randf() < sshare:
-					var sh := mini(rng.randi_range(Rules.SHADOW_HITS_MIN, Rules.SHADOW_HITS_MAX), left)
-					hits.append(-2000 - sh)
-					left -= sh
-				elif left >= Rules.MASTER_HITS_MIN and rng.randf() < mshare:
+				if left >= Rules.MASTER_HITS_MIN and rng.randf() < mshare:
 					var mh := mini(rng.randi_range(Rules.MASTER_HITS_MIN, Rules.MASTER_HITS_MAX), left)
 					hits.append(-1000 - mh)
 					left -= mh
@@ -291,16 +266,6 @@ static func knight_alone(rng: RandomNumberGenerator) -> Dictionary:
 	return {}
 
 
-## A lone Shadow (the start of her debut level).
-static func shadow_alone(rng: RandomNumberGenerator) -> Dictionary:
-	for _attempt in 40:
-		var built := _build([-2000 - rng.randi_range(Rules.SHADOW_HITS_MIN, Rules.SHADOW_HITS_MAX)], rng)
-		if not built.is_empty():
-			built["name"] = "shadow alone: %s" % built["steps"]
-			return built
-	return {}
-
-
 ## A lone master (the start of his debut level).
 static func master_alone(rng: RandomNumberGenerator) -> Dictionary:
 	for _attempt in 40:
@@ -328,7 +293,7 @@ static func _build(hits: Array[int], rng: RandomNumberGenerator, pair_chance := 
 	var enemies: Array[Vector2] = []
 	var knights: Array[int] = []
 	var tokens: PackedStringArray = []
-	var next_group := {"knight": 0, "ninja": NINJA_GROUP, "master": MASTER_GROUP, "shadow": SHADOW_GROUP}
+	var next_group := {"knight": 0, "ninja": NINJA_GROUP, "master": MASTER_GROUP}
 	var i := 0
 	while i < hits.size():
 		if i > 0:
@@ -410,11 +375,11 @@ static func _shared_step(used: Array[Vector2], own: Vector2, rng: RandomNumberGe
 ## A teleporter from its `hits` entry (a knight's hits, minus a ninja's,
 ## -1000 minus a master's): {group, count, label}, using up a group number.
 static func _teleporter(entry: int, next_group: Dictionary) -> Dictionary:
-	var kind := "shadow" if entry <= -2000 else ("master" if entry <= -1000 else ("ninja" if entry < 0 else "knight"))
-	var count := (-entry - 2000) if kind == "shadow" else ((-entry - 1000) if kind == "master" else absi(entry))
+	var kind := "master" if entry <= -1000 else ("ninja" if entry < 0 else "knight")
+	var count := (-entry - 1000) if kind == "master" else absi(entry)
 	var g: int = next_group[kind]
 	next_group[kind] = g + 1
-	return {"group": g, "count": count, "label": {"shadow": "S", "master": "M", "ninja": "N", "knight": "K"}[kind]}
+	return {"group": g, "count": count, "label": {"master": "M", "ninja": "N", "knight": "K"}[kind]}
 
 
 ## A random step from `steps` that lands on a spot not used yet in the chain
