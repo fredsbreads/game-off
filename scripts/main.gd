@@ -2113,6 +2113,10 @@ func _prewarm() -> void:
 	# first showing at a size is drawn then: on a phone, a hitch).
 	for size in [22, 24, 26, 28, 30, 32, 34]:
 		warm.text(at, "ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz +0123456789!?", size, Color.WHITE)
+		# ...and on the real screen too, far above it: on a phone the game is
+		# scaled up, so the letters are drawn at that size (a test view at 1x
+		# doesn't cover it: the first "Wait" in the tutorial hitched).
+		text_fx.text(Vector2(0.0, -100000.0), "ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz +0123456789!?", size, Color.WHITE, 0.0, 0.1)
 	var plain := Fx.new()   # blood / sparks without her colour material
 	view.add_child(plain)
 	plain.blood(at, 1.0, 8, 0.1)
