@@ -877,6 +877,7 @@ var _coach_title := ""
 var _coach_line := ""
 var _coach_points: Array = []   # "katana", "bolt"
 var _coach_line_size := 30
+var _coach_line_flawless := false   # the line in the Flawless Color, not her red
 const COACH_LINE_SIZE := 30   # the red line under the words (the move): a name can be bigger
 var coach_points_fn := Callable()   # (set: the spots are asked for as it draws, so they're where things are this frame)
 var coach_dim := true   # the spotlight dims around what it's about (false: just the glowing boxes)
@@ -889,12 +890,13 @@ const COACH_SHAKE_TIME := 0.3
 
 ## `line`: the move to make (in her red), or "". `points`: what in the top
 ## bar it's about ("katana", "bolt", "streak"): that pops, over and over.
-func show_coach(title: String, line := "", points: Array = [], line_size := COACH_LINE_SIZE) -> void:
+func show_coach(title: String, line := "", points: Array = [], line_size := COACH_LINE_SIZE, line_in_flawless_colour := false) -> void:
 	if title != _coach_title or line != _coach_line:
 		_coach_t = 0.0
 	_coach_title = title
 	_coach_line = line
 	_coach_line_size = line_size
+	_coach_line_flawless = line_in_flawless_colour
 	_coach_points = points
 	_coach.visible = true
 	_coach.queue_redraw()
@@ -1028,7 +1030,7 @@ func _draw_coach() -> void:
 	c.draw_rect(Rect2(0, band_y, v.x, band_h), Color(0.03, 0.02, 0.03, 0.55))
 	c.draw_string(font, tpos, _coach_title, HORIZONTAL_ALIGNMENT_LEFT, -1, title_size, Color.WHITE)
 	if _coach_line != "":
-		var red := MainMenu.TITLE_TEXT_RED
+		var red := Palette.setting_secondary() if _coach_line_flawless else MainMenu.TITLE_TEXT_RED
 		if _coach_shake > 0.0:
 			red = Color(1, 0.25, 0.25)
 		var ls := int((72 if big else _coach_line_size) * pop)
