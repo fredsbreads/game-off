@@ -131,7 +131,7 @@ const FINISHER_QUICK_HOLD := 0.2
 var _streak_shown := 0   # the flawless streak on screen (held through a finisher)
 var _finished_before := false   # the whole finisher has played once this run
 var _fin_hop := FINISHER_HOP
-const STREAK_FLY_IN := 0.365    # the first golden: the flawless number glides to the middle, and straight back, this long each way
+const STREAK_FLY_IN := 0.365    # the first golden: the flawless number grows, and straight back, this long each way
 var _fin_explain := false   # the first golden's pointer at the flawless number is up
 var _fin_strike_fps := FINISHER_STRIKE_FPS
 var _fin_bolt_fps := FINISHER_BOLT_FPS
@@ -1699,10 +1699,10 @@ func _finisher(k: Enemy, grade: String, to_rainbow := false) -> void:
 		if Settings.rainbow:
 			Palette.set_rainbow(true)
 	_fin_hop = FINISHER_QUICK_HOP if quick else (FINISHER_RAINBOW_HOP if to_rainbow else FINISHER_HOP)
-	# The first golden of a run points at why, with light alone: as the
-	# flawless number ticks onto 50 (the sweep's end), all but it dims for a
-	# moment, then brightens again (see _finisher_level_up).
-	_fin_explain = not quick and not to_rainbow
+	# The first golden (and the first rainbow) of a run points at why: as
+	# the flawless number ticks onto 50 (100) at the sweep's end, it grows
+	# where it is and back (see _finisher_level_up).
+	_fin_explain = not quick   # (the first golden, and the first rainbow)
 	_fin_strike_fps = 18.0 if quick else FINISHER_STRIKE_FPS
 	_fin_bolt_fps = FINISHER_QUICK_BOLT_FPS if quick else FINISHER_BOLT_FPS
 	_fin_after = FINISHER_QUICK_AFTER if quick else FINISHER_SWEEP_AFTER
@@ -2191,13 +2191,10 @@ func _finisher_done(k: Enemy, focus: Vector2) -> void:
 	_clear_pending()
 
 
-## The flawless number glides to the middle of the screen, growing, and
-## straight back to its place.
+## The flawless number grows where it is and shrinks straight back.
 func _light_on_streak() -> void:
 	var top: Control = hud._top
-	top.fly_to = top.get_global_transform().affine_inverse() * (hud.get_viewport().get_visible_rect().size / 2.0)
-	# Moving the whole time: out, turning at the middle, straight back
-	# (eased each way, so it slows into the turn and speeds out of it).
+	# Moving the whole time: growing, then straight back (eased each way).
 	var t := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_STOP).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	t.tween_property(top, "fly", 1.0, STREAK_FLY_IN)
 	t.tween_property(top, "fly", 0.0, STREAK_FLY_IN)

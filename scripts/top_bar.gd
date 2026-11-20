@@ -715,11 +715,10 @@ func _streak_number_x(x: float, w: float) -> float:
 	return x + w / 2.0
 
 
-## 0..1: the flawless number (and its caption) glides from its place to
-## fly_to (in this node's space) and grows to FLY_SCALE (hud.gd moves it).
+## 0..1: the flawless number (and its caption) grows to FLY_SCALE where it
+## is, kept on screen (main.gd moves it).
 var fly := 0.0
-var fly_to := Vector2.ZERO
-const FLY_SCALE := 3.0
+const FLY_SCALE := 2.2
 
 func _draw_streak() -> void:
 	var x := streak_x
@@ -734,9 +733,19 @@ func _draw_streak() -> void:
 	var cw := FONT.get_string_size("FLAWLESS", HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x
 	var cap_at := Vector2(_streak_number_x(x, cw), mid - 15.0)   # the caption's centre-baseline
 	if f > 0.0:
+		# It grows where it is, nudged in just enough to stay on screen
+		# (it's up in the corner).
 		var home := centre
-		centre = home.lerp(fly_to, f)
-		cap_at = centre + (cap_at - home) * grow
+		var cap_rel := cap_at - home
+		var half_w := maxf(cw, w) / 2.0 * grow
+		var top_y := (cap_rel.y - 12.0 * 0.8) * grow   # (the caption's top, from the centre)
+		var screen_top := -global_position.y + 4.0
+		var screen_right := get_viewport_rect().size.x - global_position.x - 4.0
+		var to := home
+		to.y = maxf(to.y, screen_top - top_y)
+		to.x = minf(to.x, screen_right - half_w)
+		centre = home.lerp(to, f)
+		cap_at = centre + cap_rel * grow
 	# While it's out (and coming back), the words are drawn at their full
 	# grown size and scaled down, so they stay sharp: drawn small and
 	# scaled up, they blurred. The caption brightens on its way out too.

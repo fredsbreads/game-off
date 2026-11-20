@@ -448,12 +448,16 @@ func set_progress(level: int, bar: float, bar_size: float, pending: int, ceiling
 	# The level and the katana a little left of centre (room for the streak);
 	# the bolt halfway between the screen's left edge and the level; the
 	# streak toward the right edge.
-	var streak_left := view.x - 190.0
 	var ext := _top.extent()
 	_top.position = Vector2(view.x / 2.0 - 22.0 - (ext.x + ext.y) / 2.0, maxf(ceiling_y * 0.5, 34.0) - TopBar.BLADE.y / 2.0)
 	var level_left := _top.position.x + ext.x
 	_top.bolt_x = level_left / 2.0 - TopBar.BOLT_SIZE.x / 2.0 - _top.position.x
-	_top.streak_x = streak_left - _top.position.x
+	# The flawless number: centred between the katana's tip and the pause
+	# button (room to grow without reaching either).
+	var tip := _top.position.x + ext.y
+	var pause_left := view.x - PAUSE_BUTTON_SIZE - PAUSE_BUTTON_MARGIN
+	var cw := TopBar.FONT.get_string_size("FLAWLESS", HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x
+	_top.streak_x = (tip + pause_left) / 2.0 - cw / 2.0 - _top.position.x
 
 
 ## The power-up meter: value out of full; charged = full and ready.
