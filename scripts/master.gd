@@ -24,7 +24,7 @@ const MASTER_ART := {
 		["attack", M_ATTACK, 14.0, false], ["kill", M_ATTACK, 14.0, false],
 		["hit", M_TAKE_HIT, 12.0, false, 3],
 		["stance", M_RUN, 1.0, false, 1, 5]],
-	"kill_frame": 4, "kill_body_from": {},
+	"hit_flash": true, "kill_frame": 4, "kill_body_from": {},
 	"swings": [
 		{"sheet": M_ATTACK, "frames": [3, 4, 5], "hold": 4, "body_from": {}},
 		{"sheet": M_ATTACK2, "frames": [3, 4, 5], "hold": 4, "body_from": {}},

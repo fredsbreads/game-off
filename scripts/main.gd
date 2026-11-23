@@ -260,6 +260,9 @@ func _enter_tree() -> void:
 		ThemeDB.fallback_font = f
 
 
+var _speed_set := false
+
+
 func _ready() -> void:
 	# Main and the HUD keep running while the game is paused (to read the
 	# resume press and show the pause screen); the world stops.
@@ -348,9 +351,11 @@ func _ready() -> void:
 		var start := _session_start_level
 		progression.level = start if start in _unlocked_start_levels() else 1
 		level.level = progression.level
+		Rules.speed = Rules.speed_for_level(level.level)
 	if debug and debug.tutorial:
 		progression.level = 0   # (test runs: the tutorial only with --tutorial)
 		level.level = 1
+		Rules.speed = Rules.speed_for_level(level.level)
 		level.spawn_hold = true
 	Palette.set_pink(0.0)   # every run starts red (her colour is the streak reward)
 	_make_rewind_layer()
@@ -419,6 +424,7 @@ func begin(play := true) -> void:
 		progression.level = 0
 		progression.bar = 0.0
 		level.level = 1
+		Rules.speed = Rules.speed_for_level(level.level)
 		level.spawn_hold = true
 		level.bar_room = progression.bar_size()
 		hud.set_level_quietly(0)
@@ -609,7 +615,7 @@ func _say_wait() -> void:
 	var above := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row) - Rules.TILE * 1.4)
 	if player.row == Rules.Row.CEILING:
 		above.y += Rules.TILE * 2.8
-	text_fx.text(above, "Wait", 24, Color(1, 0.4, 0.4), Rules.RUN_SPEED * Rules.TILE if player.running else 0.0, 0.6)
+	text_fx.text(above, "Wait", 24, Color(1, 0.4, 0.4), Rules.speed * Rules.TILE if player.running else 0.0, 0.6)
 
 
 ## A press the tutorial isn't taking right now (its words, the rewind): told so.
@@ -716,7 +722,7 @@ func _rewind_frame(delta: float) -> void:
 			_rw_killer.unattack(1.0)
 		player.run_backwards()
 	if _rw_t < UNFALL_TIME + RUN_BACK_TIME:
-		player.x -= Rules.RUN_SPEED * delta
+		player.x -= Rules.speed * delta
 		return
 	_after_rewind()
 
@@ -824,6 +830,7 @@ func _finish_tutorial(skipped: bool) -> void:
 		t.tween_interval(START_WORD_TIME)
 		t.tween_callback(_start_run_after_tutorial)
 	level.level = progression.level
+	Rules.speed = Rules.speed_for_level(level.level)
 	# The run starts from nothing: the power-up meter too (so no auto-chain
 	# comes straight after the tutorial).
 	charge = 0
@@ -1370,7 +1377,7 @@ func _physics_process(delta: float) -> void:
 		fx.frozen = true
 		blood_fx.frozen = true
 		text_fx.frozen = true
-	var run_px := Rules.RUN_SPEED * Rules.TILE if moving else 0.0
+	var run_px := Rules.speed * Rules.TILE if moving else 0.0
 	cam.follow(player.x, run_px, delta)
 	# The real top-left of the view (a zoom can pan it left of cam.left()).
 	level.set_view(minf(cam.left(), cam.position.x), cam.shown_world_size())
@@ -1533,7 +1540,11 @@ func _step() -> void:
 
 	# 2. run
 	var run_from := player.x
-	player.x += Rules.RUN_SPEED / Rules.PHYSICS_FPS
+	if not _speed_set:   # (a new run, or a retry: from its level's speed)
+		_speed_set = true
+		Rules.speed = Rules.speed_for_level(level.level)
+	Rules.speed = move_toward(Rules.speed, Rules.speed_for_level(level.level), Rules.SPEED_EASE / Rules.PHYSICS_FPS)
+	player.x += Rules.speed / Rules.PHYSICS_FPS
 	distance = player.x - _run_origin_x
 
 	# 3. running into an enemy in your row
@@ -1653,8 +1664,8 @@ func _teleport(move: int) -> void:
 			_pause_min = maxf(KILL_PAUSE_MIN, CLASH_REAPPEAR)   # the player can go as soon as the knight shows where she went
 		_hitstop = _pause_length if _pause_is_chain else KILL_HIT
 		_pause_elapsed = 0.0
-		if _pause_is_chain and _charged and not _auto and not _has_debut(hit) and not _has_debut(targets):
-			_start_auto()   # (never on her debut knight: the player meets her by hand)
+		if _pause_is_chain and _charged and not _auto:
+			_start_auto()   # (her debut too: a charge is never held back)
 		if _pause_is_chain:
 			if not _clashed and not _knight_felled:   # those have their own, bigger zoom
 				cam.punch(to)
@@ -1842,7 +1853,7 @@ func _cycle_colour() -> void:
 	var above := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row) - Rules.TILE * 1.8)
 	if player.row == Rules.Row.CEILING:
 		above.y += Rules.TILE * 3.6
-	text_fx.text(above, Palette.display_name(name).to_upper(), 26, Color.WHITE, Rules.RUN_SPEED * Rules.TILE if state == State.PLAYING else 0.0, 1.2)
+	text_fx.text(above, Palette.display_name(name).to_upper(), 26, Color.WHITE, Rules.speed * Rules.TILE if state == State.PLAYING else 0.0, 1.2)
 
 
 ## The power-up meter: CLEAN / PERFECT chains add to it; full = charged.
@@ -1877,7 +1888,7 @@ func _start_auto() -> void:
 
 
 ## The auto-chain's next move (also the bot's in the freeze): see _auto_hop.
-func _auto_pick(skip_debut := true) -> int:
+func _auto_pick(skip_debut := false) -> int:
 	var best_move := Rules.Move.NONE
 	var best_x := INF
 	var best_enemy: Enemy = null
@@ -2156,8 +2167,8 @@ func _duck_music(db: float, seconds: float, delay := 0.0) -> void:
 
 
 ## A teleporter's debut waits only while the auto-chain plays (so it never
-## plays through her); a charge merely held doesn't delay it (the charge
-## can't be spent on a debut, see _has_debut), so it always comes on time.
+## plays through her); a charge merely held doesn't delay it (a charged kill
+## on her starts the auto-chain like any other), so it always comes on time.
 ## If it's already laid but not on screen yet, it's taken back (and comes
 ## after the auto-chain); see Level.debut_wait.
 func _sync_debut_wait() -> void:
@@ -2167,13 +2178,6 @@ func _sync_debut_wait() -> void:
 		level.rebuild_ahead(cam.left() / Rules.TILE + CameraRig.VIEW_TILES + 3.0)
 		level.ensure_generated(player.x)
 	level.debut_wait = wait
-
-
-func _has_debut(enemies: Array) -> bool:
-	for e in enemies:
-		if e is Knight and (e as Knight).debut:
-			return true
-	return false
 
 
 ## The flawless streak is over (an enemy got away, or a chain was dropped):
@@ -2587,7 +2591,7 @@ func _end_chain(grade: String, word: String = "") -> void:
 			var above := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row) - Rules.TILE * 1.4)
 			if player.row == Rules.Row.CEILING:
 				above.y += Rules.TILE * 2.8
-			text_fx.text(above, word if word != "" else grade, 30, (Palette.secondary() if grade == "PERFECT" else GRADE_COLORS[grade]), Rules.RUN_SPEED * Rules.TILE, GRADE_TEXT_LIFE,
+			text_fx.text(above, word if word != "" else grade, 30, (Palette.secondary() if grade == "PERFECT" else GRADE_COLORS[grade]), Rules.speed * Rules.TILE, GRADE_TEXT_LIFE,
 					-1.0 if player.row == Rules.Row.CEILING else 1.0, grade == "PERFECT")   # drift away from her row
 		if levelled:
 			level.level = progression.level
@@ -2694,7 +2698,7 @@ func _game_over() -> void:
 ## the highest flawless streak in a run (from any start level), and the
 ## highest level reached in a run started at level 1. Updated with this run;
 ## returns {kills: [best, new], flawless: [...], level: [...]} ("new": beaten
-## just now, over an earlier best: a first run just sets them).
+## just now, or set for the first time).
 func _update_bests() -> Dictionary:
 	var cfg := ConfigFile.new()
 	cfg.load(SAVE_PATH)
@@ -2708,7 +2712,7 @@ func _update_bests() -> Dictionary:
 		if beats:
 			cfg.set_value("bests", key, now)
 			changed = true
-		out[key] = [maxi(old, now) if entry[2] else old, beats and old > 0]
+		out[key] = [maxi(old, now) if entry[2] else old, beats]
 	if changed and not debug:   # (test runs don't touch them)
 		cfg.save(SAVE_PATH)
 	return out

@@ -28,7 +28,7 @@ const NINJA_ART := {
 		["attack", N_ATTACK, 14.0, false], ["kill", N_ATTACK2, 14.0, false],
 		["hit", N_TAKE_HIT, 12.0, false, 1],   # only the recoil (frames 1-2 are him standing again), held while struck
 		["stance", N_STANCE, 1.0, false, 1]],
-	"kill_frame": 2, "kill_body_from": {},
+	"hit_flash": true, "kill_frame": 2, "kill_body_from": {},
 	"swings": [
 		{"sheet": N_ATTACK, "frames": [1, 2, 3], "hold": 2, "body_from": {}},
 		{"sheet": N_ATTACK2, "frames": [1, 2, 3], "hold": 2, "body_from": {}},

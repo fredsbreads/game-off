@@ -7,6 +7,8 @@ shader_type canvas_item;
 
 uniform vec4 outline_color : source_color = vec4(1.0, 0.15, 0.2, 1.0);
 uniform float glint = 0.0;
+// Struck: his body flashes white (1), for the art without a white take-hit frame.
+uniform float flash = 0.0;
 // Knights draw their slash arc (the pure white pixels) behind their body:
 // 0 = everything, 1 = all but the arc (the body, in front), 2 = only the arc.
 uniform int white_part = 0;
@@ -44,7 +46,7 @@ void fragment() {
 	if (white_part == 2 && arc) {
 		COLOR = mix(c, vec4(accent(outline_color.rgb, SCREEN_UV.x), c.a), arc_tint * glint) * tint;
 	} else if (white_part != 2 && c.a > 0.0 && !(white_part == 1 && arc)) {
-		COLOR = c * tint;
+		COLOR = vec4(mix(c.rgb, vec3(1.0), flash), c.a) * tint;
 	} else {
 		vec2 px = TEXTURE_PIXEL_SIZE;
 		float n = part_alpha(texture(TEXTURE, UV + vec2(px.x, 0.0))) + part_alpha(texture(TEXTURE, UV - vec2(px.x, 0.0)))
