@@ -51,7 +51,7 @@ const STRIKE_OFFSET := 0.7
 const RUN_SPEED := 6.0
 # A run starts slower (more time to see the red katana over an enemy) and
 # eases up to full speed by FULL_SPEED_LEVEL.
-const START_SPEED := 4.8
+const START_SPEED := 4.2   # (70%)
 const FULL_SPEED_LEVEL := 5
 const SPEED_EASE := 0.4   # tiles/s per second: how gently it speeds up at a level-up
 ## Her speed right now (main.gd eases it toward speed_for_level).
@@ -60,6 +60,13 @@ static var speed := RUN_SPEED
 
 static func speed_for_level(level: int) -> float:
 	return lerpf(START_SPEED, RUN_SPEED, clampf(float(level - 1) / float(FULL_SPEED_LEVEL - 1), 0.0, 1.0))
+
+
+## The empty run between groups of enemies shrinks with her speed (so a
+## slower start means more time near each enemy, not more walking): this
+## level's speed over full speed.
+static func walk_scale(level: int) -> float:
+	return speed_for_level(level) / RUN_SPEED
 
 # The knight (see knight.gd): each hit on her counts this many kills toward
 # the progression bar, since you can't see where she'll blink ahead of time.

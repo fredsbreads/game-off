@@ -191,7 +191,7 @@ func _append_pattern(pattern: Dictionary) -> void:
 		section["ids"].append(enemy.get_instance_id())
 	sections.append(section)
 	var last: Vector2 = shape.back()
-	_cursor += last.x + Patterns.BREAK
+	_cursor += last.x + Patterns.break_gap(level)
 	_cursor_row = last_row
 
 

@@ -495,14 +495,14 @@ func _start_lessons() -> void:
 	_lesson = Lesson.FIRST_KILL
 	_lesson_kills = kills
 	# One enemy alone on the floor, a screen's width ahead; the chain after it.
-	var first := player.x + CameraRig.VIEW_TILES
+	var first := player.x + maxf(CameraRig.VIEW_TILES * Rules.walk_scale(1), CameraRig.VIEW_TILES - CameraRig.HOME_TILES + 1.0)
 	level.lay("", "tutorial: one enemy", first, Rules.Row.FLOOR)
-	var chain_x := first + Patterns.BREAK + 6.0
+	var chain_x := first + Patterns.break_gap(1) + 6.0
 	level.lay(CHAIN_STEPS, "tutorial: chain", chain_x, Rules.Row.FLOOR)
 	# The save's group: the usual gap after the chain's last enemy (the chain
 	# ends on the floor, so it's run into there).
 	var chain_shape: Array = Patterns.parse(CHAIN_STEPS)["enemies"]
-	_save_pair_x = chain_x + float(chain_shape.back().x) + Patterns.BREAK
+	_save_pair_x = chain_x + float(chain_shape.back().x) + Patterns.break_gap(1)
 	level.lay_shape(SAVE_SHAPE, "tutorial: save", _save_pair_x, Rules.Row.FLOOR)
 	level.spawn_hold = true   # nothing else until the lessons are over
 
@@ -869,7 +869,8 @@ func _start_run_after_tutorial() -> void:
 	_run_origin_x = player.x
 	distance = 0.0
 	level.spawn_hold = false
-	level.push_cursor(player.x + CameraRig.VIEW_TILES)
+	# (its walk shrinks with the speed too, but it never pops in on screen)
+	level.push_cursor(player.x + maxf(CameraRig.VIEW_TILES * Rules.walk_scale(level.level), CameraRig.VIEW_TILES - CameraRig.HOME_TILES + 1.0))
 	level.ensure_generated(player.x)
 
 
@@ -2094,7 +2095,7 @@ func _auto_finale_strike(grade: String, k: Enemy) -> void:
 	# A breather: nothing was laid during the auto-chain, and the next chain
 	# comes in well past the screen's right edge.
 	level.spawn_hold = false
-	level.push_cursor(cam.left() / Rules.TILE + CameraRig.VIEW_TILES + AUTO_GAP_TILES)
+	level.push_cursor(cam.left() / Rules.TILE + CameraRig.VIEW_TILES + AUTO_GAP_TILES * Rules.walk_scale(level.level))
 	_sync_debut_wait()
 	level.ensure_generated(player.x)
 

@@ -27,6 +27,14 @@ extends RefCounted
 
 const WAIT := 3.0       # half a forward teleport
 const BREAK := 10.0     # past forward reach, so a break is unmistakable
+# The gap between two chains: BREAK, shorter at a slower speed (Rules.walk_scale),
+# but never under BREAK_MIN (still past a forward teleport's reach and its kill
+# zone, FORWARD + KILL_AHEAD + ENEMY_HALF_WIDTH = 7.55).
+const BREAK_MIN := 8.0
+
+
+static func break_gap(level: int) -> float:
+	return maxf(BREAK * Rules.walk_scale(level), BREAK_MIN)
 
 # Hand-made patterns for the opening levels. Each level adds its patterns
 # to the previous level's (a two-level window: see pool_for_level()).
