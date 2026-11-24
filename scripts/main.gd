@@ -1797,6 +1797,7 @@ func _finisher(k: Enemy, grade: String, to_rainbow := false) -> void:
 	_fin_hold = FINISHER_QUICK_HOLD if quick else FINISHER_HOLD
 	_finishing = true
 	player.cinematic = true
+	fx.no_slash = true
 	_hitstop = 999.0   # held until _finisher_done; a press can't cut it short
 	_pause_min = 999.0
 	_pause_is_chain = false
@@ -2053,6 +2054,7 @@ func _auto_finale(grade: String) -> void:
 	# back; he stays standing through them and falls with the big strike.
 	_finale_slashing = true
 	player.cinematic = true
+	fx.no_slash = true
 	k.take_hit(AUTO_SLASH_HOP_GOLDEN if Palette.pink >= 1.0 else AUTO_SLASH_HOP)
 	var left_x := k.tile_x - FINISHER_SIDE
 	var right_x := k.tile_x + FINISHER_SIDE
@@ -2116,6 +2118,7 @@ func _auto_finale_strike(grade: String, k: Enemy) -> void:
 	_finale_hold = false
 	_finale_slashing = false
 	player.cinematic = false
+	fx.no_slash = false
 	player.facing = 1.0
 	player.auto_chain = false
 	_hitstop = 0.0
@@ -2273,6 +2276,7 @@ func _break_streak() -> void:
 func _finisher_done(k: Enemy, focus: Vector2) -> void:
 	_finishing = false
 	player.cinematic = false
+	fx.no_slash = false
 	player.facing = 1.0
 	if is_instance_valid(k):
 		k.fall()   # now the enemy falls

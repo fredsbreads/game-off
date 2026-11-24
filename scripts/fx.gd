@@ -116,10 +116,24 @@ func _remove(i: int) -> void:
 	if node:
 		node.queue_free()
 	_items.remove_at(i)
+## (A finisher, the auto-chain's end) no slash streaks: a freeze would hold
+## one, half faded, as a faint line across the zoomed-in scene. Set: any
+## on screen go.
+var no_slash := false:
+	set(v):
+		no_slash = v
+		if v:
+			for i in range(_items.size() - 1, -1, -1):
+				if _items[i]["kind"] == "slash":
+					_remove(i)
+			queue_redraw()
+
+
 ## Bigger and brighter the longer the chain.
 func kill_burst(pos: Vector2, combo: int) -> void:
 	var c := mini(combo, 8)
-	_items.append({"kind": "slash", "t": 0.0, "life": 0.16, "pos": pos, "len": 80.0 + 10.0 * c})
+	if not no_slash:
+		_items.append({"kind": "slash", "t": 0.0, "life": 0.16, "pos": pos, "len": 80.0 + 10.0 * c})
 	for i in 8 + c * 3:
 		var dir := Vector2.from_angle(randf_range(-PI, 0.2))
 		_items.append({"kind": "particle", "t": 0.0, "life": randf_range(0.35, 0.65),
