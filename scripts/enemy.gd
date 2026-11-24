@@ -216,5 +216,11 @@ func unattack(k: float) -> void:
 func _on_animation_finished() -> void:
 	if _sprite.animation == "attack":
 		_sprite.play("idle")
+	elif _sprite.animation == "hit" and not self is Knight:
+		# (the grunt) his take-hit ends standing up straight: instead he's held
+		# on his death's first frame, reeling, until the next strike or his fall.
+		_sprite.play("death")
+		_sprite.frame = 0
+		_sprite.speed_scale = 0.0
 	# After "death" the body just stays (level.gd removes it once it's well
 	# behind the camera).
