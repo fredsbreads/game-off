@@ -922,6 +922,13 @@ const COACH_SHAKE_TIME := 0.3
 
 ## `line`: the move to make (in her red), or "". `points`: what in the top
 ## bar it's about ("katana", "bolt", "streak"): that pops, over and over.
+## Where the coach's words sit, down the screen (0..1): under the floor,
+## or mid-screen for the tutorial's closing words (main.gd).
+var coach_y := COACH_Y_LOW
+const COACH_Y_LOW := 0.86
+const COACH_Y_MID := 0.5
+
+
 func show_coach(title: String, line := "", points: Array = [], line_size := COACH_LINE_SIZE, line_in_flawless_colour := false) -> void:
 	if title != _coach_title or line != _coach_line:
 		_coach_t = 0.0
@@ -1046,7 +1053,7 @@ func _draw_coach() -> void:
 	var shake := Vector2(sin(_coach_shake * 90.0) * 12.0 * (_coach_shake / COACH_SHAKE_TIME), 0.0)
 	# Under the floor (the play stays clear); with arrows, just under the top
 	# bar (nothing else is on screen then).
-	var cy := v.y * 0.86
+	var cy := v.y * coach_y
 	if not _coach_points.is_empty():
 		_draw_spotlight(c, v)
 	var title_size := int(34 * pop)

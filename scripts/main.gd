@@ -829,6 +829,7 @@ func _finish_tutorial(skipped: bool) -> void:
 			hud.set_level_quietly(_tutorial_target)
 		# Before the run: no enemies while what chains do is said, the
 		# katana and the bolt (then the flawless number) popping; then Start.
+		hud.coach_y = Hud.COACH_Y_MID   # (mid-screen: between the top bar it points at and the play)
 		hud.show_coach("Combo To Level Up Your Katana", "Perfect Combos Fill It Faster", ["katana"], Hud.COACH_LINE_SIZE, true)   # (perfect: the Flawless Color)
 		var t := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_STOP)
 		t.tween_interval(LESSON_METERS_TIME)
@@ -866,6 +867,7 @@ func _start_run_after_tutorial() -> void:
 		return
 	_set_save_flag("played")   # (a run: the level choice can show)
 	hud.hide_coach()
+	hud.coach_y = Hud.COACH_Y_LOW
 	_run_origin_x = player.x
 	distance = 0.0
 	level.spawn_hold = false
