@@ -164,6 +164,96 @@ static func parse(steps: String) -> Dictionary:
 	return {"enemies": enemies, "errors": errors}
 
 
+## A whole chain written out by hand (for testing: level.gd test_chain), in
+## step notation with its teleporters, e.g.
+##   F K( f v d ) D N( f f v f ) M( v d d f f ) S( v f v d v / f v d / v d v f )
+## A teleporter's letter follows the step to her first spot (or opens the
+## chain); in her brackets, the blinks after each hit (f, v, d). The
+## Shadow's brackets hold her rounds, split by "/": each round's blinks from
+## where the last one ended (the last of a round is where she waits; the
+## others get her remnants); or a number, S(3), for that many random rounds.
+## Returns a pattern ({enemies, knights, shadow_paths?, steps}) plus `errors`.
+static func parse_chain(text: String, rng: RandomNumberGenerator) -> Dictionary:
+	var spaced := text.replace("(", " ( ").replace(")", " ) ").replace("/", " / ")
+	var tokens := spaced.split(" ", false)
+	var enemies: Array[Vector2] = [Vector2(0, 0)]
+	var knights: Array[int] = [-1]
+	var errors: Array[String] = []
+	var paths: Array = []
+	var next_group := {"K": 0, "N": NINJA_GROUP, "M": MASTER_GROUP, "S": SHADOW_GROUP}
+	var i := 0
+	while i < tokens.size():
+		var t: String = tokens[i].to_upper()
+		if next_group.has(t) and i + 1 < tokens.size() and tokens[i + 1] == "(":
+			# The enemy just placed (the last spot) is this teleporter.
+			var group: int = next_group[t]
+			next_group[t] = group + 1
+			knights[knights.size() - 1] = group
+			var close := tokens.find(")", i + 2)
+			if close < 0:
+				errors.append("'%s(' has no ')'" % t)
+				break
+			var inner := tokens.slice(i + 2, close)
+			if t == "S":
+				if not paths.is_empty():
+					errors.append("only one Shadow per chain")
+				var rounds: Array = []
+				if inner.size() == 1 and inner[0].is_valid_int():
+					rounds = shadow_rounds(enemies.back(), shadow_blinks(int(inner[0]), rng), rng)["paths"]
+				else:
+					var at: Vector2 = enemies.back()
+					var path: Array[Vector2] = []
+					var blinks := Array(inner)
+					blinks.append("/")
+					for b in blinks:
+						if b == "/":
+							if path.size() < 2:
+								errors.append("each Shadow round needs at least 2 blinks")
+							rounds.append(path)
+							path = []
+							continue
+						if step_shape(b.to_upper()).is_empty() or b.to_upper() in ["|", "F+", "V+", "D+"]:
+							errors.append("unknown blink '%s'" % b)
+							continue
+						at = _apply(at, b.to_upper())
+						path.append(at)
+				for path in rounds:
+					if path.is_empty():
+						continue
+					enemies.append(path.back())
+					knights.append(group)
+				paths = rounds
+			else:
+				for b in inner:
+					var bu: String = b.to_upper()
+					if not bu in ["F", "V", "D"]:
+						errors.append("unknown blink '%s'" % b)
+						continue
+					enemies.append(_apply(enemies.back(), bu))
+					knights.append(group)
+			i = close + 1
+			continue
+		if step_shape(t).is_empty():
+			errors.append("unknown step '%s'" % tokens[i])
+			i += 1
+			continue
+		enemies.append(_apply(enemies.back(), t))
+		knights.append(-1)
+		i += 1
+	for j in enemies.size():
+		for k in j:
+			if enemies[j] == enemies[k]:
+				errors.append("two in one spot: %s" % [enemies[j]])
+	for path in paths:
+		for spot in path:
+			if spot != path.back() and enemies.has(spot) and knights[enemies.find(spot)] != SHADOW_GROUP:
+				errors.append("someone stands on one of her remnants' spots: %s" % [spot])
+	var out := {"enemies": enemies, "knights": knights, "steps": text, "errors": errors}
+	if not paths.is_empty():
+		out["shadow_paths"] = paths
+	return out
+
+
 ## The hand-made patterns that can spawn at `level` (1-3), each with a
 ## weight: this level's new patterns, plus the previous level's.
 static func pool_for_level(level: int) -> Array:

@@ -50,6 +50,7 @@ var _knight_intro_done := false   # the debut level opens with a knight alone, o
 var _ninja_intro_done := false    # ...and his with a ninja alone
 var _master_intro_done := false   # ...and the master's
 var _shadow_intro_done := false   # ...and the Shadow's
+var test_chain := ""   # (testing) the first chain, written out: see Patterns.parse_chain
 var grunts_next := false   # the next chain laid is grunts only (after an auto-chain, see main.gd)
 ## Her debut waits while this is on (main.gd: while the auto-chain plays),
 ## so it never plays through her; knight-free chains come instead.
@@ -102,6 +103,16 @@ func _pick_pattern() -> Dictionary:
 		_ninja_intro_done = level > Patterns.NINJA_DEBUT_LEVEL
 		_master_intro_done = level > Patterns.MASTER_DEBUT_LEVEL
 		_shadow_intro_done = level > Patterns.SHADOW_DEBUT_LEVEL
+	# A chain written out by hand (testing: --chain=, or ?chain= on the web):
+	# the run's first chain.
+	if test_chain != "":
+		var p := Patterns.parse_chain(test_chain, _rng)
+		test_chain = ""
+		if p["errors"].is_empty():
+			p["name"] = "test chain: " + str(p["steps"])
+			return p
+		push_warning("test chain: " + ", ".join(p["errors"]))
+		print("TEST CHAIN ERRORS: ", ", ".join(p["errors"]))
 	# Right after every other auto-chain (main.gd): a chain of grunts only.
 	if grunts_next:
 		grunts_next = false

@@ -371,6 +371,7 @@ func _ready() -> void:
 		debug = DebugTools.new()
 		debug.main = self
 		add_child(debug)
+	_read_test_link()
 	if LEVEL_CHOICE and progression.level == 1:   # (not set by the debug --level option)
 		var start := _session_start_level
 		progression.level = start if start in _unlocked_start_levels() else 1
@@ -2812,6 +2813,23 @@ func _shadow_need() -> Enemy:
 		if e is Shadow and e.alive and (e as Shadow).engaged:
 			return (e as Shadow).next_target()
 	return null
+
+
+## (Testing, the web build) the page link can set the start level and the
+## first chain: index.html?level=12&chain=F K( f v d ) D (see
+## Patterns.parse_chain). Without them, nothing changes.
+func _read_test_link() -> void:
+	if not OS.has_feature("web"):
+		return
+	var q := "new URLSearchParams(window.location.search).get('%s') || ''"
+	var lv := str(JavaScriptBridge.eval(q % "level", true))
+	var ch := str(JavaScriptBridge.eval(q % "chain", true))
+	if lv.is_valid_int() and int(lv) >= 1:
+		progression.level = int(lv)
+		level.level = int(lv)
+		Rules.speed = Rules.speed_for_level(level.level)
+	if ch != "":
+		level.test_chain = ch
 
 
 func _play_jingle(sound: AudioStreamPlayer) -> void:

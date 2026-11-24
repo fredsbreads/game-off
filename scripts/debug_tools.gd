@@ -11,6 +11,8 @@ extends Node
 ##   --shots=DIR    save a screenshot every --shot-every frames (default 45)
 ##   --shot-count=N how many screenshots before quitting (default 8)
 ##   --level=N      start the run at level N
+##   --chain=STEPS  the run's first chain, written out (Patterns.parse_chain),
+##                  e.g. --chain="F K( f v d ) D S( v f v d v / f v d / v d v f )"
 
 const PLAN_AHEAD_TILES := 24.0
 const REPLAN_EVERY := 20
@@ -55,6 +57,7 @@ func _ready() -> void:
 			"level":
 				main.progression.level = int(value)
 				main.level.level = int(value)
+			"chain": main.level.test_chain = value
 	if shots_dir != "":
 		DirAccess.make_dir_recursive_absolute(shots_dir)
 
