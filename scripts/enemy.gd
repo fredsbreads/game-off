@@ -21,6 +21,7 @@ const IDLE_FPS := 10.0
 const DEATH_FPS := 16.0
 const ATTACK_FPS := 14.0
 const HIT_FPS := 12.0
+const HIT_FIT := 0.8   # a take-hit squeezed between quick strikes takes this much of the gap
 # Start the attack on the slash frame, so it lands right as she touches him (the first
 # frames are a wind-up).
 const ATTACK_START_FRAME := 3
@@ -111,22 +112,35 @@ func die() -> void:
 
 
 ## Struck in the streak finisher: his take-hit (recoil, a white flash,
-## recoil), held on its last frame until the next strike...
-func take_hit() -> void:
+## recoil), held on its last frame until the next strike. `span`: seconds
+## until the next strike (0: none): a quick finisher's strikes come faster
+## than the take-hit, so it plays faster, to show whole on every one...
+func take_hit(span := 0.0) -> void:
+	var speed := hit_speed(span)
 	if _sprite:
-		_sprite.speed_scale = 1.0
+		_sprite.speed_scale = speed
 		_sprite.play("hit")
 		_sprite.frame = 0
-	hit_flash()
+	hit_flash(speed)
+
+
+## How much faster the take-hit plays to fit in `span` seconds (with a little
+## of its last frame left to see).
+func hit_speed(span: float) -> float:
+	if span <= 0.0 or _sprite == null or not _sprite.sprite_frames.has_animation("hit"):
+		return 1.0
+	var frames := _sprite.sprite_frames
+	var length := float(frames.get_frame_count("hit")) / frames.get_animation_speed("hit")
+	return maxf(1.0, length / (span * HIT_FIT))
 
 
 ## The white flash on a strike's second beat (the art has none of its own).
-func hit_flash() -> void:
+func hit_flash(speed := 1.0) -> void:
 	if _material == null:
 		return
 	if _flash_tween:
 		_flash_tween.kill()
-	var beat := 1.0 / HIT_FPS
+	var beat := 1.0 / HIT_FPS / speed
 	_material.set_shader_parameter("flash", 0.0)
 	_flash_tween = create_tween()
 	_flash_tween.tween_interval(beat)

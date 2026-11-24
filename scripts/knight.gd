@@ -248,13 +248,14 @@ func _build_knight_frames() -> SpriteFrames:
 
 ## Struck (the streak finisher): her take-hit, ending on the recoil, held
 ## until the next strike.
-func take_hit() -> void:
+func take_hit(span := 0.0) -> void:
+	var speed := hit_speed(span)
 	if _sprite:
-		_sprite.speed_scale = 1.0
+		_sprite.speed_scale = speed
 		_sprite.play("hit")
 		_sprite.frame = 0
 	if art.get("hit_flash", false):
-		hit_flash()   # (art without the knight's white take-hit frame) the same beat
+		hit_flash(speed)   # (art without the knight's white take-hit frame) the same beat
 
 
 ## The finisher's over: now she falls.

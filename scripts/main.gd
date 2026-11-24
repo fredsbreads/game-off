@@ -1742,7 +1742,7 @@ func _finisher(k: Enemy, grade: String, to_rainbow := false) -> void:
 	_pause_min = 999.0
 	_pause_is_chain = false
 	_pause_elapsed = 0.0
-	k.take_hit()   # (her first strike) the enemy recoils, and stays standing until it's over
+	k.take_hit(_fin_hop)   # (her first strike) the enemy recoils, and stays standing until it's over
 	# Far enough either side of the enemy that it's seen between her strikes.
 	var left_x := k.tile_x - FINISHER_SIDE
 	var right_x := k.tile_x + FINISHER_SIDE
@@ -1812,7 +1812,7 @@ func _finisher_strike(k: Enemy, to_x: float, face: float, pose: int, grade: Stri
 	fx.kill_burst(pos, 6)
 	cam.shake(0.15, 14.0)
 	if is_instance_valid(k):
-		k.take_hit()
+		k.take_hit(_fin_hop if grade == "" else 0.0)
 		k.modulate = Color(2.5, 2.5, 2.5)
 		k.create_tween().tween_property(k, "modulate", Color.WHITE, 0.12)
 	if grade == "":
@@ -1984,7 +1984,7 @@ func _auto_finale(grade: String) -> void:
 	# back; he stays standing through them and falls with the big strike.
 	_finale_slashing = true
 	player.cinematic = true
-	k.take_hit()
+	k.take_hit(AUTO_SLASH_HOP_GOLDEN if Palette.pink >= 1.0 else AUTO_SLASH_HOP)
 	var left_x := k.tile_x - FINISHER_SIDE
 	var right_x := k.tile_x + FINISHER_SIDE
 	_finale_home_x = player.x   # (back here under the big strike's flash)
@@ -2035,7 +2035,7 @@ func _auto_slash(k: Enemy, to_x: float, face: float, pose: int, hop := AUTO_SLAS
 		var pos := Vector2(k.tile_x * Rules.TILE, Rules.body_center_y(k.row))
 		blood_fx.blood(pos, dir, 24, BLOOD_BURST, 1.0 if k.row == Rules.Row.CEILING else -1.0)
 		fx.kill_burst(pos, 6)
-		k.take_hit()
+		k.take_hit(hop)
 		k.modulate = Color(2.5, 2.5, 2.5)
 		k.create_tween().tween_property(k, "modulate", Color.WHITE, 0.1)
 	cam.shake(0.1, 10.0)
