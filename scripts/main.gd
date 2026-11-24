@@ -5,7 +5,7 @@ extends Node2D
 ## pattern validator's "this chains" proof applies to the real game.
 ##
 ## Controls: forward (right half / Right, K, D, R-Shift), vertical (left
-## half / Left, Up, J, A, W, L-Shift), diagonal = both at once.
+## half / Left, J, A, L-Shift), diagonal = both at once.
 
 enum State { READY, PLAYING, DYING, OVER }
 
@@ -54,11 +54,9 @@ const INVERT_FLASH := false     # inverted-colour flash on kills (off: too aggre
 const INVERT_TIME := 0.05
 const FX_FREEZE_AFTER := 0.08
 const RESUME_GUARD := 0.15       # ignore presses this soon after pausing
-# Pressing forward and vertical within this long of each other counts as a
-# diagonal; a single press waits this long before firing. Real time, not
-# frames: a slow computer catching up runs several frames back to back, which
-# used to use up the window before the second key's press was even read.
-const DIAGONAL_WINDOW_MSEC := 67
+# Pressing forward and vertical within this many frames of each other counts
+# as a diagonal. Single presses wait this long before firing (4 frames = 67 ms).
+const DIAGONAL_WINDOW_FRAMES := 4
 # Phone browsers send a fake mouse click after a finger lifts; ignore mouse
 # clicks this soon after any touch so a tap never counts twice.
 const MOUSE_AFTER_TOUCH_IGNORE_MS := 1000
@@ -256,26 +254,21 @@ var debug: DebugTools = null
 
 var _pending_forward := false
 var _pending_vertical := false
-var _pending_deadline := 0   # (msec) when a single pending press fires
+var _pending_frames := 0
 # The buttons the last teleport used. Pressing one of them again during the
 # cooldown that follows is ignored (a quick double press is spam, not intent).
 var _last_forward := false
 var _last_vertical := false
 # Where she was when a pending press could first fire. A single press waits
-# DIAGONAL_WINDOW_MSEC in case it's a diagonal. While it waits she's
+# DIAGONAL_WINDOW_FRAMES in case it's a diagonal. While it waits she's
 # committed: running into an enemy doesn't count. When it fires, it hits if
 # it would have hit from anywhere between here and where she is now (so a
 # marker lit at any point during the wait means a hit).
 var _press_x := 0.0
 var _press_x_set := false
 var _last_touch_msec := -100000
-# Which Shift keys are down, by location, and when each went down (msec)
-# (see _shift_press_is_fresh).
+# Which Shift keys are down, by location (see _shift_press_is_fresh).
 var _shift_held := {}
-# A Shift press that came in as the side already held, while the other
-# wasn't: taken as the other Shift (_button_from_event).
-var _shift_as_other := false
-const SHIFT_SAME_SIDE_MSEC := 150
 # (Testing, ?keylog=1 on the web) every key event shown on screen.
 var _keylog: Label = null
 var _keylog_lines: PackedStringArray = []
@@ -1150,7 +1143,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			if player.cooldown > 0 and ((button == Rules.Move.FORWARD and _last_forward) or (button == Rules.Move.VERTICAL and _last_vertical)):
 				return   # same button again right after a teleport: ignored
 			if not _pending_forward and not _pending_vertical:
-				_pending_deadline = Time.get_ticks_msec() + DIAGONAL_WINDOW_MSEC
+				_pending_frames = DIAGONAL_WINDOW_FRAMES
 			if button == Rules.Move.FORWARD:
 				_pending_forward = true
 			else:
@@ -1262,24 +1255,11 @@ func _shift_press_is_fresh(key: InputEventKey) -> bool:
 		_shift_held.erase(side)
 		return false
 	if _shift_held.has(side):
-		if key.echo:
-			return false   # (a real repeat: this Shift's held)
-		# This side's already down. If the other isn't, and this came right
-		# after it, it's the other Shift reported as the same side (some
-		# systems): count it as the other. (Both down: it's the bogus re-press
-		# above, ignored.)
-		var other := KEY_LOCATION_RIGHT if side == KEY_LOCATION_LEFT else KEY_LOCATION_LEFT
-		if side != KEY_LOCATION_UNSPECIFIED and not _shift_held.has(other) \
-				and Time.get_ticks_msec() - int(_shift_held[side]) <= SHIFT_SAME_SIDE_MSEC:
-			_shift_held[other] = Time.get_ticks_msec()
-			_shift_as_other = true
-			_keylog_add("  (same side again: taken as the other Shift)")
-			return true
-		return false
+		return false   # (already down: a real repeat, or the bogus re-press above)
 	# Not down yet, so it's a real press, even if it says it's a repeat:
 	# ChromeOS marks the second Shift's first press as a repeat when the
 	# other Shift is held (so the diagonal was lost there).
-	_shift_held[side] = Time.get_ticks_msec()
+	_shift_held[side] = true
 	return true
 
 
@@ -1326,10 +1306,6 @@ func _button_from_event(event: InputEvent) -> int:
 		return Rules.Move.VERTICAL
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
 		return Rules.Move.FORWARD
-	if _shift_as_other and event is InputEventKey:
-		_shift_as_other = false
-		# (Left Shift is up/down, Right Shift forward: the other one's move.)
-		return Rules.Move.FORWARD if (event as InputEventKey).location == KEY_LOCATION_LEFT else Rules.Move.VERTICAL
 	# (Echoes allowed: _is_fresh_press has already dropped every real repeat,
 	# and let through ChromeOS's second Shift, which comes marked as one.)
 	if event.is_action_pressed("tp_vertical", true):
@@ -1373,13 +1349,12 @@ func _button_for_screen_x(screen_x: float) -> int:
 func _clear_pending() -> void:
 	_pending_forward = false
 	_pending_vertical = false
-	_pending_deadline = 0
+	_pending_frames = 0
 	_press_x_set = false
 
 
-## The move to make this frame from the buttons pressed, waiting
-## DIAGONAL_WINDOW_MSEC after a single press in case the other button
-## follows (diagonal).
+## The move to make this frame from the buttons pressed, waiting a few
+## frames after a single press in case the other button follows (diagonal).
 ## The diagonal window keeps counting down during the cooldown, so a press
 ## that waited out the cooldown fires the moment it ends (can_fire).
 func _take_pending_move(can_fire: bool) -> int:
@@ -1388,9 +1363,10 @@ func _take_pending_move(can_fire: bool) -> int:
 	var move := Rules.Move.NONE
 	if _pending_forward and _pending_vertical:
 		move = Rules.Move.DIAGONAL
-	elif Time.get_ticks_msec() >= _pending_deadline:
+	elif _pending_frames <= 0:
 		move = Rules.Move.FORWARD if _pending_forward else Rules.Move.VERTICAL
 	else:
+		_pending_frames -= 1
 		return Rules.Move.NONE
 	if not can_fire:
 		return Rules.Move.NONE
@@ -2809,13 +2785,27 @@ func _setup_shadow_mood() -> void:
 	_shadow_vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var m := ShaderMaterial.new()
 	m.shader = Shader.new()
+	# An even band along all four edges (the same thickness on each, in
+	# screen terms), fading inward, averaged with a wide oval that's heavier
+	# at the sides.
 	m.shader.code = """shader_type canvas_item;
 uniform vec4 tint : source_color;
 uniform float amount;
+uniform float aspect = 1.777;
+uniform float band = 0.2;   // its depth, as a share of the screen's height
+uniform float top_bottom = 0.35;   // extra along the top and bottom edges
 void fragment() {
+	float dx = min(UV.x, 1.0 - UV.x) * aspect;
+	float dy = min(UV.y, 1.0 - UV.y);
+	float ex = clamp(1.0 - dx / band, 0.0, 1.0);
+	float ey = clamp(1.0 - dy / band, 0.0, 1.0);
+	float band_v = 1.0 - (1.0 - ex * ex) * (1.0 - ey * ey);
+	// Averaged with the first version's wide oval (heavier at the sides).
 	vec2 d = UV - 0.5;
 	d.x *= 1.5;
-	float v = smoothstep(0.3, 0.85, length(d));
+	float oval_v = smoothstep(0.3, 0.85, length(d));
+	float v = 0.5 * (band_v + oval_v);
+	v = 1.0 - (1.0 - v) * (1.0 - top_bottom * ey * ey);   // (more along the top and bottom)
 	COLOR = vec4(tint.rgb, v * amount);
 }"""
 	m.set_shader_parameter("tint", SHADOW_VIGNETTE)
@@ -2845,6 +2835,9 @@ func _update_shadow_mood(delta: float) -> void:
 	var mood := _shadow_mood * _shadow_mood * (3.0 - 2.0 * _shadow_mood)   # (eased)
 	_shadow_vignette.visible = mood > 0.001
 	_shadow_vignette.material.set_shader_parameter("amount", mood * SHADOW_VIGNETTE_STRENGTH)
+	if _shadow_vignette.visible:
+		var size := get_viewport().get_visible_rect().size
+		_shadow_vignette.material.set_shader_parameter("aspect", size.x / maxf(size.y, 1.0))
 	if _music_lowpass:
 		_music_lowpass.cutoff_hz = 20000.0 * pow(SHADOW_MUSIC_CUTOFF / 20000.0, mood)
 	if mood > 0.001:
