@@ -127,6 +127,7 @@ const FINISHER_BOLT_FPS := 4.5
 const FINISHER_BOLT_SIZE := Vector2(1.2, 1.4)
 const BIG_STRIKE_BURST_Y := 225.0   # pixels down its frame where the ground burst is
 const BIG_STRIKE_FULL_FRAME := 2     # its frame with the whole bolt and the sparks
+const BIG_STRIKE_ART := Vector2(9.0, 243.0)   # the rows of its frames (of 256) that the bolt reaches, top to bottom
 const FINISHER_SWEEP_AFTER := 0.3  # on the last pose, this long before the colour sweeps
 const FINISHER_SWEEP_TIME := 1.1   # her new colour sweeps across the screen, right to left, over this long
 const FINISHER_HOLD := 0.8         # after the level-up, the freeze frame holds this long
@@ -822,7 +823,7 @@ func _finish_tutorial(skipped: bool) -> void:
 		_tut_hold = false
 		player.frozen = false
 	else:
-		if _tutorial_target > 1:   # (a later start level picked: the run's there)
+		if _tutorial_target > 1 or progression.level < 1:   # (a later start level picked: the run's there; never level 0)
 			progression.level = _tutorial_target
 			progression.bar = 0.0
 			level.bar_room = progression.bar_size()
@@ -832,6 +833,7 @@ func _finish_tutorial(skipped: bool) -> void:
 		hud.coach_y = Hud.COACH_Y_MID   # (mid-screen: between the top bar it points at and the play)
 		hud.show_coach("Combo To Level Up Your Katana", "Perfect Combos Fill It Faster", ["katana"], Hud.COACH_LINE_SIZE, true)   # (perfect: the Flawless Color)
 		var t := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_STOP)
+		_outro = t   # (Skip Tutorial still cuts it short)
 		t.tween_interval(LESSON_METERS_TIME)
 		t.tween_callback(hud.show_coach.bind("Combos Also Charge Up Your", "Red Flash", ["bolt"], 46))
 		t.tween_interval(LESSON_METERS_TIME)
@@ -856,9 +858,22 @@ func _finish_tutorial(skipped: bool) -> void:
 	best_sweep = 0
 	best_chain = 0
 	perfect_chains = 0
-	hud.set_skip_visible(false)
+	hud.set_skip_visible(not skipped)   # (through the closing words too)
 	if skipped:
 		_start_run_after_tutorial()
+
+
+var _outro: Tween   # the tutorial's closing words (null once the run's on)
+
+
+## "Skip Tutorial": during the lessons, straight into the run; during the
+## closing words, the run starts now.
+func _skip_tutorial() -> void:
+	if _outro and _outro.is_valid():
+		_outro.kill()
+		_start_run_after_tutorial()
+	else:
+		_finish_tutorial(true)
 
 
 ## The run proper: enemies from just past the right edge, distance from here.
@@ -866,6 +881,8 @@ func _start_run_after_tutorial() -> void:
 	if state != State.PLAYING:
 		return
 	_set_save_flag("played")   # (a run: the level choice can show)
+	_outro = null
+	hud.set_skip_visible(false)
 	hud.hide_coach()
 	hud.coach_y = Hud.COACH_Y_LOW
 	_run_origin_x = player.x
@@ -987,7 +1004,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				hud.open_options(true)
 			"skip":   # (the tutorial) straight into the run
 				_set_paused(false)
-				_finish_tutorial(true)
+				_skip_tutorial()
 			"flip":   # (upright phones) turns the game 180 degrees
 				JavaScriptBridge.eval("window.redFlashSetFlip(!window.redFlashFlip)", true)
 			"menu":   # leave the run for the title screen
@@ -1004,7 +1021,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if (state == State.PLAYING or (state == State.DYING and _rewind_pending)) and _is_skip_press(event):
 		get_viewport().set_input_as_handled()
-		_finish_tutorial(true)
+		_skip_tutorial()
 		return
 	if LEVEL_CHOICE and state == State.READY and _start_level_input(event):
 		get_viewport().set_input_as_handled()
@@ -1375,7 +1392,8 @@ func _physics_process(delta: float) -> void:
 			if _state_time >= DEATH_FREEZE + DEATH_SLOWMO + DEATH_ANIM_TIME * 0.4:
 				_game_over()
 
-	Palette.rainbow_hold = _auto or _finale_hold or _finishing
+	# (dead: it stops where it is, the katana and the numbers behind the death screen too)
+	Palette.rainbow_hold = _auto or _finale_hold or _finishing or state != State.PLAYING
 	Palette.tick(delta)
 	_update_knight_threats()
 	_update_pause_visuals()
@@ -1830,20 +1848,20 @@ func _finisher_strike(k: Enemy, to_x: float, face: float, pose: int, grade: Stri
 ## `hold`: seconds the bolt stays at full strength before it fades (the last
 ## one stays up through her colour change).
 func _finisher_bolt(hold := 0.0) -> void:
-	_row_bolt(FINISHER_BOLT_SIZE, _fin_bolt_fps, BIG_STRIKE_FULL_FRAME if hold > 0.0 else -1, hold)
+	_row_bolt(FINISHER_BOLT_SIZE.x, _fin_bolt_fps, BIG_STRIKE_FULL_FRAME if hold > 0.0 else -1, hold)
 
 
 ## The big bolt from the other row down onto her (up onto her from the floor
-## when she's on the ceiling), its burst at her feet: cut off at both rows,
-## so none of it goes past the floor or the ceiling.
-func _row_bolt(size: Vector2, fps: float, hold := -1, hold_time := 0.0) -> void:
+## when she's on the ceiling): the whole of it, sized to fill the gap between
+## the floor and the ceiling exactly (`width`: how wide), so none of it goes
+## past either.
+func _row_bolt(width: float, fps: float, hold := -1, hold_time := 0.0) -> void:
 	var feet := Vector2(player.x * Rules.TILE, Rules.surface_y(player.row))
 	var up := -1.0 if player.row == Rules.Row.FLOOR else 1.0   # toward the other row
-	var bottom := BIG_STRIKE_BURST_Y   # (her row: the burst's line)
-	var top := maxf(0.0, bottom - Rules.ROW_GAP * Rules.TILE / size.y)   # (the other row)
-	var centre := feet + Vector2(0, up * (bottom - (top + bottom) / 2.0) * size.y)
-	fx.bolt(Fx.Bolt.BIG_STRIKE, centre, 0.0 if player.row == Rules.Row.FLOOR else PI, size, fps,
-		0, false, hold, hold_time, Vector2(top, bottom))
+	var sy := Rules.ROW_GAP * Rules.TILE / (BIG_STRIKE_ART.y - BIG_STRIKE_ART.x)
+	var centre := feet + Vector2(0, up * (BIG_STRIKE_ART.y - 128.0) * sy)   # (its lowest pixels on her row)
+	fx.bolt(Fx.Bolt.BIG_STRIKE, centre, 0.0 if player.row == Rules.Row.FLOOR else PI, Vector2(width, sy), fps,
+		0, false, hold, hold_time)
 
 
 ## The sweep is done: she's pink, with a flash, and the chain ends (the
@@ -2067,7 +2085,7 @@ func _auto_finale_strike(grade: String, k: Enemy) -> void:
 		player.x = _finale_home_x
 	if state != State.PLAYING:
 		return
-	_row_bolt(Vector2(1.8, 2.0), 7.0)
+	_row_bolt(1.8, 7.0)
 	var body := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row))
 	fx.bolt(Fx.Bolt.RING, body, randf() * TAU, Vector2.ONE * 3.2, 12.0)
 	player.zap_fx.zap(body, 12, Vector2.ZERO, Vector2(36, 54), 10)
