@@ -30,11 +30,21 @@ const KILL_HIT := 0.06
 # If another enemy is under any marker where you land, the
 # freeze extends into a "your move" pause: grey world, lit markers, zoom.
 # The camera keeps catching up during it, so the screen settles first.
+# A chain's first pause: KILL_PAUSE_START at level 1, KILL_PAUSE_LEVEL_STEP
+# shorter each level, down to KILL_PAUSE at level 21 and after (a run started
+# later gets that level's time).
+const KILL_PAUSE_START := 1.4
+const KILL_PAUSE_LEVEL_STEP := 0.035
 const KILL_PAUSE := 0.7
 # ...shrinking by this much per kill in the chain so far (resets with the
 # chain), down to KILL_PAUSE_FLOOR.
 const KILL_PAUSE_STEP := 0.01
 const KILL_PAUSE_FLOOR := 0.5
+
+
+## A chain's first pause at this level (see KILL_PAUSE_START).
+static func kill_pause_for_level(lv: int) -> float:
+	return maxf(KILL_PAUSE_START - KILL_PAUSE_LEVEL_STEP * (lv - 1), KILL_PAUSE)
 # Pressing during the pause ends it (after this minimum, to keep the hit's
 # impact) and the press becomes your next teleport.
 const KILL_PAUSE_MIN := 0.05
@@ -182,7 +192,7 @@ const LOSE_COLOUR_TIME := 0.3     # back to red when the streak breaks
 const FINISHER_ZOOM := 0.35
 const FINISHER_SIDE := 2.2          # tiles either side of the enemy she strikes from
 var _finishing := false
-const CLASH_PAUSE_FACTOR := 1.5    # the freeze after a clash is this much longer
+const CLASH_PAUSE_FACTOR := 1.25   # the freeze after a clash is this much longer
 # A clash gets its moment: both hold still mid-swing for this long (a press
 # can't skip it), with a zoom and a shake, before the knight blinks away.
 const CLASH_BEAT := 0.12
@@ -1656,7 +1666,7 @@ func _teleport(move: int) -> void:
 		_note_escapes()   # one she just went past (skipped) breaks the streak now, mid-chain
 		var targets := _chain_targets(to_x, to_row)
 		_pause_is_chain = not targets.is_empty()
-		_pause_length = maxf(KILL_PAUSE - KILL_PAUSE_STEP * (chain - 1), KILL_PAUSE_FLOOR)
+		_pause_length = maxf(kill_pause_for_level(level.level) - KILL_PAUSE_STEP * (chain - 1), KILL_PAUSE_FLOOR)
 		_pause_min = KILL_PAUSE_MIN
 		if _clashed:
 			# You can't see where the knight will blink to; and the clash itself plays first.
