@@ -840,6 +840,7 @@ func _finish_tutorial(skipped: bool) -> void:
 		t.tween_callback(hud.show_coach.bind("Perfect Chains = No Survivors. Kill Everyone!", "", ["streak"]))
 		t.tween_interval(LESSON_METERS_TIME)
 		t.tween_callback(hud.show_coach.bind("", "Start!"))   # (in red)
+		t.tween_callback(hud.set_skip_visible.bind(false))   # (nothing left to skip)
 		t.tween_interval(START_WORD_TIME)
 		t.tween_callback(_start_run_after_tutorial)
 	level.level = progression.level
