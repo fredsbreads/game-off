@@ -548,7 +548,7 @@ func _begin_hold(title: String, name_the_move := true) -> void:
 
 
 ## The first stop (one enemy in reach): the katana that's turned red on him
-## is lit in the dim ("Red Katana = Killable Enemy"); then "Kill Him" and
+## is lit in the dim ("Red Katana = Killable Enemy", "All Enemies Are Killable"); then "Kill Him" and
 ## the move. The move can be made at any
 ## point.
 const KUNAI_BEAT_TIME := 3.0
@@ -559,7 +559,7 @@ var _kunai_beat := 0   # which of the first stop's words are up (1, 2, 3; 0: non
 func _begin_kunai_hold() -> void:
 	_begin_hold("Red Katana = Killable Enemy", false)
 	_kunai_beat = 2
-	hud.show_coach(hud._coach_title, "", _kunai_spots())
+	hud.show_coach(hud._coach_title, "All Enemies Are Killable", _kunai_spots())
 	var t := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_STOP)
 	t.tween_interval(KUNAI_BEAT_TIME)
 	t.tween_callback(func() -> void:
@@ -611,7 +611,7 @@ func _coach_fresh() -> bool:
 
 
 ## A move in a lesson that doesn't kill, at a stop: blocked (a thud, the
-## words shake; "Wait" by her if there are none).
+## words shake; "Tutorial" by her if there are none).
 func _wrong_move() -> void:
 	_wrong_sound.play()
 	hud.coach_shake()
@@ -619,13 +619,13 @@ func _wrong_move() -> void:
 		_say_wait()
 
 
-## A press the tutorial doesn't take while she's running: just "Wait" by
+## A press the tutorial doesn't take while she's running: just "Tutorial" by
 ## her (no thud, nothing shakes: the run goes on as it was).
 func _say_wait() -> void:
 	var above := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row) - Rules.TILE * 1.4)
 	if player.row == Rules.Row.CEILING:
 		above.y += Rules.TILE * 2.8
-	text_fx.text(above, "Wait", 24, Color(1, 0.4, 0.4), Rules.speed * Rules.TILE if player.running else 0.0, 0.6)
+	text_fx.text(above, "Tutorial", 24, Color(1, 0.4, 0.4), Rules.speed * Rules.TILE if player.running else 0.0, 0.6)
 
 
 ## A press the tutorial isn't taking right now (its words, the rewind): told so.
@@ -669,7 +669,7 @@ func _lesson_frame() -> bool:
 				return true
 		Lesson.CHAIN:
 			if chain == 0 and kills == _lesson_kills + 1 and not _chain_targets(player.x, player.row).is_empty():
-				_begin_hold("All Enemies Are Killable", false)   # (the chain's first: a stop too)
+				_begin_hold("Strike The Moment It's Red", false)   # (the chain's first: a stop too)
 				hud.show_coach(hud._coach_title, "Kill Him")
 				return true
 			if kills >= _lesson_kills + 1 + CHAIN_STEPS.split(" ").size() + 1 and chain == 0:
