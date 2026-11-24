@@ -1119,9 +1119,9 @@ func _draw_tutorial() -> void:
 	var touch := is_touch()
 	var up := tutorial_on_floor
 	var prompts := [
-		["left", "Tap Left" if touch else "Left", Vector2(0, -1) if up else Vector2(0, 1)],
-		["right", "Tap Right" if touch else "Right", Vector2(1, 0)],
-		["both", "Tap Both" if touch else "Both", (Vector2(1, -1) if up else Vector2(1, 1)).normalized()],
+		["left", "Tap Left" if touch else "Left Shift", Vector2(0, -1) if up else Vector2(0, 1)],
+		["right", "Tap Right" if touch else "Right Shift", Vector2(1, 0)],
+		["both", "Tap Both" if touch else "Both Shifts", (Vector2(1, -1) if up else Vector2(1, 1)).normalized()],
 	]
 	for p in prompts:   # how many of each so far
 		p[1] += "  %d/%d" % [mini(int(_tut_count.get(p[0], 0)), tutorial_reps), tutorial_reps]
