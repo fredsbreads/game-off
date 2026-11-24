@@ -50,6 +50,7 @@ var _knight_intro_done := false   # the debut level opens with a knight alone, o
 var _ninja_intro_done := false    # ...and his with a ninja alone
 var _master_intro_done := false   # ...and the master's
 var _shadow_intro_done := false   # ...and the Shadow's
+var grunts_next := false   # the next chain laid is grunts only (after an auto-chain, see main.gd)
 ## Her debut waits while this is on (main.gd: while the auto-chain plays),
 ## so it never plays through her; knight-free chains come instead.
 var debut_wait := false
@@ -101,6 +102,12 @@ func _pick_pattern() -> Dictionary:
 		_ninja_intro_done = level > Patterns.NINJA_DEBUT_LEVEL
 		_master_intro_done = level > Patterns.MASTER_DEBUT_LEVEL
 		_shadow_intro_done = level > Patterns.SHADOW_DEBUT_LEVEL
+	# Right after every other auto-chain (main.gd): a chain of grunts only.
+	if grunts_next:
+		grunts_next = false
+		var grunts := Patterns.generate(level, _rng, false, false, false, false)
+		grunts["name"] = "grunts after auto: " + str(grunts["steps"])
+		return grunts
 	# Her debut: the first chain from level 5 on (later, if the power-up held
 	# it back past then), and no knight before it.
 	if level >= Patterns.KNIGHT_DEBUT_LEVEL and not _knight_intro_done:
@@ -294,6 +301,8 @@ func rebuild_ahead(from_x: float) -> void:
 			_master_intro_done = false
 		if section["name"].begins_with("shadow alone"):
 			_shadow_intro_done = false
+		if section["name"].begins_with("grunts after auto"):
+			grunts_next = true   # (thrown away unmet: laid again)
 		for enemy in section["enemies"]:
 			var e: Enemy = enemy
 			if is_instance_valid(e):

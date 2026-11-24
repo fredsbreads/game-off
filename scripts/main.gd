@@ -188,6 +188,7 @@ var _finale_crackle := 0.0
 var _finale_home_x := 0.0
 var _finale_slashing := false   # the finish's three slashes are playing (no crackle)
 var _auto_ending := false       # the auto-chain's own result is being counted (adds no charge)
+var _autos_landed := 0          # auto-chains finished this run (every other one is followed by grunts only)
 const LOSE_COLOUR_TIME := 0.3     # back to red when the streak breaks
 const FINISHER_ZOOM := 0.35
 const FINISHER_SIDE := 2.2          # tiles either side of the enemy she strikes from
@@ -2137,6 +2138,7 @@ func _auto_finale_strike(grade: String, k: Enemy) -> void:
 	_auto_finale_layer.play()
 	_duck_music(MUSIC_DB, 1.6, 0.35)
 	_auto_ending = not _shadow_finish
+	var was_auto := _auto_ending   # (not the Shadow's own finale)
 	_shadow_finish = false
 	_end_chain(grade)   # (adds no charge: the meter starts again from empty; the Shadow's does)
 	_auto_ending = false
@@ -2162,6 +2164,10 @@ func _auto_finale_strike(grade: String, k: Enemy) -> void:
 	# comes in well past the screen's right edge.
 	level.spawn_hold = false
 	level.push_cursor(cam.left() / Rules.TILE + CameraRig.VIEW_TILES + AUTO_GAP_TILES * Rules.walk_scale(level.level))
+	# Every other auto-chain (the 1st, 3rd, ...): the chain after it is grunts only.
+	if was_auto:
+		_autos_landed += 1
+		level.grunts_next = _autos_landed % 2 == 1
 	_sync_debut_wait()
 	level.ensure_generated(player.x)
 
