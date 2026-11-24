@@ -143,6 +143,16 @@ static func master_diag_too_close(master_x: float, master_row: int, x: float, ro
 	return master_row != row and d >= kill_zone(Move.VERTICAL).y and d <= move_dx(Move.DIAGONAL) - kill_zone(Move.DIAGONAL).x
 
 
+## (The Shadow) the player is past her, to her right, within a teleport's
+## reach in either row (and not where her across teleport still reaches the
+## player: the knight's rule covers that). She strikes.
+static func shadow_behind(shadow_x: float, shadow_row: int, x: float, row: int) -> bool:
+	var d := x - shadow_x
+	if d <= 0.0 or d > move_dx(Move.FORWARD):
+		return false
+	return not (shadow_row != row and in_kill_zone(Move.VERTICAL, shadow_x, x))
+
+
 ## True if the player is straight across from a knight (at knight_x in
 ## knight_row): the player's across teleport would hit the knight.
 static func knight_across(knight_x: float, knight_row: int, x: float, row: int) -> bool:

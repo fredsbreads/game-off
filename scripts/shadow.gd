@@ -68,6 +68,12 @@ var _glow_t := 0.0
 func _init() -> void:
 	art = SHADOW_ART
 	hides_path = true
+	# Before the fight (until the first clash): never safe near her. The
+	# master's watch ahead and diagonally, and behind her too
+	# (Rules.shadow_behind).
+	forward_aggro = true
+	diag_aggro = true
+	back_aggro = true
 
 
 ## Where she's drawn (pixels, her body's middle).
