@@ -669,7 +669,7 @@ func _lesson_frame() -> bool:
 				return true
 		Lesson.CHAIN:
 			if chain == 0 and kills == _lesson_kills + 1 and not _chain_targets(player.x, player.row).is_empty():
-				_begin_hold("Strike The Moment It's Red", false)   # (the chain's first: a stop too)
+				_begin_hold("Strike The Instant It's Red", false)   # (the chain's first: a stop too)
 				hud.show_coach(hud._coach_title, "Kill Him")
 				return true
 			if kills >= _lesson_kills + 1 + CHAIN_STEPS.split(" ").size() + 1 and chain == 0:
