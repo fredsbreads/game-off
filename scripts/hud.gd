@@ -1123,15 +1123,19 @@ func _draw_tutorial() -> void:
 		["right", "Tap Right" if touch else "Right Shift", Vector2(1, 0)],
 		["both", "Tap Both" if touch else "Both Shifts", (Vector2(1, -1) if up else Vector2(1, 1)).normalized()],
 	]
-	for p in prompts:   # how many of each so far
-		p[1] += "  %d/%d" % [mini(int(_tut_count.get(p[0], 0)), tutorial_reps), tutorial_reps]
+	for p in prompts:   # how many of each so far (drawn apart, right-aligned in a column)
+		p.append("%d/%d" % [mini(int(_tut_count.get(p[0], 0)), tutorial_reps), tutorial_reps])
 	const SIZE := 34
 	const LINE := 58.0
 	const ARROW := 30.0   # the arrow's box (it's drawn in this square, left of the words)
 	const GAP := 18.0
-	var widest := 0.0
+	const COUNT_GAP := 24.0   # between the longest name and the counts
+	var widest_name := 0.0
+	var widest_count := 0.0
 	for p in prompts:
-		widest = maxf(widest, font.get_string_size(p[1], HORIZONTAL_ALIGNMENT_LEFT, -1, SIZE).x)
+		widest_name = maxf(widest_name, font.get_string_size(p[1], HORIZONTAL_ALIGNMENT_LEFT, -1, SIZE).x)
+		widest_count = maxf(widest_count, font.get_string_size(p[3], HORIZONTAL_ALIGNMENT_LEFT, -1, SIZE).x)
+	var widest := widest_name + COUNT_GAP + widest_count
 	# The block, centred on the right side (where "Tap Right" was), its lines centred on the middle.
 	var left := v.x * 0.8 - (ARROW + GAP + widest) / 2.0
 	var top := v.y * 0.5 - LINE
@@ -1145,6 +1149,7 @@ func _draw_tutorial() -> void:
 		var p: Array = prompts[i]
 		var key: String = p[0]
 		var text: String = p[1]
+		var count: String = p[3]
 		var dir: Vector2 = p[2]
 		var lit := _tut_lit.has(key)
 		var t: float = _tut_lit.get(key, 0.0)
@@ -1171,6 +1176,13 @@ func _draw_tutorial() -> void:
 			for j in 12:   # a glow, as the title's
 				c.draw_string(font, pos + Vector2.RIGHT.rotated(j * TAU / 12.0) * 5.0, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(MainMenu.TITLE_TEXT_RED, 0.08 * fade))
 		c.draw_string(font, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, col)
+		# The count, its right edge on the block's right edge (grown with the pop like the name).
+		var cw := font.get_string_size(count, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+		var cpos := Vector2(left + ARROW + GAP + widest - cw, pos.y)
+		if lit:
+			for j in 12:
+				c.draw_string(font, cpos + Vector2.RIGHT.rotated(j * TAU / 12.0) * 5.0, count, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(MainMenu.TITLE_TEXT_RED, 0.08 * fade))
+		c.draw_string(font, cpos, count, HORIZONTAL_ALIGNMENT_LEFT, -1, size, col)
 		if lit and _tut_fizzle >= 0.0:   # sparks off it as it goes
 			var tw := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
 			for n in 3:

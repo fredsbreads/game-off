@@ -539,10 +539,8 @@ func _start_lessons() -> void:
 
 ## The move's name as the moves tutorial says it.
 func _move_words(move: int) -> String:
-	if Hud.is_touch():
-		return "Tap " + {Rules.Move.VERTICAL: "Left", Rules.Move.FORWARD: "Right", Rules.Move.DIAGONAL: "Both"}.get(move, "")
-	# (On a keyboard the moves are named by the Shift keys.)
-	return "Press " + {Rules.Move.VERTICAL: "Left Shift", Rules.Move.FORWARD: "Right Shift", Rules.Move.DIAGONAL: "Both Shifts"}.get(move, "")
+	var name: String = {Rules.Move.VERTICAL: "Left", Rules.Move.FORWARD: "Right", Rules.Move.DIAGONAL: "Both"}.get(move, "")
+	return ("Tap " if Hud.is_touch() else "Press ") + name
 
 
 ## The first move that kills from where she is (FORWARD, VERTICAL, DIAGONAL), or NONE.
