@@ -133,7 +133,12 @@ var frozen := false      # kill pause: hold the current animation frame
 ## 1 = facing right (always, in play), -1 = left (the level-10 finisher).
 var facing := 1.0
 ## The level-10 finisher is playing: no markers.
-var cinematic := false
+var cinematic := false:   # (a finisher, the auto-chain's end) her markers and teleport bits hidden
+	set(v):
+		cinematic = v
+		if v:
+			_clear_throw()
+var _throw_bits: Array = []   # a teleport's thrown sword and left-behind stance, while they fly
 ## The auto-chain power-up: charged (ready) / playing. Either way her
 ## lightning ring loops around her.
 var charged := false
@@ -276,6 +281,7 @@ func strike(pose := -1) -> void:
 ## to where she is now: leave the throw pose behind as a fading red outline,
 ## and red afterimages of it along the way.
 func teleport_afterimages(move: int, from_feet: Vector2, from_row: int) -> void:
+	_throw_bits = _throw_bits.filter(func(b: Object) -> bool: return is_instance_valid(b))
 	var vertical := move == Rules.Move.VERTICAL
 	var tex: Texture2D = THROW_VERTICAL if vertical else THROW
 	var sword: Texture2D = THROW_VERTICAL_SWORD if vertical else THROW_SWORD
@@ -284,6 +290,7 @@ func teleport_afterimages(move: int, from_feet: Vector2, from_row: int) -> void:
 	# 1. She stands in the throw stance where she was (sword gone from her hand)...
 	var stance := _sprite_at(tex, feet, from_feet, from_row)
 	stance.z_index = 1
+	_throw_bits.append(stance)
 	var st := stance.create_tween()
 	st.tween_interval(SWORD_FLIGHT)
 	st.tween_callback(stance.queue_free)
@@ -307,6 +314,7 @@ func teleport_afterimages(move: int, from_feet: Vector2, from_row: int) -> void:
 		var drawn := DIAGONAL_SWORD_ANGLE if sword_row == Rules.Row.FLOOR else -DIAGONAL_SWORD_ANGLE
 		flying.rotation = (end - start).angle() - drawn
 	flying.z_index = 2
+	_throw_bits.append(flying)
 	var ft := flying.create_tween()
 	ft.tween_property(flying, "global_position", end, SWORD_FLIGHT)
 	ft.tween_callback(flying.queue_free)
@@ -328,6 +336,15 @@ func teleport_afterimages(move: int, from_feet: Vector2, from_row: int) -> void:
 		# Nearer her = a bit stronger.
 		_ghost(tex, feet, at, on_row, GHOST_TRAIL_FILL, Color(0, 0, 0, 0),
 			GHOST_TRAIL_LIFE, 0.4 + 0.6 * k)
+
+
+## A teleport's thrown sword (and the stance left behind) still in flight:
+## gone, so a freeze (a finisher's) doesn't hold it hanging in the air.
+func _clear_throw() -> void:
+	for b in _throw_bits:
+		if is_instance_valid(b):
+			b.queue_free()
+	_throw_bits.clear()
 
 
 ## When she appears in a strike pose: a quick red flash on her, and red copies
