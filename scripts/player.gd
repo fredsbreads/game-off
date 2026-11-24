@@ -624,7 +624,9 @@ func _process(delta: float) -> void:
 			if _sprite.animation != want:
 				_play(want)
 	if not rewinding:
-		_sprite.speed_scale = 0.0 if frozen else 1.0
+		# Her run cycle keeps pace with her speed (slower at the start of a run).
+		var pace := Rules.speed / Rules.RUN_SPEED if _sprite.animation == "run" else 1.0
+		_sprite.speed_scale = 0.0 if frozen else pace
 
 	_update_charge_look(delta)
 	_update_markers(delta)
