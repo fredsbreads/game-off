@@ -39,7 +39,7 @@ const KILL_PAUSE := 0.7
 # ...shrinking by this much per kill in the chain so far (resets with the
 # chain), down to KILL_PAUSE_FLOOR.
 const KILL_PAUSE_STEP := 0.01
-const KILL_PAUSE_FLOOR := 0.5
+const KILL_PAUSE_FLOOR := 0.4
 
 
 ## A chain's first pause at this level (see KILL_PAUSE_START).
