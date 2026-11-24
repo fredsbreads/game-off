@@ -1392,8 +1392,7 @@ func _physics_process(delta: float) -> void:
 			if _state_time >= DEATH_FREEZE + DEATH_SLOWMO + DEATH_ANIM_TIME * 0.4:
 				_game_over()
 
-	# (dead: it stops where it is, the katana and the numbers behind the death screen too)
-	Palette.rainbow_hold = _auto or _finale_hold or _finishing or state != State.PLAYING
+	Palette.rainbow_hold = _auto or _finale_hold or _finishing
 	Palette.tick(delta)
 	_update_knight_threats()
 	_update_pause_visuals()
@@ -2661,6 +2660,9 @@ func _die(kind: String, killer: Enemy = null) -> void:
 	# the death moment.
 	if Palette.pink > 0.0:
 		create_tween().set_pause_mode(Tween.TWEEN_PAUSE_STOP).tween_method(Palette.set_pink, Palette.pink, 0.0, DEATH_LOSE_COLOUR)
+	# ...and the rainbow's gone: the katana and the numbers are in the
+	# Flawless Color again, as if she'd died red.
+	Palette.set_rainbow(false)
 	for e in level.enemies:
 		e.clear_glint()   # no red glints lingering on the death moment
 		if e is Knight:
