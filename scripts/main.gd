@@ -2746,23 +2746,32 @@ func _fooled(k: Knight) -> void:
 		_knights_strike(_fooled_attackers(sh)))
 
 
-## Hers that jump a player who's been fooled: the nearest one or two still
-## standing within a teleport's reach of her; if none, the Shadow herself.
+## Hers that jump a player who's been fooled: her remnants still standing
+## (never her while any are: she waits at her spot), the nearest two within a
+## teleport's reach, else the nearest one wherever it is. Only if none are
+## left, she does. Any not yet shown (the player moved during her blinks) are
+## shown as they strike.
 func _fooled_attackers(sh: Shadow) -> Array[Knight]:
-	var near: Array = []
-	if is_instance_valid(sh):
-		for r in sh.remnants:
-			if is_instance_valid(r) and r.alive:
-				near.append(r)
-		if sh.alive:
-			near.append(sh)
-	near = near.filter(func(o: Knight) -> bool: return absf(o.tile_x - player.x) <= Rules.FORWARD + Rules.STRIKE_OFFSET)
-	near.sort_custom(func(a: Knight, b: Knight) -> bool: return absf(a.tile_x - player.x) < absf(b.tile_x - player.x))
 	var out: Array[Knight] = []
-	for o in near.slice(0, 2):
-		out.append(o)
-	if out.is_empty() and is_instance_valid(sh) and sh.alive:
-		out.append(sh)
+	if not is_instance_valid(sh):
+		return out
+	var left: Array = []
+	for r in sh.remnants:
+		if is_instance_valid(r) and r.alive:
+			left.append(r)
+	if left.is_empty():
+		if sh.alive:
+			out.append(sh)
+		return out
+	left.sort_custom(func(a: Knight, b: Knight) -> bool: return absf(a.tile_x - player.x) < absf(b.tile_x - player.x))
+	var reach := Rules.FORWARD + Rules.STRIKE_OFFSET
+	for r in left:
+		if out.size() < 2 and absf(r.tile_x - player.x) <= reach:
+			out.append(r)
+	if out.is_empty():
+		out.append(left[0])
+	for r in out:
+		r.visible = true
 	return out
 
 
