@@ -2241,6 +2241,20 @@ func _prewarm() -> void:
 		# scaled up, so the letters are drawn at that size (a test view at 1x
 		# doesn't cover it: the first "Wait" in the tutorial hitched).
 		text_fx.text(Vector2(0.0, -100000.0), "ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz +0123456789!?", size, Color.WHITE, 0.0, 0.1)
+	# The top bar's numbers and caption (its own font, at the sizes it uses,
+	# the enlarged flawless count included) and the death screen's sizes:
+	# drawn once on the real screen (so a phone's scaling is covered), far
+	# outside it.
+	var glyphs := Node2D.new()
+	glyphs.position = Vector2(-100000.0, -100000.0)
+	var all_chars := "ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz +0123456789!?"
+	glyphs.draw.connect(func() -> void:
+		for size in [12, 24, 26, 30, 66]:
+			glyphs.draw_string(TopBar.FONT, Vector2.ZERO, all_chars, HORIZONTAL_ALIGNMENT_LEFT, -1, size)
+		for size in [16, 34, 46]:
+			glyphs.draw_string(ThemeDB.fallback_font, Vector2.ZERO, all_chars, HORIZONTAL_ALIGNMENT_LEFT, -1, size))
+	hud.add_child(glyphs)
+	get_tree().create_timer(0.5).timeout.connect(glyphs.queue_free)
 	var plain := Fx.new()   # blood / sparks without her colour material
 	view.add_child(plain)
 	plain.blood(at, 1.0, 8, 0.1)
