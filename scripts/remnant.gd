@@ -46,6 +46,11 @@ func _process(delta: float) -> void:
 	Shadow.glow(_material, _t, (1.0 if as_her else 0.7) if alive else 0.0)
 
 
+## Her killing blow: one of her two big strikes (Shadow._pick_kill).
+func _pick_kill() -> void:
+	Shadow.set_kill_swing(self, Shadow.KILL_SWINGS.pick_random())
+
+
 ## (Across from the player) a remnant doesn't wind up: it stays in her idle.
 func _hold_windup() -> void:
 	pass

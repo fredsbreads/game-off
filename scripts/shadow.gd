@@ -81,6 +81,28 @@ static func drawn_at(x: float, r: int) -> Vector2:
 	return Vector2(x * Rules.TILE, Rules.body_center_y(r))
 
 
+## Her killing blow (hers and her remnants'): one of the player's two big
+## sweeping strikes, at random (swing 0, or swing 1, the one whose end is her
+## stance); never the flat one (swing 2).
+const KILL_SWINGS := [0, 1]
+func _pick_kill() -> void:
+	set_kill_swing(self, KILL_SWINGS.pick_random())
+
+
+static func set_kill_swing(k: Knight, swing: int) -> void:
+	var size: Vector2i = SHADOW_ART["frame"]
+	for spr in [k._sprite, k._arc]:
+		if spr == null:
+			continue
+		var frames: SpriteFrames = spr.sprite_frames
+		frames.clear("kill")
+		for i in range(swing * 3, swing * 3 + 3):
+			var tex := AtlasTexture.new()
+			tex.atlas = S_SWINGS
+			tex.region = Rect2(Vector2(i * size.x, 0), Vector2(size))
+			frames.add_frame("kill", tex)
+
+
 ## The one to cut next: this round's first remnant still standing, else her.
 func next_target() -> Enemy:
 	for r in remnants:

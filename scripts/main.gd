@@ -1689,6 +1689,9 @@ func _teleport(move: int) -> void:
 		# A teleport that hits nothing (a miss too): the full lightning strike.
 		_play_strike(false)
 		_note_escapes()
+		if _engaged_shadow():
+			_clear_pending()
+			_knights_strike(_fooled_attackers(_engaged_shadow()))   # no way out of her fight
 	else:
 		for e in hit:
 			if _fooled_by(e):
@@ -2307,7 +2310,20 @@ func _pouncing_knight(run_from: float) -> Knight:
 ## within a teleport of her, and ones straight across from her. At most two
 ## (the nearest); they come at her from both sides (see _knights_strike).
 func _knights_after_drop() -> Array[Knight]:
+	var sh := _engaged_shadow()
+	if sh:
+		return _fooled_attackers(sh)   # (in her fight: hers come, wherever they are)
 	return _strikers()
+
+
+## The Shadow whose fight is on (clashed, not yet cut down), or null. In it
+## there's no leaving the chain: a drop (too slow, a miss) and hers jump the
+## player (_fooled_attackers).
+func _engaged_shadow() -> Shadow:
+	for e in level.enemies:
+		if e is Shadow and e.alive and (e as Shadow).engaged:
+			return e as Shadow
+	return null
 
 
 ## Every knight that comes for her when one strikes: ones she's fighting

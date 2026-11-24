@@ -433,6 +433,7 @@ func slash(her_x: float, side := 1.0) -> void:
 	tile_x = her_x + float(art.get("kill_distance", KILL_DISTANCE)) * side
 	scale.x = side   # behind her: turned round to face her
 	_place()
+	_pick_kill()
 	if _sprite:
 		_sprite.play("kill")
 		var kill_frame: int = art["kill_frame"]
@@ -454,6 +455,12 @@ func slash(her_x: float, side := 1.0) -> void:
 			_sprite.reparent(holder, false)
 			tree_exiting.connect(holder.queue_free)
 	_slashing = true
+
+
+## (Before the killing blow) which swing it is: the art's "kill" (the
+## Shadow's override picks one of two).
+func _pick_kill() -> void:
+	pass
 
 
 ## Puts her next spot's silhouette where she'll blink to next (hidden when
