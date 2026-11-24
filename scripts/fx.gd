@@ -8,7 +8,6 @@ const GRAVITY := 900.0
 # Her effects are all reds, each a slightly different one so they don't merge
 # into one red blur: the slash streak pale, the sparks a mix. (The teleport
 # itself is sprite lightning: see bolt().)
-const SLASH_COLOR := Color(1.0, 0.62, 0.6)
 const KILL_COLORS := [Color(1.0, 0.3, 0.28), Color(0.85, 0.08, 0.14), Color(1.0, 0.55, 0.5)]
 const BLOOD_COLORS := [Color(0.9, 0.08, 0.1), Color(1.0, 0.18, 0.15), Color(0.7, 0.03, 0.06)]
 const BLOOD_FLIGHT_SECONDS := 3.0   # a drop gets this long to reach the floor
@@ -116,24 +115,9 @@ func _remove(i: int) -> void:
 	if node:
 		node.queue_free()
 	_items.remove_at(i)
-## (A finisher, the auto-chain's end) no slash streaks: a freeze would hold
-## one, half faded, as a faint line across the zoomed-in scene. Set: any
-## on screen go.
-var no_slash := false:
-	set(v):
-		no_slash = v
-		if v:
-			for i in range(_items.size() - 1, -1, -1):
-				if _items[i]["kind"] == "slash":
-					_remove(i)
-			queue_redraw()
-
-
 ## Bigger and brighter the longer the chain.
 func kill_burst(pos: Vector2, combo: int) -> void:
 	var c := mini(combo, 8)
-	if not no_slash:
-		_items.append({"kind": "slash", "t": 0.0, "life": 0.16, "pos": pos, "len": 80.0 + 10.0 * c})
 	for i in 8 + c * 3:
 		var dir := Vector2.from_angle(randf_range(-PI, 0.2))
 		_items.append({"kind": "particle", "t": 0.0, "life": randf_range(0.35, 0.65),
@@ -313,12 +297,6 @@ func _draw() -> void:
 		var k: float = it["t"] / it["life"]
 		var fade := 1.0 - k
 		match it["kind"]:
-			"slash":
-				var dir := Vector2(1, -0.8).normalized()
-				var half: float = it["len"] / 2.0
-				var pos: Vector2 = it["pos"]
-				var grow := minf(1.0, k * 4.0)
-				draw_line(pos - dir * half, pos - dir * half + dir * half * 2.0 * grow, Color(SLASH_COLOR, fade), 2.0 + 6.0 * fade)
 			"blood":
 				var s: float = it["size"]
 				draw_rect(Rect2(it["pos"] - Vector2(s, s) * 0.5, Vector2(s, s)), it["color"])
