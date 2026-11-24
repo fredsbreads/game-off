@@ -1261,9 +1261,9 @@ func _shift_press_is_fresh(key: InputEventKey) -> bool:
 	if not key.pressed:
 		_shift_held.erase(side)
 		return false
-	if key.echo:
-		return false
 	if _shift_held.has(side):
+		if key.echo:
+			return false   # (a real repeat: this Shift's held)
 		# This side's already down. If the other isn't, and this came right
 		# after it, it's the other Shift reported as the same side (some
 		# systems): count it as the other. (Both down: it's the bogus re-press
@@ -1276,6 +1276,9 @@ func _shift_press_is_fresh(key: InputEventKey) -> bool:
 			_keylog_add("  (same side again: taken as the other Shift)")
 			return true
 		return false
+	# Not down yet, so it's a real press, even if it says it's a repeat:
+	# ChromeOS marks the second Shift's first press as a repeat when the
+	# other Shift is held (so the diagonal was lost there).
 	_shift_held[side] = Time.get_ticks_msec()
 	return true
 
@@ -1327,9 +1330,11 @@ func _button_from_event(event: InputEvent) -> int:
 		_shift_as_other = false
 		# (Left Shift is up/down, Right Shift forward: the other one's move.)
 		return Rules.Move.FORWARD if (event as InputEventKey).location == KEY_LOCATION_LEFT else Rules.Move.VERTICAL
-	if event.is_action_pressed("tp_vertical"):
+	# (Echoes allowed: _is_fresh_press has already dropped every real repeat,
+	# and let through ChromeOS's second Shift, which comes marked as one.)
+	if event.is_action_pressed("tp_vertical", true):
 		return Rules.Move.VERTICAL
-	if event.is_action_pressed("tp_forward"):
+	if event.is_action_pressed("tp_forward", true):
 		return Rules.Move.FORWARD
 	return Rules.Move.NONE
 
