@@ -23,7 +23,7 @@ const SHADOW_ART := {
 	"frame": Vector2i(170, 170), "feet": Vector2(84, 123), "scale": Player.SPRITE_SCALE,
 	"anims": [["idle", S_IDLE, 8.0, true], ["death", S_FALL, 10.0, true],   # (her death: the player's fall, looping, katana in hand)
 		["attack", S_SWINGS, 14.0, false, 3, 3], ["kill", S_SWINGS, 14.0, false, 3, 0],
-		["hit", S_FALL, 12.0, false, 2, 1],   # (struck in a combo: her fall's recoil and tip, not its first frame, which is nearly her idle)
+		["hit", S_FALL, 12.0, false, 3],   # (struck in a combo: her fall, the player's own, held on its last frame)
 		["stance", S_SWINGS, 1.0, false, 1, 3]],   # where she waits: her second strike pose's end (both feet down, sword low)
 	"kill_frame": 1, "kill_body_from": {},
 	"swings": [

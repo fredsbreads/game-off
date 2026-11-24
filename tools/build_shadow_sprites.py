@@ -127,7 +127,7 @@ def main():
     sheet = Image.open("assets/sprites/kunoichi.png")
     poses = Image.open("assets/sprites/attack/poses.png")
     idle = [on_canvas(with_katana(recolour(small_frame(sheet, i))), IDLE_OFFSET) for i in range(6)]
-    fall = [on_canvas(with_katana(recolour(small_frame(sheet, i)), FALL_HAND), IDLE_OFFSET) for i in range(5, 8)]
+    fall = [on_canvas(with_katana(recolour(small_frame(sheet, i)), FALL_HAND), IDLE_OFFSET) for i in range(30, 33)]   # (the sheet's row 5: the player's fall, player.gd ANIMS)
     bare = [recolour(poses.crop((k * F, 0, (k + 1) * F, F))) for k in range(3)]
     # Swings: per pose, bare / with its arc / the arc fading.
     swings = []
