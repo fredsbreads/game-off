@@ -2717,15 +2717,14 @@ func _fooled_by(e: Enemy) -> bool:
 
 
 ## Struck the wrong one: the strike lands and the world stops, zoomed in on
-## it: the one she cut (a remnant, or she herself) flashes and reels, knocked
-## back away from the player (FOOLED_SHOW), then falls and fizzles out,
+## it: the one she cut (a remnant, or she herself) flashes and reels where it
+## stands (FOOLED_SHOW), then falls and fizzles out there,
 ## "FOOLED". A beat later (FOOLED_BEAT) hers jump the player
 ## (_fooled_attackers).
 const FOOLED_SHOW := 0.5
 const FOOLED_BEAT := 0.35
 const FOOLED_ZOOM := 0.2
 const FOOLED_FIZZLE := 0.8   # seconds it takes to fizzle out
-const FOOLED_PUSH := 2.5     # its knock-back, times her death's push (about two tiles)
 func _fooled(k: Knight) -> void:
 	player.cooldown = 0
 	player.strike()
@@ -2737,8 +2736,7 @@ func _fooled(k: Knight) -> void:
 	cam.hold_zoom(at, FOOLED_ZOOM, 12.0, 0.5)
 	k.visible = true
 	k.take_hit()
-	var away := 1.0 if k.tile_x >= player.x else -1.0
-	k.dissolve_out(FOOLED_SHOW, FOOLED_FIZZLE, away, FOOLED_PUSH, true)
+	k.dissolve_out(FOOLED_SHOW, FOOLED_FIZZLE, 1.0, 0.0)   # (no push: it stays put)
 	if k is Remnant:
 		k.alive = false   # (not one of those that jump the player)
 		level.enemies.erase(k)
