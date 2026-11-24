@@ -2697,12 +2697,56 @@ func _fooled_by(e: Enemy) -> bool:
 	return false
 
 
-## Struck the wrong one: "FOOLED", and it cuts her down.
+## Struck the wrong one: the strike lands (a remnant is cut down, she takes
+## the hit), "FOOLED", and a beat later the nearest of hers jump the player:
+## two if two are in reach (from either side), else one; if none are, she does.
+const FOOLED_BEAT := 0.3
 func _fooled(k: Knight) -> void:
 	player.cooldown = 0
+	player.strike()
+	_play_strike(true)
+	var sh: Shadow = (k as Remnant).shadow if k is Remnant else k as Shadow
+	var at := Vector2(k.tile_x * Rules.TILE, Rules.body_center_y(k.row))
+	fx.kill_burst(at, 3)
+	cam.shake(0.12, 8.0)
+	if k is Remnant:
+		k.die()
+		level.enemies.erase(k)
+		level.corpses.append(k)
+	else:
+		k.take_hit()
 	if chain > 0:
 		_end_chain("DROPPED", "FOOLED")
-	_knight_strikes(k)
+	_hitstop = FOOLED_BEAT
+	_pause_min = FOOLED_BEAT
+	_pause_is_chain = false
+	_pause_elapsed = 0.0
+	var t := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_STOP)
+	t.tween_interval(FOOLED_BEAT)
+	t.tween_callback(func() -> void:
+		if state != State.PLAYING:
+			return
+		_knights_strike(_fooled_attackers(sh)))
+
+
+## Hers that jump a player who's been fooled: the nearest one or two still
+## standing within a teleport's reach of her; if none, the Shadow herself.
+func _fooled_attackers(sh: Shadow) -> Array[Knight]:
+	var near: Array = []
+	if is_instance_valid(sh):
+		for r in sh.remnants:
+			if is_instance_valid(r) and r.alive:
+				near.append(r)
+		if sh.alive:
+			near.append(sh)
+	near = near.filter(func(o: Knight) -> bool: return absf(o.tile_x - player.x) <= Rules.FORWARD + Rules.STRIKE_OFFSET)
+	near.sort_custom(func(a: Knight, b: Knight) -> bool: return absf(a.tile_x - player.x) < absf(b.tile_x - player.x))
+	var out: Array[Knight] = []
+	for o in near.slice(0, 2):
+		out.append(o)
+	if out.is_empty() and is_instance_valid(sh) and sh.alive:
+		out.append(sh)
+	return out
 
 
 ## In the Shadow's fight: the one the auto-chain (and the bot) must cut next.
