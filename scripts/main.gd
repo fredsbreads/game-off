@@ -2255,6 +2255,10 @@ func _prewarm() -> void:
 	grey.material = ShaderMaterial.new()
 	grey.material.shader = FreezeEffect.SHADER
 	view.add_child(grey)
+	var vignette := ColorRect.new()   # (the Shadow's fight's purple edge)
+	vignette.size = Vector2(256, 256)
+	vignette.material = _shadow_vignette.material
+	view.add_child(vignette)
 	freeze_effect.prewarm(0.5)   # (that one reads the real screen, so it warms up there, at 0.2 %: unseen)
 	get_tree().create_timer(0.5).timeout.connect(view.queue_free)
 
