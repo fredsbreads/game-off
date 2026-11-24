@@ -54,9 +54,11 @@ const INVERT_FLASH := false     # inverted-colour flash on kills (off: too aggre
 const INVERT_TIME := 0.05
 const FX_FREEZE_AFTER := 0.08
 const RESUME_GUARD := 0.15       # ignore presses this soon after pausing
-# Pressing forward and vertical within this many frames of each other counts
-# as a diagonal. Single presses wait this long before firing (4 frames = 67 ms).
-const DIAGONAL_WINDOW_FRAMES := 4
+# Pressing forward and vertical within this long of each other counts as a
+# diagonal; a single press waits this long before firing. Real time, not
+# frames: a slow computer catching up runs several frames back to back, which
+# used to use up the window before the second key's press was even read.
+const DIAGONAL_WINDOW_MSEC := 67
 # Phone browsers send a fake mouse click after a finger lifts; ignore mouse
 # clicks this soon after any touch so a tap never counts twice.
 const MOUSE_AFTER_TOUCH_IGNORE_MS := 1000
@@ -211,6 +213,17 @@ var _shadow_reveal := 0.0   # (this clash) seconds until she's done blinking
 var _shadow_finish := false   # the auto-chain's finish is on the Shadow (her own chain, not an auto-chain)
 var _felled_shadow: Shadow = null   # (this teleport) the Shadow it killed
 var _fooled_hold := false   # the Fooled beat: zoomed in on the wrong cut, input ignored
+# Her fight's mood (_update_shadow_mood): while it's on, the screen's edges
+# darken to plum, the music goes muffled, and a low hum sits under it.
+const SHADOW_VIGNETTE := Color(0.13, 0.03, 0.17, 1.0)
+const SHADOW_VIGNETTE_STRENGTH := 0.85
+const SHADOW_MOOD_RATE := 2.5            # per second, in and out
+const SHADOW_MUSIC_CUTOFF := 700.0       # Hz, the music's low-pass at full mood
+const SHADOW_HUM_DB := -13.0
+var _shadow_mood := 0.0
+var _shadow_vignette: ColorRect
+var _music_lowpass: AudioEffectLowPassFilter
+var _hum_sound: AudioStreamPlayer
 const CLASH_ZOOM := 0.05   # how much closer a clash (and a teleporter's last hit) zooms at its peak (0.05 = 5 %)
 const CLASH_FLASH := Color(1, 1, 1, 0.11)
 const GREY_BRIDGE := 0.15   # the chain's grey holds this long after a freeze ends (her teleport to the next kill)
@@ -243,21 +256,29 @@ var debug: DebugTools = null
 
 var _pending_forward := false
 var _pending_vertical := false
-var _pending_frames := 0
+var _pending_deadline := 0   # (msec) when a single pending press fires
 # The buttons the last teleport used. Pressing one of them again during the
 # cooldown that follows is ignored (a quick double press is spam, not intent).
 var _last_forward := false
 var _last_vertical := false
 # Where she was when a pending press could first fire. A single press waits
-# DIAGONAL_WINDOW_FRAMES in case it's a diagonal. While it waits she's
+# DIAGONAL_WINDOW_MSEC in case it's a diagonal. While it waits she's
 # committed: running into an enemy doesn't count. When it fires, it hits if
 # it would have hit from anywhere between here and where she is now (so a
 # marker lit at any point during the wait means a hit).
 var _press_x := 0.0
 var _press_x_set := false
 var _last_touch_msec := -100000
-# Which Shift keys are down, by location (see _shift_press_is_fresh).
+# Which Shift keys are down, by location, and when each went down (msec)
+# (see _shift_press_is_fresh).
 var _shift_held := {}
+# A Shift press that came in as the side already held, while the other
+# wasn't: taken as the other Shift (_button_from_event).
+var _shift_as_other := false
+const SHIFT_SAME_SIDE_MSEC := 150
+# (Testing, ?keylog=1 on the web) every key event shown on screen.
+var _keylog: Label = null
+var _keylog_lines: PackedStringArray = []
 var _hitstop := 0.0
 var _pause_elapsed := 0.0
 var _pause_is_chain := false    # true = the longer "your move" pause
@@ -367,6 +388,7 @@ func _ready() -> void:
 		if c is AudioStreamPlayer:
 			(c as AudioStreamPlayer).bus = "SFX"
 	hud.options.changed.connect(_on_option_changed)
+	_setup_shadow_mood()
 	if not OS.get_cmdline_user_args().is_empty():
 		debug = DebugTools.new()
 		debug.main = self
@@ -979,6 +1001,10 @@ func _tutorial_move(move: int) -> void:
 # --- input ---------------------------------------------------------------
 
 func _unhandled_input(event: InputEvent) -> void:
+	if _keylog and event is InputEventKey:
+		var k := event as InputEventKey
+		_keylog_add("godot %s %s loc=%d%s  t=%d" % [OS.get_keycode_string(k.physical_keycode if k.physical_keycode != 0 else k.keycode),
+			"down" if k.pressed else "up", k.location, " echo" if k.echo else "", Time.get_ticks_msec() % 100000])
 	# Only real new presses do anything: no key repeats, no fake click after a tap.
 	if not _is_fresh_press(event):
 		return
@@ -1124,7 +1150,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			if player.cooldown > 0 and ((button == Rules.Move.FORWARD and _last_forward) or (button == Rules.Move.VERTICAL and _last_vertical)):
 				return   # same button again right after a teleport: ignored
 			if not _pending_forward and not _pending_vertical:
-				_pending_frames = DIAGONAL_WINDOW_FRAMES
+				_pending_deadline = Time.get_ticks_msec() + DIAGONAL_WINDOW_MSEC
 			if button == Rules.Move.FORWARD:
 				_pending_forward = true
 			else:
@@ -1235,9 +1261,22 @@ func _shift_press_is_fresh(key: InputEventKey) -> bool:
 	if not key.pressed:
 		_shift_held.erase(side)
 		return false
-	if key.echo or _shift_held.has(side):
+	if key.echo:
 		return false
-	_shift_held[side] = true
+	if _shift_held.has(side):
+		# This side's already down. If the other isn't, and this came right
+		# after it, it's the other Shift reported as the same side (some
+		# systems): count it as the other. (Both down: it's the bogus re-press
+		# above, ignored.)
+		var other := KEY_LOCATION_RIGHT if side == KEY_LOCATION_LEFT else KEY_LOCATION_LEFT
+		if side != KEY_LOCATION_UNSPECIFIED and not _shift_held.has(other) \
+				and Time.get_ticks_msec() - int(_shift_held[side]) <= SHIFT_SAME_SIDE_MSEC:
+			_shift_held[other] = Time.get_ticks_msec()
+			_shift_as_other = true
+			_keylog_add("  (same side again: taken as the other Shift)")
+			return true
+		return false
+	_shift_held[side] = Time.get_ticks_msec()
 	return true
 
 
@@ -1284,6 +1323,10 @@ func _button_from_event(event: InputEvent) -> int:
 		return Rules.Move.VERTICAL
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
 		return Rules.Move.FORWARD
+	if _shift_as_other and event is InputEventKey:
+		_shift_as_other = false
+		# (Left Shift is up/down, Right Shift forward: the other one's move.)
+		return Rules.Move.FORWARD if (event as InputEventKey).location == KEY_LOCATION_LEFT else Rules.Move.VERTICAL
 	if event.is_action_pressed("tp_vertical"):
 		return Rules.Move.VERTICAL
 	if event.is_action_pressed("tp_forward"):
@@ -1325,12 +1368,13 @@ func _button_for_screen_x(screen_x: float) -> int:
 func _clear_pending() -> void:
 	_pending_forward = false
 	_pending_vertical = false
-	_pending_frames = 0
+	_pending_deadline = 0
 	_press_x_set = false
 
 
-## The move to make this frame from the buttons pressed, waiting a few
-## frames after a single press in case the other button follows (diagonal).
+## The move to make this frame from the buttons pressed, waiting
+## DIAGONAL_WINDOW_MSEC after a single press in case the other button
+## follows (diagonal).
 ## The diagonal window keeps counting down during the cooldown, so a press
 ## that waited out the cooldown fires the moment it ends (can_fire).
 func _take_pending_move(can_fire: bool) -> int:
@@ -1339,14 +1383,15 @@ func _take_pending_move(can_fire: bool) -> int:
 	var move := Rules.Move.NONE
 	if _pending_forward and _pending_vertical:
 		move = Rules.Move.DIAGONAL
-	elif _pending_frames <= 0:
+	elif Time.get_ticks_msec() >= _pending_deadline:
 		move = Rules.Move.FORWARD if _pending_forward else Rules.Move.VERTICAL
 	else:
-		_pending_frames -= 1
 		return Rules.Move.NONE
 	if not can_fire:
 		return Rules.Move.NONE
 	_clear_pending()
+	if _keylog:
+		_keylog_add("MOVE %s" % ["", "FORWARD", "VERTICAL", "DIAGONAL"][move])
 	return move
 
 
@@ -1413,6 +1458,8 @@ func _physics_process(delta: float) -> void:
 	Palette.tick(delta)
 	_update_knight_threats()
 	_update_pause_visuals()
+	_update_shadow_mood(delta)
+	_poll_keylog()
 	if _kunai_beat > 0 and not (_tut_hold or _tutorial):
 		_kunai_beat = 0   # (the move was made: the words are gone)
 	# The lit boxes follow the katanas as the screen's drawn (worked out here,
@@ -2558,6 +2605,8 @@ func _kill(e: Enemy) -> void:
 	_chain_killed.append(e.get_instance_id())   # dead (a knight only on her last hit)
 	_last_felled = e
 	e.die()
+	if e is Remnant and not (e as Remnant).as_her:
+		cam.shake(0.12, 10.0)   # (one of hers cut in order: a kick)
 	if e is Remnant and (e as Remnant).as_her:
 		_shadow_auto_cut(e as Remnant)
 	level.enemies.erase(e)   # out of the game now; the body stays (level.corpses)
@@ -2656,15 +2705,20 @@ func _shadow_clash(sh: Shadow) -> void:
 		var spot: Vector2 = path[i]
 		var at := Shadow.drawn_at(spot.x, int(spot.y))
 		var who: Knight = sh.remnants[i] if i < sh.remnants.size() else sh
-		var show := func(a: Vector2, b: Vector2, k: Knight) -> void:
+		var show := func(a: Vector2, b: Vector2, k: Knight, n: int) -> void:
 			if state != State.PLAYING or not is_instance_valid(k):
 				return
 			if k.alive:   # (the player may have caught up and cut it already)
 				k.visible = true
 			fx.strike(a, b, "shadow")
-			_teleport_sound.pitch_scale = _jitter() * 0.8
+			# Each blink lands: a kick, a lavender spray where she lands, a
+			# fading smear of her along the way, and a whoosh rising through them.
+			cam.shake(0.07, 6.0)
+			fx.shards(b, Shadow.SHARD_COLOURS, 10, 120.0, 320.0)
+			_shadow_smear(sh, a, b)
+			_teleport_sound.pitch_scale = 0.75 + 0.08 * n
 			_teleport_sound.play()
-		get_tree().create_timer(CLASH_BEAT + blink_time * i, false).timeout.connect(show.bind(prev, at, who))   # (waits while paused)
+		get_tree().create_timer(CLASH_BEAT + blink_time * i, false).timeout.connect(show.bind(prev, at, who, i))   # (waits while paused)
 		prev = at
 
 
@@ -2705,6 +2759,116 @@ func _shadow_auto_cut(r: Remnant) -> void:
 	var nxt: Knight = sh.next_target()
 	nxt.visible = true
 	fx.strike(from, Shadow.drawn_at(nxt.tile_x, nxt.row), "shadow")
+
+
+## Her blink from a to b (body centres): a few fading lavender copies of her
+## along the way, the last nearest where she lands.
+const SMEAR_COPIES := 3
+const SMEAR_LIFE := 0.35
+func _shadow_smear(sh: Shadow, a: Vector2, b: Vector2) -> void:
+	if not is_instance_valid(sh) or sh._sprite == null:
+		return
+	var tex := sh._sprite.sprite_frames.get_frame_texture("stance", 0)
+	var row_a := Rules.Row.FLOOR if a.y > (Rules.body_center_y(Rules.Row.FLOOR) + Rules.body_center_y(Rules.Row.CEILING)) * 0.5 else Rules.Row.CEILING
+	var row_b := Rules.Row.FLOOR if b.y > (Rules.body_center_y(Rules.Row.FLOOR) + Rules.body_center_y(Rules.Row.CEILING)) * 0.5 else Rules.Row.CEILING
+	for c in SMEAR_COPIES:
+		var k := float(c + 1) / float(SMEAR_COPIES + 1)
+		var on_row: int = row_a if k < 0.5 else row_b
+		var holder := Node2D.new()
+		holder.position = Vector2(lerpf(a.x, b.x, k), Rules.surface_y(on_row))
+		holder.scale = Vector2(sh.scale.x, -1.0 if on_row == Rules.Row.CEILING else 1.0)
+		var g := Sprite2D.new()
+		g.texture = tex
+		g.centered = sh._sprite.centered
+		g.offset = sh._sprite.offset
+		g.scale = sh._sprite.scale
+		g.position = sh._sprite.position
+		g.flip_h = sh._sprite.flip_h
+		g.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		holder.add_child(g)
+		holder.modulate = Color(0.77, 0.7, 0.91, 0.25 + 0.35 * k)
+		sh.get_parent().add_child(holder)
+		var t := holder.create_tween()
+		t.tween_property(holder, "modulate:a", 0.0, SMEAR_LIFE)
+		t.tween_callback(holder.queue_free)
+
+
+## Her fight's mood (see SHADOW_VIGNETTE): the plum vignette, the muffled
+## music, the hum. Built once; the music's filter is kept across retries.
+func _setup_shadow_mood() -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 6   # (over the world, under the front effects and the HUD)
+	add_child(layer)
+	_shadow_vignette = ColorRect.new()
+	_shadow_vignette.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_shadow_vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var m := ShaderMaterial.new()
+	m.shader = Shader.new()
+	m.shader.code = """shader_type canvas_item;
+uniform vec4 tint : source_color;
+uniform float amount;
+void fragment() {
+	vec2 d = UV - 0.5;
+	d.x *= 1.5;
+	float v = smoothstep(0.3, 0.85, length(d));
+	COLOR = vec4(tint.rgb, v * amount);
+}"""
+	m.set_shader_parameter("tint", SHADOW_VIGNETTE)
+	m.set_shader_parameter("amount", 0.0)
+	_shadow_vignette.material = m
+	_shadow_vignette.visible = false
+	layer.add_child(_shadow_vignette)
+	var bus := AudioServer.get_bus_index("Music")
+	if bus >= 0:
+		for i in AudioServer.get_bus_effect_count(bus):
+			if AudioServer.get_bus_effect(bus, i) is AudioEffectLowPassFilter:
+				_music_lowpass = AudioServer.get_bus_effect(bus, i)
+		if _music_lowpass == null:
+			_music_lowpass = AudioEffectLowPassFilter.new()
+			AudioServer.add_bus_effect(bus, _music_lowpass)
+		_music_lowpass.cutoff_hz = 20000.0
+	_hum_sound = AudioStreamPlayer.new()
+	_hum_sound.stream = _hum_stream()
+	_hum_sound.bus = "SFX"
+	_hum_sound.volume_db = -80.0
+	add_child(_hum_sound)
+
+
+func _update_shadow_mood(delta: float) -> void:
+	var want := 1.0 if state == State.PLAYING and _engaged_shadow() != null else 0.0
+	_shadow_mood = move_toward(_shadow_mood, want, delta * SHADOW_MOOD_RATE)
+	var mood := _shadow_mood * _shadow_mood * (3.0 - 2.0 * _shadow_mood)   # (eased)
+	_shadow_vignette.visible = mood > 0.001
+	_shadow_vignette.material.set_shader_parameter("amount", mood * SHADOW_VIGNETTE_STRENGTH)
+	if _music_lowpass:
+		_music_lowpass.cutoff_hz = 20000.0 * pow(SHADOW_MUSIC_CUTOFF / 20000.0, mood)
+	if mood > 0.001:
+		_hum_sound.volume_db = SHADOW_HUM_DB + linear_to_db(mood)
+		if not _hum_sound.playing:
+			_hum_sound.play()
+	elif _hum_sound.playing:
+		_hum_sound.stop()
+
+
+## A low hum, looping cleanly (whole cycles over its 2 s), with a slow swell.
+static func _hum_stream() -> AudioStreamWAV:
+	var rate := 22050
+	var n := 2 * rate
+	var data := PackedByteArray()
+	data.resize(n * 2)
+	for i in n:
+		var t := float(i) / rate
+		var swell := 0.75 + 0.25 * sin(TAU * 0.5 * t)
+		var v := (0.45 * sin(TAU * 55.0 * t) + 0.25 * sin(TAU * 110.0 * t) + 0.12 * sin(TAU * 82.5 * t)) * swell
+		data.encode_s16(i * 2, int(clampf(v, -1.0, 1.0) * 32767.0))
+	var w := AudioStreamWAV.new()
+	w.format = AudioStreamWAV.FORMAT_16_BITS
+	w.mix_rate = rate
+	w.data = data
+	w.loop_mode = AudioStreamWAV.LOOP_FORWARD
+	w.loop_begin = 0
+	w.loop_end = n
+	return w
 
 
 ## The Shadow's rule: her remnants in the order she made them, then her. A hit
@@ -2805,6 +2969,48 @@ func _shadow_need() -> Enemy:
 	return null
 
 
+## (Testing, ?keylog=1) a log of every key event, top-left: what the browser
+## sends ("js ..."), what the game makes of it ("godot ..."), and the move
+## that results ("MOVE ...").
+func _start_keylog() -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 120
+	add_child(layer)
+	_keylog = Label.new()
+	_keylog.position = Vector2(8, 60)
+	_keylog.add_theme_font_size_override("font_size", 14)
+	_keylog.add_theme_color_override("font_color", Color(1, 0.95, 0.3))
+	_keylog.add_theme_color_override("font_outline_color", Color.BLACK)
+	_keylog.add_theme_constant_override("outline_size", 4)
+	layer.add_child(_keylog)
+	JavaScriptBridge.eval("""
+		window.__rfKeys = [];
+		for (const type of ['keydown', 'keyup']) {
+			window.addEventListener(type, (e) => {
+				window.__rfKeys.push('js ' + type + ' code=' + e.code + ' key=' + e.key + ' loc=' + e.location
+					+ (e.repeat ? ' repeat' : '') + ' t=' + Math.round(performance.now() % 100000));
+			}, true);
+		}
+	""", true)
+
+
+func _keylog_add(line: String) -> void:
+	if _keylog == null:
+		return
+	_keylog_lines.append(line)
+	if _keylog_lines.size() > 22:
+		_keylog_lines = _keylog_lines.slice(_keylog_lines.size() - 22)
+	_keylog.text = "\n".join(_keylog_lines)
+
+
+func _poll_keylog() -> void:
+	if _keylog == null:
+		return
+	var got := str(JavaScriptBridge.eval("(window.__rfKeys || []).splice(0).join('\\n')", true))
+	for line in got.split("\n", false):
+		_keylog_add(line)
+
+
 ## (Testing, the web build) the page link can set the start level and the
 ## first chain: index.html?level=12&chain=F K( f v d ) D (see
 ## Patterns.parse_chain). Without them, nothing changes.
@@ -2812,6 +3018,8 @@ func _read_test_link() -> void:
 	if not OS.has_feature("web"):
 		return
 	var q := "new URLSearchParams(window.location.search).get('%s') || ''"
+	if str(JavaScriptBridge.eval(q % "keylog", true)) != "":
+		_start_keylog()
 	var lv := str(JavaScriptBridge.eval(q % "level", true))
 	var ch := str(JavaScriptBridge.eval(q % "chain", true))
 	if lv.is_valid_int() and int(lv) >= 1:

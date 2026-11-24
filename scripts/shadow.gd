@@ -123,6 +123,29 @@ func _process(delta: float) -> void:
 	super._process(delta)
 	_glow_t += delta
 	glow(_material, _glow_t, 1.0 if alive else 0.0)
+	if alive and visible:
+		var scene := get_tree().current_scene
+		_wisp_t = aura_wisps(self, scene.get("fx") if scene else null, _wisp_t, delta, 1.0)
+
+
+# Her aura breathes: lavender wisps drift up off her (and her remnants).
+const WISP_EVERY := 0.07   # seconds between wisps at full strength
+const WISP_COLOURS := [Color(0.77, 0.7, 0.91, 0.8), Color(0.95, 0.92, 1.0, 0.7), Color(0.44, 0.17, 0.36, 0.8)]
+var _wisp_t := 0.0
+
+
+## One wisp every WISP_EVERY / strength seconds off k's body (a random spot
+## on it). Returns the timer.
+static func aura_wisps(k: Knight, fx: Fx, t: float, delta: float, strength: float) -> float:
+	if fx == null or strength <= 0.0:
+		return t
+	t -= delta
+	if t > 0.0:
+		return t
+	var body := Vector2(k.tile_x * Rules.TILE, Rules.body_center_y(k.row))
+	var at := body + Vector2(randf_range(-0.3, 0.3) * Rules.TILE, randf_range(-0.7, 0.7) * Rules.TILE)
+	fx.wisp(at, WISP_COLOURS.pick_random(), 1.0 if k.row == Rules.Row.FLOOR else -1.0)   # (away from her surface)
+	return WISP_EVERY / strength
 
 
 ## Her glow on a sprite's material (hers, a remnant's): pale, flickering.

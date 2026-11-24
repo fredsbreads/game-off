@@ -135,6 +135,14 @@ func shards(pos: Vector2, colors: Array, count: int, speed_min := 200.0, speed_m
 			"color": colors[i % colors.size()]})
 
 
+## A wisp drifting up off `pos` (the Shadow's aura): a small square,
+## rising slowly and fading.
+func wisp(pos: Vector2, color: Color, rise := 1.0) -> void:
+	_items.append({"kind": "wisp", "t": 0.0, "life": randf_range(0.6, 1.1), "pos": pos,
+		"vel": Vector2(randf_range(-14.0, 14.0), -randf_range(30.0, 60.0) * rise),
+		"color": color, "size": randf_range(2.5, 5.0)})
+
+
 ## A spray of blood from `pos`, flung mostly toward `dir_x` (+1 right, -1
 ## left) and upward. Drops that reach the floor leave a stain for a while.
 ## `burst`: start the drops this many seconds into their flight (each a
@@ -263,6 +271,8 @@ func _physics_process(real_delta: float) -> void:
 		if it["kind"] == "particle" or it["kind"] == "blood":
 			it["vel"].y += GRAVITY * delta
 			it["pos"] += it["vel"] * delta
+		elif it["kind"] == "wisp":
+			it["pos"] += it["vel"] * delta
 		if it["kind"] == "blood" and it["pos"].y >= Rules.GROUND_Y:
 			# Hit the floor: becomes a flat stain.
 			it["kind"] = "stain"
@@ -304,6 +314,11 @@ func _draw() -> void:
 				var col: Color = it["color"]   # stays until it scrolls off screen
 				var s: float = it["size"]
 				draw_rect(Rect2(it["pos"] - Vector2(s, 2.0), Vector2(s * 2.0, 3.0)), col)
+			"wisp":
+				var col: Color = it["color"]
+				col.a *= fade * minf(1.0, k * 5.0)
+				var s: float = it["size"]
+				draw_rect(Rect2(it["pos"] - Vector2(s, s) * 0.5, Vector2(s, s)), col)
 			"particle":
 				var col: Color = it["color"]
 				col.a = fade

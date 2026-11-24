@@ -18,6 +18,7 @@ var as_her := false:
 			_sprite.frame = art["engaged_frame"]
 			_sprite.pause()
 var _t := 0.0
+var _wisp_t := 0.0
 
 
 func _init() -> void:
@@ -36,7 +37,7 @@ func _ready() -> void:
 func die() -> void:
 	super.die()
 	if not as_her:
-		Shadow.explode(fx, _sprite.global_position + Vector2(0, -Rules.TILE * 0.6 * scale.y), 0.45)
+		Shadow.explode(fx, _sprite.global_position + Vector2(0, -Rules.TILE * 0.6 * scale.y), 0.8)
 	visible = false
 
 
@@ -44,6 +45,8 @@ func _process(delta: float) -> void:
 	super._process(delta)
 	_t += delta
 	Shadow.glow(_material, _t, (1.0 if as_her else 0.7) if alive else 0.0)
+	if alive and visible:
+		_wisp_t = Shadow.aura_wisps(self, fx, _wisp_t, delta, 1.0 if as_her else 0.6)
 
 
 ## Her killing blow: one of her two big strikes (Shadow._pick_kill).

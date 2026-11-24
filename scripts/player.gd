@@ -281,7 +281,7 @@ func strike(pose := -1) -> void:
 ## to where she is now: leave the throw pose behind as a fading red outline,
 ## and red afterimages of it along the way.
 func teleport_afterimages(move: int, from_feet: Vector2, from_row: int) -> void:
-	_throw_bits = _throw_bits.filter(func(b: Object) -> bool: return is_instance_valid(b))
+	_throw_bits = _throw_bits.filter(func(b) -> bool: return is_instance_valid(b))
 	var vertical := move == Rules.Move.VERTICAL
 	var tex: Texture2D = THROW_VERTICAL if vertical else THROW
 	var sword: Texture2D = THROW_VERTICAL_SWORD if vertical else THROW_SWORD
