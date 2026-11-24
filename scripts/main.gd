@@ -2720,7 +2720,7 @@ func _fooled_by(e: Enemy) -> bool:
 
 ## Struck the wrong one: the strike lands and the world stops, zoomed in on
 ## it; the one she cut (a remnant, or she herself) is knocked a tile back and
-## at once falls and fizzles out there, "FOOLED". A beat later (FOOLED_BEAT)
+## at once falls and fizzles out there, "TRICKED". A beat later (FOOLED_BEAT)
 ## hers jump the player (_fooled_attackers).
 const FOOLED_BEAT := 0.5
 const FOOLED_ZOOM := 0.2
@@ -2745,7 +2745,7 @@ func _fooled(k: Knight) -> void:
 	k.fall()   # (her own fall's fizzle is then the one above)
 	_clear_pending()
 	if chain > 0:
-		_end_chain("DROPPED", "FOOLED")
+		_end_chain("DROPPED", "TRICKED")
 	_fooled_hold = true
 	_hitstop = FOOLED_BEAT
 	_pause_min = _hitstop
