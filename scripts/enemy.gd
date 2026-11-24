@@ -10,6 +10,7 @@ extends Node2D
 const IDLE := preload("res://assets/sprites/martial_hero/idle.png")
 const DEATH := preload("res://assets/sprites/martial_hero/death.png")
 const ATTACK := preload("res://assets/sprites/martial_hero/attack.png")   # "Attack2" in the pack
+const TAKE_HIT := preload("res://assets/sprites/martial_hero/take_hit.png")   # "Take Hit": struck in the streak finisher
 const FRAME := Vector2i(126, 126)
 # The point between his feet inside a frame: this sits on the floor.
 const FEET := Vector2(66, 82)
@@ -19,6 +20,7 @@ const SPRITE_SCALE := 2.0
 const IDLE_FPS := 10.0
 const DEATH_FPS := 16.0
 const ATTACK_FPS := 14.0
+const HIT_FPS := 12.0
 # Start the attack on the slash frame, so it lands right as she touches him (the first
 # frames are a wind-up).
 const ATTACK_START_FRAME := 3
@@ -39,6 +41,7 @@ var escaped := false
 var targeted := false
 var _glint := 0.0
 var _material: ShaderMaterial
+var _flash_tween: Tween
 
 var _sprite: AnimatedSprite2D
 
@@ -67,7 +70,7 @@ func _ready() -> void:
 func _build_frames() -> SpriteFrames:
 	var frames := SpriteFrames.new()
 	frames.remove_animation("default")
-	for spec in [["idle", IDLE, IDLE_FPS, true], ["death", DEATH, DEATH_FPS, false], ["attack", ATTACK, ATTACK_FPS, false]]:
+	for spec in [["idle", IDLE, IDLE_FPS, true], ["death", DEATH, DEATH_FPS, false], ["attack", ATTACK, ATTACK_FPS, false], ["hit", TAKE_HIT, HIT_FPS, false]]:
 		var sheet: Texture2D = spec[1]
 		frames.add_animation(spec[0])
 		frames.set_animation_speed(spec[0], spec[2])
@@ -107,18 +110,37 @@ func die() -> void:
 		queue_free()
 
 
-## Struck again in the streak finisher: held on his first death frame...
+## Struck in the streak finisher: his take-hit (recoil, a white flash,
+## recoil), held on its last frame until the next strike...
 func take_hit() -> void:
 	if _sprite:
-		_sprite.play("death")
+		_sprite.speed_scale = 1.0
+		_sprite.play("hit")
 		_sprite.frame = 0
-		_sprite.speed_scale = 0.0
+	hit_flash()
+
+
+## The white flash on a strike's second beat (the art has none of its own).
+func hit_flash() -> void:
+	if _material == null:
+		return
+	if _flash_tween:
+		_flash_tween.kill()
+	var beat := 1.0 / HIT_FPS
+	_material.set_shader_parameter("flash", 0.0)
+	_flash_tween = create_tween()
+	_flash_tween.tween_interval(beat)
+	_flash_tween.tween_callback(_material.set_shader_parameter.bind("flash", 1.0))
+	_flash_tween.tween_interval(beat)
+	_flash_tween.tween_callback(_material.set_shader_parameter.bind("flash", 0.0))
 
 
 ## ...then, when it's over, he falls.
 func fall() -> void:
 	if _sprite:
 		_sprite.speed_scale = 1.0
+		if _sprite.animation != "death":
+			_sprite.play("death")
 
 
 ## Held still in his idle pose while she's in a chain's freeze (the grey),

@@ -108,7 +108,6 @@ var forward_aggro := false
 var diag_aggro := false   # the master: diagonally too (see master.gd)
 var ahead := false
 var alerted := false
-var _flash_tween: Tween
 var _slashing := false   # the killing blow: green outline held
 var _next: Sprite2D = null   # her next spot's silhouette (see _update_next)
 ## True while the thread to her next spot shows (main.gd: the freeze after a clash).
@@ -254,18 +253,8 @@ func take_hit() -> void:
 		_sprite.speed_scale = 1.0
 		_sprite.play("hit")
 		_sprite.frame = 0
-	if art.get("hit_flash", false) and _material:
-		# (art without the knight's white take-hit frame) the same beat:
-		# recoil, a white flash, recoil.
-		if _flash_tween:
-			_flash_tween.kill()
-		var beat := 1.0 / K_HIT_FPS
-		_material.set_shader_parameter("flash", 0.0)
-		_flash_tween = create_tween()
-		_flash_tween.tween_interval(beat)
-		_flash_tween.tween_callback(_material.set_shader_parameter.bind("flash", 1.0))
-		_flash_tween.tween_interval(beat)
-		_flash_tween.tween_callback(_material.set_shader_parameter.bind("flash", 0.0))
+	if art.get("hit_flash", false):
+		hit_flash()   # (art without the knight's white take-hit frame) the same beat
 
 
 ## The finisher's over: now she falls.
