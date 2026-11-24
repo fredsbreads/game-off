@@ -111,7 +111,7 @@ const MARKER_KATANA := preload("res://assets/sprites/kunoichi_sword_diagonal.png
 const MARKER_KATANA_SCALE := 1.25
 const MARKER_HEIGHT := 1.65      # tiles above the row's surface (just over an enemy's head)
 const MARKER_FOLLOW_RATE := 16.0 # how fast it glides onto an enemy and back (higher = snappier)
-const MARKER_COLOUR_RATE := 14.0 # how fast it fades between plain and red
+const MARKER_COLOUR_RATE := 14.0 # how fast it fades from red back to plain (it turns red at once)
 const MARKER_SHADER := preload("res://shaders/marker.gdshader")
 const MARKER_SIZE := Vector2(0.5, 1.1)          # tiles (the hitbox drawing's height)
 const HITBOX_COLOR := Color(0.2, 1.0, 0.4, 0.9)
@@ -708,7 +708,8 @@ func _update_markers(delta: float) -> void:
 		var k := 1.0 - exp(-MARKER_FOLLOW_RATE * delta)
 		m.position = m.position.lerp(want, k)
 		m.position.y = y   # only x glides; the height is fixed per row
-		_marker_lit_mix[i] = lerpf(float(_marker_lit_mix[i]), 1.0 if lit else 0.0, 1.0 - exp(-MARKER_COLOUR_RATE * delta))
+		# Red the instant it locks on (as it starts gliding over); back to plain gently.
+		_marker_lit_mix[i] = 1.0 if lit else lerpf(float(_marker_lit_mix[i]), 0.0, 1.0 - exp(-MARKER_COLOUR_RATE * delta))
 		var mat := m.material as ShaderMaterial
 		mat.set_shader_parameter("plain", plain)
 		mat.set_shader_parameter("lit", MARKER_LIT)
