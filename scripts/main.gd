@@ -2228,6 +2228,10 @@ func _prewarm() -> void:
 	warm.bolt(Fx.Bolt.SPARKS, at, 0.0, Vector2.ONE, 20.0, 0, "cyan")
 	warm.strike(at - Vector2(100, 0), at, "cyan")
 	warm.strike(at - Vector2(100, 0), at, "shadow")
+	warm.strike(at - Vector2(100, 0), at, "purple")
+	warm.bolt(Fx.Bolt.SPARKS, at, 0.0, Vector2.ONE, 20.0, 0, "purple")
+	warm.bolt(Fx.Bolt.SPARKS, at, 0.0, Vector2.ONE, 20.0, 0, "shadow")
+	warm.wisp(at, Color.WHITE)
 	warm.text(at, "PERFECT", 30, Color.WHITE)
 	# Every floating word's letters, at each size they're shown in (a letter's
 	# first showing at a size is drawn then: on a phone, a hitch).
