@@ -14,9 +14,9 @@ const START_X := 3.0
 # hidden and every run starts at level 1 (for playtesters). <<<
 const LEVEL_CHOICE := true
 # The levels it offers (5: straight to the knight's debut, 10: the ninja's,
-# 15: the master's);
+# 15: the master's, 20: the Shadow's);
 # the pick is kept between visits.
-const START_LEVELS := [1, 5, 10, 15]
+const START_LEVELS := [1, 5, 10, 15, 20]
 ## The start level picked on the title screen: kept through this visit (back
 ## to the title screen, retries) but not saved, so the game always opens on 1.
 static var _session_start_level := 1
@@ -197,6 +197,18 @@ const CLASH_PAUSE_FACTOR := 1.25   # the freeze after a clash is this much longe
 # can't skip it), with a zoom and a shake, before the knight blinks away.
 const CLASH_BEAT := 0.12
 const CLASH_REAPPEAR := 0.0  # the knight shows at her new spot this soon (the clash plays on behind)
+# The Shadow's clash (shadow.gd): time stays stopped while she blinks through
+# her spots, one every SHADOW_BLINK_TIME, leaving her remnants; the player
+# may go after her at once, and the window is longer by the time she takes
+# (and SHADOW_SETTLE more).
+const SHADOW_BLINK_TIME := 0.22
+const SHADOW_SETTLE := 0.15
+# The Shadow killed for good: the death sound, and the auto-chain's finish on
+# her (three slashes around her, then the big strike); she fizzles out as she
+# falls (Shadow.fall).
+var _shadow_reveal := 0.0   # (this clash) seconds until she's done blinking
+var _shadow_finish := false   # the auto-chain's finish is on the Shadow (her own chain, not an auto-chain)
+var _felled_shadow: Shadow = null   # (this teleport) the Shadow it killed
 const CLASH_ZOOM := 0.05   # how much closer a clash (and a teleporter's last hit) zooms at its peak (0.05 = 5 %)
 const CLASH_FLASH := Color(1, 1, 1, 0.11)
 const GREY_BRIDGE := 0.15   # the chain's grey holds this long after a freeze ends (her teleport to the next kill)
@@ -1675,6 +1687,10 @@ func _teleport(move: int) -> void:
 		_play_strike(false)
 		_note_escapes()
 	else:
+		for e in hit:
+			if _fooled_by(e):
+				_fooled(e as Knight)
+				return
 		player.cooldown = 0
 		_drop_pounce = false   # a press that waited out the freeze hit after all
 		player.strike()
@@ -1692,7 +1708,13 @@ func _teleport(move: int) -> void:
 			# You can't see where the knight will blink to; and the clash itself plays first.
 			_pause_length = _pause_length * CLASH_PAUSE_FACTOR + CLASH_BEAT
 			_pause_min = maxf(KILL_PAUSE_MIN, CLASH_REAPPEAR)   # the player can go as soon as the knight shows where she went
+			if _shadow_reveal > 0.0:
+				# The Shadow: the time she takes blinking through her spots is
+				# added to the window (the player may go after her sooner).
+				_pause_length += _shadow_reveal
+				_shadow_reveal = 0.0
 		_hitstop = _pause_length if _pause_is_chain else KILL_HIT
+
 		_pause_elapsed = 0.0
 		if _pause_is_chain and _charged and not _auto:
 			_start_auto()   # (her debut too: a charge is never held back)
@@ -1711,6 +1733,8 @@ func _teleport(move: int) -> void:
 				if not _chain_killed.has(id):
 					whole = false
 			var grade := "SINGLE" if chain == 1 else ("PERFECT" if whole else "CLEAN")
+			var sh := _felled_shadow
+			_felled_shadow = null
 			# The reward: a flawless streak of STREAK_REWARD, and this chain ends on
 			# a kill (whoever it is): the triple slash, and she takes on her colour.
 			if _auto:
@@ -1719,6 +1743,9 @@ func _teleport(move: int) -> void:
 				_finisher(_last_felled, grade, true)   # the rainbow (100)
 			elif sweep >= STREAK_REWARD and Palette.pink <= 0.0 and is_instance_valid(_last_felled):
 				_finisher(_last_felled, grade)
+			elif sh:
+				_shadow_finish = true   # (her chain still charges the Red Flash)
+				_auto_finale(grade)
 			else:
 				_end_chain(grade)
 
@@ -1926,6 +1953,7 @@ func _start_auto() -> void:
 
 ## The auto-chain's next move (also the bot's in the freeze): see _auto_hop.
 func _auto_pick(skip_debut := false) -> int:
+	var need := _shadow_need()
 	var best_move := Rules.Move.NONE
 	var best_x := INF
 	var best_enemy: Enemy = null
@@ -1933,6 +1961,8 @@ func _auto_pick(skip_debut := false) -> int:
 		var tx: float = player.x + Rules.move_dx(move)
 		var trow: int = (1 - player.row) if Rules.move_flips_row(move) else player.row
 		for e in level.enemies_hit_by(move, tx, trow):
+			if need != null and e != need:
+				continue   # (the Shadow's fight: only her next one)
 			if skip_debut and e is Knight and (e as Knight).debut:
 				continue   # her debut: the auto-chain stops short of her
 			if e.tile_x < best_x - 0.01:
@@ -2095,8 +2125,9 @@ func _auto_finale_strike(grade: String, k: Enemy) -> void:
 	_auto_finale_layer.pitch_scale = 0.85   # deeper than a knight's last hit
 	_auto_finale_layer.play()
 	_duck_music(MUSIC_DB, 1.6, 0.35)
-	_auto_ending = true
-	_end_chain(grade)   # (adds no charge: the meter starts again from empty)
+	_auto_ending = not _shadow_finish
+	_shadow_finish = false
+	_end_chain(grade)   # (adds no charge: the meter starts again from empty; the Shadow's does)
 	_auto_ending = false
 	# The flawless count and the katana's level go up together, with the bang.
 	_streak_shown = sweep
@@ -2160,6 +2191,7 @@ func _prewarm() -> void:
 	warm.bolt(Fx.Bolt.SPARKS, at, 0.0, Vector2.ONE, 20.0, 0, true)
 	warm.bolt(Fx.Bolt.SPARKS, at, 0.0, Vector2.ONE, 20.0, 0, "cyan")
 	warm.strike(at - Vector2(100, 0), at, "cyan")
+	warm.strike(at - Vector2(100, 0), at, "shadow")
 	warm.text(at, "PERFECT", 30, Color.WHITE)
 	# Every floating word's letters, at each size they're shown in (a letter's
 	# first showing at a size is drawn then: on a phone, a hitch).
@@ -2486,7 +2518,7 @@ func _teleport_lightning(_move: int, from: Vector2, to: Vector2, _kills: bool) -
 
 
 func _kill(e: Enemy) -> void:
-	var knight := e as Knight
+	var knight: Knight = null if e is Remnant else e as Knight   # (her remnants: one hit, like anyone)
 	chain += 1
 	chain_points += Rules.KNIGHT_POINTS if knight else 1
 	# The bar room the level builder sees includes this chain's kills so far
@@ -2505,6 +2537,8 @@ func _kill(e: Enemy) -> void:
 	_chain_killed.append(e.get_instance_id())   # dead (a knight only on her last hit)
 	_last_felled = e
 	e.die()
+	if e is Remnant and (e as Remnant).as_her:
+		_shadow_auto_cut(e as Remnant)
 	level.enemies.erase(e)   # out of the game now; the body stays (level.corpses)
 	level.corpses.append(e)
 	kills += 1
@@ -2525,6 +2559,10 @@ func _kill(e: Enemy) -> void:
 		_felled_knight = knight
 		var her := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row))
 		cam.punch((pos + her) * 0.5, CLASH_ZOOM, CLASH_BEAT + 0.15)
+		if knight is Shadow:
+			# The Shadow's end: bigger than any other kill.
+			_death_sound.play()
+			_felled_shadow = knight as Shadow   # (how she goes: see _teleport)
 	cam.shake(0.06, 4.0 + 1.5 * c)   # only during the flash, so the freeze reads as still
 	fx.kill_burst(pos, chain)
 	blood_fx.blood(pos, 1.0, 22 + 3 * c, BLOOD_BURST,
@@ -2540,6 +2578,9 @@ func _clash(knight: Knight) -> void:
 	_first_clash = knight.step_index == 0   # (before she blinks on)
 	_clashed = true
 	player.hold_slash(CLASH_BEAT)   # her big slash stays up through the beat
+	if knight is Shadow:
+		_shadow_clash(knight as Shadow)
+		return
 	var from := knight.blink(CLASH_BEAT, player.last_pose(), CLASH_REAPPEAR)
 	_clash_sound.pitch_scale = _jitter()
 	_clash_sound.play()
@@ -2558,6 +2599,118 @@ func _clash(knight: Knight) -> void:
 		get_tree().create_timer(CLASH_REAPPEAR, false).timeout.connect(reappear)   # (waits while paused)
 	else:
 		reappear.call()
+
+
+## The Shadow's clash: swords clash; then, time still stopped, she blinks
+## through this round's spots one after another (her lightning to each), a
+## remnant left on each but the last, where she stays. Nothing's left to show
+## the way she went.
+func _shadow_clash(sh: Shadow) -> void:
+	var path: Array = sh.rounds[sh.step_index] if sh.step_index < sh.rounds.size() else []
+	sh.remnants.clear()
+	for i in path.size() - 1:
+		var r := Remnant.new()
+		r.path.append(path[i])
+		r.tile_x = path[i].x
+		r.row = int(path[i].y)
+		r.shadow = sh
+		r.order = i
+		r.fx = fx
+		r.visible = false   # (there already, so the move after can be to it: shown as she gets there)
+		level.add_enemy(r, sh)
+		sh.remnants.append(r)
+	var blink_time := SHADOW_BLINK_TIME
+	if _auto:
+		_shadow_clash_auto(sh, path)
+		return
+	var from := sh.blink(CLASH_BEAT, player.last_pose(), CLASH_BEAT + blink_time * (path.size() - 1))
+	_clash_sound.pitch_scale = _jitter()
+	_clash_sound.play()
+	cam.shake(0.3, 16.0)
+	cam.punch((from + Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row))) * 0.5, CLASH_ZOOM, CLASH_BEAT + 0.15)
+	hud.flash(CLASH_FLASH, 0.12)
+	_shadow_reveal = CLASH_BEAT + blink_time * (path.size() - 1) + SHADOW_SETTLE
+	var prev := from
+	for i in path.size():
+		var spot: Vector2 = path[i]
+		var at := Shadow.drawn_at(spot.x, int(spot.y))
+		var who: Knight = sh.remnants[i] if i < sh.remnants.size() else sh
+		var show := func(a: Vector2, b: Vector2, k: Knight) -> void:
+			if state != State.PLAYING or not is_instance_valid(k):
+				return
+			if k.alive:   # (the player may have caught up and cut it already)
+				k.visible = true
+			fx.strike(a, b, "shadow")
+			_teleport_sound.pitch_scale = _jitter() * 0.8
+			_teleport_sound.play()
+		get_tree().create_timer(CLASH_BEAT + blink_time * i, false).timeout.connect(show.bind(prev, at, who))   # (waits while paused)
+		prev = at
+
+
+## The Shadow's clash in an auto-chain: no remnants laid out ahead. She
+## blinks only one step ahead, at the auto-chain's pace: each spot shows her
+## (her remnant there, as her), and each cut there is a plain clash with her
+## (see _shadow_auto_cut); at the round's end she's herself again.
+func _shadow_clash_auto(sh: Shadow, path: Array) -> void:
+	var from := sh.blink(CLASH_BEAT, player.last_pose(), 999.0)
+	sh.visible = false   # (shown again at her round's last spot, see _shadow_auto_cut)
+	for r in sh.remnants:
+		(r as Remnant).as_her = true
+	_clash_sound.pitch_scale = _jitter()
+	_clash_sound.play()
+	cam.shake(0.3, 16.0)
+	cam.punch((from + Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row))) * 0.5, CLASH_ZOOM, CLASH_BEAT + 0.15)
+	hud.flash(CLASH_FLASH, 0.12)
+	var first: Knight = sh.remnants[0] if not sh.remnants.is_empty() else sh
+	var to := Shadow.drawn_at(first.tile_x, first.row)
+	var show := func() -> void:
+		if state != State.PLAYING or not is_instance_valid(first) or not first.alive:
+			return
+		first.visible = true
+		fx.strike(from, to, "shadow")
+	get_tree().create_timer(CLASH_BEAT, false).timeout.connect(show)
+
+
+## (An auto-chain) a cut on her where she was: a plain clash, and she blinks
+## on to her next spot (or is herself again at the round's last).
+func _shadow_auto_cut(r: Remnant) -> void:
+	var sh := r.shadow
+	if not is_instance_valid(sh):
+		return
+	_clash_sound.pitch_scale = _jitter() * 1.1
+	_clash_sound.play()
+	hud.flash(CLASH_FLASH, 0.05)
+	var from := Shadow.drawn_at(r.tile_x, r.row)
+	var nxt: Knight = sh.next_target()
+	nxt.visible = true
+	fx.strike(from, Shadow.drawn_at(nxt.tile_x, nxt.row), "shadow")
+
+
+## The Shadow's rule: her remnants in the order she made them, then her. A hit
+## on anyone else of hers is a trick.
+func _fooled_by(e: Enemy) -> bool:
+	if e is Remnant:
+		var sh: Shadow = (e as Remnant).shadow
+		return is_instance_valid(sh) and sh.next_target() != e
+	if e is Shadow:
+		return (e as Shadow).engaged and (e as Shadow).remnants_left() > 0
+	return false
+
+
+## Struck the wrong one: "FOOLED", and it cuts her down.
+func _fooled(k: Knight) -> void:
+	player.cooldown = 0
+	if chain > 0:
+		_end_chain("DROPPED", "FOOLED")
+	_knight_strikes(k)
+
+
+## In the Shadow's fight: the one the auto-chain (and the bot) must cut next.
+func _shadow_need() -> Enemy:
+	for e in level.enemies:
+		if e is Shadow and e.alive and (e as Shadow).engaged:
+			return (e as Shadow).next_target()
+	return null
 
 
 func _play_jingle(sound: AudioStreamPlayer) -> void:

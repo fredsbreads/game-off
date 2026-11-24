@@ -106,6 +106,9 @@ var warned := false   # she's already given her wind-up swish once
 ## after that brings him at once).
 var forward_aggro := false
 var diag_aggro := false   # the master: diagonally too (see master.gd)
+## (The Shadow, her remnants) no thread to her next spot, no silhouette of it:
+## where she goes is only seen as she goes.
+var hides_path := false
 var ahead := false
 var alerted := false
 var _slashing := false   # the killing blow: green outline held
@@ -456,7 +459,7 @@ func slash(her_x: float, side := 1.0) -> void:
 func _update_next() -> void:
 	if _next == null:
 		return
-	var has_next := alive and not _slashing and step_index + 1 < path.size()
+	var has_next := alive and not _slashing and step_index + 1 < path.size() and not hides_path
 	_next.visible = has_next
 	if not has_next:
 		return
@@ -473,7 +476,7 @@ func _update_thread(delta: float) -> void:
 		return
 	var has_next := step_index + 1 < path.size()
 	var has_prev := step_index > 0 and show_trail
-	var show := thread and alive and not _slashing and (has_next or has_prev)
+	var show := thread and alive and not _slashing and (has_next or has_prev) and not hides_path
 	if not show:
 		_thread.visible = false
 		_thread_fade = 0.0

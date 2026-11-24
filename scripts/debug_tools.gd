@@ -125,7 +125,12 @@ func _replan() -> void:
 		if not e.alive or e.tile_x <= px - 1.0 or e.tile_x >= px + PLAN_AHEAD_TILES + 8.0:
 			continue
 		var k := e as Knight
-		if k:
+		if k is Shadow or k is Remnant:
+			# (The Shadow's fight: just where she and her remnants are now; the
+			# order's main.gd's, in the freezes.)
+			near.append(Vector2(e.tile_x, e.row))
+			knights.append(-1)
+		elif k:
 			# Every spot she'll still be in, in order (one entry each).
 			for i in range(k.step_index, k.path.size()):
 				near.append(k.path[i])

@@ -86,6 +86,24 @@ const MASTER_FULL_LEVEL := 20
 # or more (a master has every ninja rule too): see is_ninja_group().
 const NINJA_GROUP := 1000
 const MASTER_GROUP := 2000
+const SHADOW_GROUP := 3000   # (the Shadow: none of the others' rules)
+# The Shadow (see shadow.gd): her own chain, alone. Her debut level opens
+# with her; after it, a generated chain is hers with SHADOW_CHANCE, rising by
+# SHADOW_CHANCE_STEP a level up to SHADOW_CHANCE_MAX. She fights in rounds
+# (three at her debut, then two or three): each round she blinks SHADOW_BLINKS_MIN-MAX times
+# through the three columns on screen (each a move the player could make),
+# leaving a remnant on every spot but the last, where she waits.
+const SHADOW_DEBUT_LEVEL := 20
+const SHADOW_CHANCE := 0.1
+const SHADOW_CHANCE_STEP := 0.02
+const SHADOW_CHANCE_MAX := 0.25
+const SHADOW_BLINKS_MIN := 4
+const SHADOW_BLINKS_MAX := 5
+## (Testing) every generated chain is the Shadow's.
+static var force_shadows := false
+const SHADOW_DEBUT_ROUNDS := 3
+const SHADOW_ROUNDS_MIN := 2
+const SHADOW_ROUNDS_MAX := 3
 # Two teleporters side by side in a chain: this often their duels interleave
 # (see _build): you fight both at once, but each one's every blink is one move
 # from where you hit her, so neither needs the other to reach her next spot.
@@ -204,11 +222,61 @@ static func master_share(level: int) -> float:
 
 ## A ninja or a master (they both watch straight ahead).
 static func is_ninja_group(group: int) -> bool:
-	return group >= NINJA_GROUP
+	return group >= NINJA_GROUP and group < SHADOW_GROUP
 
 
 static func is_master_group(group: int) -> bool:
-	return group >= MASTER_GROUP
+	return group >= MASTER_GROUP and group < SHADOW_GROUP
+
+
+static func is_shadow_group(group: int) -> bool:
+	return group >= SHADOW_GROUP
+
+
+## The chance that a generated chain is the Shadow's (after her debut).
+static func shadow_chance(level: int) -> float:
+	if level <= SHADOW_DEBUT_LEVEL:
+		return 0.0
+	return minf(SHADOW_CHANCE + SHADOW_CHANCE_STEP * (level - SHADOW_DEBUT_LEVEL - 1), SHADOW_CHANCE_MAX)
+
+
+## The Shadow's chain: her spots, one a round apart (where you first clash
+## with her, then where each round ends), and `shadow_paths`: for each round,
+## the spots she blinks through (the last is where she waits; the others get
+## her remnants), each one move on from the one before, never back. Relative
+## to her first spot, like `enemies`.
+static func shadow_chain(level: int, rng: RandomNumberGenerator, debut := false) -> Dictionary:
+	var spots: Array[Vector2] = [Vector2(0, 0)]
+	var paths: Array = []
+	# Rounds: three the first time (her debut); after that, two or three.
+	var rounds := SHADOW_DEBUT_ROUNDS if debut else rng.randi_range(SHADOW_ROUNDS_MIN, SHADOW_ROUNDS_MAX)
+	for r in rounds:
+		var blinks := rng.randi_range(SHADOW_BLINKS_MIN, SHADOW_BLINKS_MAX)
+		# Three columns: an across in each (optional), a forward or diagonal
+		# between them; as many acrosses as the blinks leave room for.
+		var acrosses := [true, true, true]
+		if blinks == 4:
+			acrosses[rng.randi_range(0, 2)] = false
+		var tokens: Array[String] = []
+		for c in 3:
+			if acrosses[c]:
+				tokens.append("V")
+			if c < 2:
+				tokens.append(["F", "D"][rng.randi_range(0, 1)])
+		var path: Array[Vector2] = []
+		var at: Vector2 = spots.back()
+		for t in tokens:
+			at = _apply(at, t)
+			path.append(at)
+		paths.append(path)
+		spots.append(at)
+	var knights: Array[int] = []
+	for i in spots.size():
+		knights.append(SHADOW_GROUP)
+	var name := "%s: %d rounds" % ["shadow alone" if debut else "shadow", paths.size()]
+	# Empty run after her: the next chain doesn't show while she's fought.
+	return {"enemies": spots, "knights": knights, "steps": "S(%d)" % paths.size(), "name": name, "shadow_paths": paths,
+		"tail": Rules.FORWARD * 2.0}
 
 
 ## A random chain for a generated level: a length from chain_length_range,
@@ -223,7 +291,9 @@ static func is_master_group(group: int) -> bool:
 ## _overlaps). The validator runs the full solver check on samples.
 ## knights = false: no knights in it (before her debut); ninjas = false: no
 ## ninjas (before his); masters = false: no masters.
-static func generate(level: int, rng: RandomNumberGenerator, knights := true, ninjas := true, masters := true) -> Dictionary:
+static func generate(level: int, rng: RandomNumberGenerator, knights := true, ninjas := true, masters := true, shadows := true) -> Dictionary:
+	if shadows and (force_shadows or rng.randf() < shadow_chance(level)):
+		return shadow_chain(level, rng)
 	var lengths := chain_length_range(level)
 	var chance := knight_chance(level) if knights else 0.0
 	var share := ninja_share(level) if ninjas else 0.0

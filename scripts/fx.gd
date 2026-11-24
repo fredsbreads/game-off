@@ -41,6 +41,10 @@ const BOLT_SHEETS_TINTED := {
 		Bolt.STRIKE: preload("res://assets/vfx/lightning_3_purple.png"),
 		Bolt.SPARKS: preload("res://assets/vfx/lightning_6_purple.png"),
 	},
+	"shadow": {   # the Shadow's: a black core, a pale lavender glow
+		Bolt.STRIKE: preload("res://assets/vfx/lightning_3_shadow.png"),
+		Bolt.SPARKS: preload("res://assets/vfx/lightning_6_shadow.png"),
+	},
 }
 
 
@@ -121,6 +125,16 @@ func kill_burst(pos: Vector2, combo: int) -> void:
 		_items.append({"kind": "particle", "t": 0.0, "life": randf_range(0.35, 0.65),
 			"pos": pos, "vel": dir * randf_range(150.0, 350.0 + 40.0 * c),
 			"color": KILL_COLORS[i % KILL_COLORS.size()]})
+
+
+## An explosion of shards from `pos`, every way at once (the Shadow's death,
+## her remnants'): `count` squares in `colors`, flung at speed_min-speed_max.
+func shards(pos: Vector2, colors: Array, count: int, speed_min := 200.0, speed_max := 600.0) -> void:
+	for i in count:
+		var dir := Vector2.from_angle(randf() * TAU)
+		_items.append({"kind": "particle", "t": 0.0, "life": randf_range(0.4, 0.9),
+			"pos": pos, "vel": dir * randf_range(speed_min, speed_max),
+			"color": colors[i % colors.size()]})
 
 
 ## A spray of blood from `pos`, flung mostly toward `dir_x` (+1 right, -1

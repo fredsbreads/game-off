@@ -16,6 +16,10 @@ uniform int white_part = 0;
 // arc tinted toward the outline colour (0..1, faded with `glint`).
 uniform int outline_px = 1;
 uniform float arc_tint = 0.0;
+// (The Shadow) a soft pale aura round her body, so she reads against the dark:
+// its colour (alpha 0 = none) and reach (pixels of the art).
+uniform vec4 aura_color = vec4(0.0);
+uniform float aura_px = 2.5;
 
 varying vec4 tint;
 
@@ -62,6 +66,21 @@ void fragment() {
 		}
 		float shimmer = 0.8 + 0.2 * sin(TIME * 9.0);
 		float a = n > 0.0 ? outline_color.a * glint * shimmer * tint.a : 0.0;
-		COLOR = vec4(accent(outline_color.rgb, SCREEN_UV.x), a);   // her colour (the knight's green stays)
+		vec4 outline = vec4(accent(outline_color.rgb, SCREEN_UV.x), a);   // her colour (the knight's green stays)
+		if (aura_color.a > 0.0 && a < 1.0) {
+			float d = 0.0;
+			for (int dy = -4; dy <= 4; dy++) {
+				for (int dx = -4; dx <= 4; dx++) {
+					float r2 = float(dx * dx + dy * dy);
+					if (r2 <= aura_px * aura_px) {
+						float s = part_alpha(texture(TEXTURE, UV + vec2(float(dx) * px.x, float(dy) * px.y)));
+						d = max(d, s * (1.0 - sqrt(r2) / (aura_px + 1.0)));
+					}
+				}
+			}
+			vec4 aura = vec4(aura_color.rgb, aura_color.a * d * tint.a);
+			outline = mix(aura, outline, a);
+		}
+		COLOR = outline;
 	}
 }

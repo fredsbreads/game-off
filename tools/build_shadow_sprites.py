@@ -1,7 +1,7 @@
 """Builds the Shadow's sprites (shadow.gd) from the player's: the same
 kunoichi in dark plum (like Celeste's dark Madeline: purple, not black;
-pale lavender skin), two red eyes, everything on one 170x170 frame (her attack canvas, her
-feet at (84, 123)), and her lightning (black core, red glow).
+pale lavender skin), two red eyes, her katana in hand and in her hair's plum, everything on one 170x170 frame (her attack canvas, her
+feet at (84, 123)), and her lightning (black core, pale lavender glow).
 
 Run from the repo root:  python3 tools/build_shadow_sprites.py
 """
@@ -20,10 +20,10 @@ RECOLOUR = {
     (122, 24, 34): (70, 26, 58),
     (255, 212, 194): (214, 206, 222),  # skin: pale lavender-white (the brightest part of her)
     (252, 167, 144): (168, 158, 182),
-    (133, 133, 133): (84, 84, 92),    # blade
+    (133, 133, 133): (112, 44, 92),   # blade: her hair's plum
     (6, 6, 8): (4, 3, 6),
-    (255, 255, 255): (186, 184, 196),  # blade shine (not pure white: white is read as a slash arc)
-    (255, 229, 38): (70, 64, 80),     # hilt: dark grey
+    (255, 255, 255): (168, 92, 146),  # blade shine: a lighter plum (not white: white is read as a slash arc)
+    (255, 229, 38): (70, 26, 58),     # hilt: her hair's dark plum
 }
 SKIN = {(255, 212, 194), (252, 167, 144)}
 EYE = (255, 36, 36)
@@ -90,11 +90,44 @@ def arc_layer(i, alpha=1.0):
     return arc
 
 
+# Her idle frames hold the katana (the player's: assets/sprites/katana.png)
+# in her hanging back hand, as the player holds it in her death fall
+# (player.gd: KATANA_HELD_ANGLE, KATANA_GRIP), behind her body.
+KATANA_ANGLE = 3.7   # radians, clockwise on screen: tip down and back
+KATANA_GRIP = 5.0    # pixels of hilt inside her hand
+
+
+def back_hand(frame):
+    """Her hanging back hand in a 96 idle frame: the lowest pixels left of her body."""
+    px = frame.load()
+    pts = [(x, y) for x in range(24, 37) for y in range(50, 66) if px[x, y][3] > 0]
+    low = max(y for _, y in pts)
+    xs = [x for x, y in pts if y == low]
+    return (sum(xs) / len(xs), low)
+
+
+FALL_HAND = (35, 56)   # her hand in the fall frames (player.gd FALL_HAND): she keeps the katana as she dies
+
+
+def with_katana(frame, hand=None):
+    import math
+    katana = recolour(Image.open("assets/sprites/katana.png"), eye=False)
+    hx, hy = hand if hand else back_hand(frame)
+    rotated = katana.rotate(-math.degrees(KATANA_ANGLE), resample=Image.NEAREST, expand=True)
+    half = katana.height / 2.0
+    bx, by = math.sin(KATANA_ANGLE), -math.cos(KATANA_ANGLE)   # hilt to tip
+    cx, cy = hx + bx * (half - KATANA_GRIP), hy + by * (half - KATANA_GRIP)
+    out = Image.new("RGBA", frame.size, (0, 0, 0, 0))
+    out.alpha_composite(rotated, (int(round(cx - rotated.width / 2.0)), int(round(cy - rotated.height / 2.0))))
+    out.alpha_composite(frame)
+    return out
+
+
 def main():
     sheet = Image.open("assets/sprites/kunoichi.png")
     poses = Image.open("assets/sprites/attack/poses.png")
-    idle = [on_canvas(recolour(small_frame(sheet, i)), IDLE_OFFSET) for i in range(6)]
-    fall = [on_canvas(recolour(small_frame(sheet, i)), IDLE_OFFSET) for i in range(5, 8)]
+    idle = [on_canvas(with_katana(recolour(small_frame(sheet, i))), IDLE_OFFSET) for i in range(6)]
+    fall = [on_canvas(with_katana(recolour(small_frame(sheet, i)), FALL_HAND), IDLE_OFFSET) for i in range(5, 8)]
     bare = [recolour(poses.crop((k * F, 0, (k + 1) * F, F))) for k in range(3)]
     # Swings: per pose, bare / with its arc / the arc fading.
     swings = []
@@ -107,8 +140,9 @@ def main():
     strip(idle).save(OUT + "idle.png")
     strip(fall).save(OUT + "fall.png")
     strip(swings).save(OUT + "swings.png")
-    # Her lightning: black core, red glow.
-    for name in ("lightning_3", "lightning_6"):
+    # Her lightning: black core, a pale lavender glow (her own glow's colour; not
+    # the player's red, so her blinks read as hers).
+    for name in ("lightning_3", "lightning_6"):   # (her strike, her sparks)
         img = Image.open("assets/vfx/%s.png" % name).convert("RGBA")
         px = img.load()
         for y in range(img.height):
@@ -117,9 +151,9 @@ def main():
                 if p[3] == 0:
                     continue
                 if p[:3] == (255, 255, 255):
-                    px[x, y] = (26, 8, 14, p[3])
+                    px[x, y] = (22, 10, 30, p[3])
                 else:
-                    px[x, y] = (190, 0, 16, p[3])
+                    px[x, y] = (196, 180, 232, p[3])
         img.save("assets/vfx/%s_shadow.png" % name)
 
 
