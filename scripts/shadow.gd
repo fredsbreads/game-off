@@ -43,7 +43,7 @@ const SHADOW_ART := {
 		[{"swing": 1, "gap": 2.9}],
 		[{"swing": 2, "gap": 1.9}],
 	],
-	"kill_distance": 3.1,
+	"kill_distance": 1.6,
 	"windup_anim": "stance", "windup_frame": 0,
 	"engaged_anim": "stance", "engaged_frame": 0,
 	"attack_start": 0,

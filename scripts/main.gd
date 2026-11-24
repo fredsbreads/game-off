@@ -209,6 +209,7 @@ const SHADOW_SETTLE := 0.15
 var _shadow_reveal := 0.0   # (this clash) seconds until she's done blinking
 var _shadow_finish := false   # the auto-chain's finish is on the Shadow (her own chain, not an auto-chain)
 var _felled_shadow: Shadow = null   # (this teleport) the Shadow it killed
+var _fooled_hold := false   # the Fooled beat: zoomed in on the wrong cut, input ignored
 const CLASH_ZOOM := 0.05   # how much closer a clash (and a teleporter's last hit) zooms at its peak (0.05 = 5 %)
 const CLASH_FLASH := Color(1, 1, 1, 0.11)
 const GREY_BRIDGE := 0.15   # the chain's grey holds this long after a freeze ends (her teleport to the next kill)
@@ -1113,6 +1114,8 @@ func _unhandled_input(event: InputEvent) -> void:
 				_request_fullscreen()
 				begin()
 		State.PLAYING:
+			if _fooled_hold:
+				return   # (the Fooled beat plays out)
 			if _auto or _finale_hold:
 				hud.auto_overlay.poke()   # (shows it's playing itself)
 				return   # the auto-chain plays itself
@@ -1366,7 +1369,7 @@ func _physics_process(delta: float) -> void:
 					_begin_hold("Combos Stop Time")
 			elif _lesson != Lesson.NONE and _hitstop <= 0.0 and _lesson_frame():
 				pass
-			elif _hitstop > 0.0 and not _auto and not _finale_hold and not _finishing and _ninja_strikes(false):
+			elif _hitstop > 0.0 and not _auto and not _finale_hold and not _finishing and not _fooled_hold and _ninja_strikes(false):
 				# Landed right in front of a ninja, too close to reach him: he comes at once.
 				_clear_pending()
 				_hitstop = 0.0
@@ -1456,7 +1459,7 @@ func _update_pause_visuals() -> void:
 		return
 	var paused := state == State.PLAYING and _hitstop > 0.0
 	var flashing := paused and INVERT_FLASH and _pause_elapsed < INVERT_TIME
-	var chain_pause := paused and (_pause_is_chain or _finishing or _finale_hold)   # the finishers too
+	var chain_pause := paused and (_pause_is_chain or _finishing or _finale_hold or _fooled_hold)   # the finishers too
 	# The grey stays on through her teleport between two kills of a chain
 	# (a few frames), so it doesn't blink off and on with every kill.
 	if chain_pause:
@@ -2697,10 +2700,14 @@ func _fooled_by(e: Enemy) -> bool:
 	return false
 
 
-## Struck the wrong one: the strike lands (a remnant is cut down, she takes
-## the hit), "FOOLED", and a beat later the nearest of hers jump the player:
-## two if two are in reach (from either side), else one; if none are, she does.
-const FOOLED_BEAT := 0.3
+## Struck the wrong one: the strike lands and the world stops, zoomed in on
+## it: the one she cut flashes and reels (FOOLED_SHOW), then, a remnant, it
+## shatters, "FOOLED" (she, hit, just reels). A beat later (FOOLED_BEAT) the
+## nearest of hers jump the player: two if two are in reach (from either side),
+## else one; if none are, she does.
+const FOOLED_SHOW := 0.5
+const FOOLED_BEAT := 0.35
+const FOOLED_ZOOM := 0.2
 func _fooled(k: Knight) -> void:
 	player.cooldown = 0
 	player.strike()
@@ -2709,21 +2716,31 @@ func _fooled(k: Knight) -> void:
 	var at := Vector2(k.tile_x * Rules.TILE, Rules.body_center_y(k.row))
 	fx.kill_burst(at, 3)
 	cam.shake(0.12, 8.0)
-	if k is Remnant:
-		k.die()
-		level.enemies.erase(k)
-		level.corpses.append(k)
-	else:
-		k.take_hit()
-	if chain > 0:
-		_end_chain("DROPPED", "FOOLED")
-	_hitstop = FOOLED_BEAT
-	_pause_min = FOOLED_BEAT
+	cam.hold_zoom(at, FOOLED_ZOOM, 12.0, 0.5)
+	k.take_hit()
+	var cut := k as Remnant
+	if cut:
+		cut.alive = false   # (not one of those that jump the player)
+		level.enemies.erase(cut)
+		level.corpses.append(cut)
+	_clear_pending()
+	_fooled_hold = true
+	_hitstop = FOOLED_SHOW + FOOLED_BEAT
+	_pause_min = _hitstop
 	_pause_is_chain = false
 	_pause_elapsed = 0.0
 	var t := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_STOP)
+	t.tween_interval(FOOLED_SHOW)
+	t.tween_callback(func() -> void:
+		if cut:
+			cut.alive = true   # (die() wants it standing)
+			cut.die()
+			cam.shake(0.1, 6.0)
+		if chain > 0:
+			_end_chain("DROPPED", "FOOLED"))
 	t.tween_interval(FOOLED_BEAT)
 	t.tween_callback(func() -> void:
+		_fooled_hold = false
 		if state != State.PLAYING:
 			return
 		_knights_strike(_fooled_attackers(sh)))
