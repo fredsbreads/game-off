@@ -2769,32 +2769,40 @@ func _fooled(k: Knight) -> void:
 		_knights_strike(_fooled_attackers(sh)))
 
 
-## Hers that jump the player (fooled, or a dropped chain in her fight): she
-## and her remnants alike, any still standing: the nearest two within one
-## teleport of the player (ahead or behind, either row), else the nearest one
-## wherever it is. Any not yet shown (the player moved during her blinks) are
-## shown as they strike.
+## Who jumps the player in the Shadow's fight (fooled, or a dropped chain):
+## she and her remnants alike, any still standing within one teleport of the
+## player (ahead or behind, either row), and any other teleporter that would
+## come for the player anyway (_strikers: a master or ninja watching, a knight
+## across...). The nearest two of all of them; if none, the nearest of hers
+## wherever she is. Any of hers not yet shown (the player moved during her
+## blinks) are shown as they strike.
 func _fooled_attackers(sh: Shadow) -> Array[Knight]:
 	var out: Array[Knight] = []
 	if not is_instance_valid(sh):
-		return out
-	var left: Array = []
+		return _strikers()
+	var hers: Array = []
 	for r in sh.remnants:
 		if is_instance_valid(r) and r.alive:
-			left.append(r)
+			hers.append(r)
 	if sh.alive:
-		left.append(sh)
-	if left.is_empty():
-		return out
-	left.sort_custom(func(a: Knight, b: Knight) -> bool: return absf(a.tile_x - player.x) < absf(b.tile_x - player.x))
+		hers.append(sh)
+	var near := func(a: Knight, b: Knight) -> bool: return absf(a.tile_x - player.x) < absf(b.tile_x - player.x)
+	hers.sort_custom(near)
 	var reach := Rules.FORWARD + Rules.kill_zone(Rules.Move.FORWARD).y
-	for r in left:
-		if out.size() < 2 and absf(r.tile_x - player.x) < reach:
-			out.append(r)
-	if out.is_empty():
-		out.append(left[0])
-	for r in out:
-		r.visible = true
+	var all: Array = []
+	for r in hers:
+		if absf(r.tile_x - player.x) < reach:
+			all.append(r)
+	for k in _strikers():
+		if not all.has(k):
+			all.append(k)
+	all.sort_custom(near)
+	for k in all.slice(0, 2):
+		out.append(k)
+	if out.is_empty() and not hers.is_empty():
+		out.append(hers[0])
+	for k in out:
+		k.visible = true
 	return out
 
 
