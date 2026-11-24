@@ -65,8 +65,12 @@ var bolt_alpha := 1.0   # lightning fades with her as she dissolves
 ## `first`: start at this frame (to play only the end of an animation).
 ## `hold`: a frame to stay on for `hold_time` seconds before playing on
 ## (-1: none).
-func bolt(kind: int, pos: Vector2, angle := 0.0, size := Vector2.ONE, fps := 20.0, first := 0, green: Variant = false, hold := -1, hold_time := 0.0) -> void:
+func bolt(kind: int, pos: Vector2, angle := 0.0, size := Vector2.ONE, fps := 20.0, first := 0, green: Variant = false, hold := -1, hold_time := 0.0, rows := Vector2.ZERO) -> void:
 	var s := _bolt_sprite(kind, pos, angle, size, green)
+	if rows != Vector2.ZERO:
+		# Only these pixel rows of its frames are drawn (from rows.x to rows.y).
+		s.region_enabled = true
+		s.region_rect = Rect2(0.0, rows.x, s.texture.get_width(), rows.y - rows.x)
 	s.frame = first
 	_items.append({"kind": "anim", "t": 0.0, "node": s, "fps": fps, "first": first,
 		"frames": BOLT_FRAMES[kind] - first, "hold": hold - first if hold >= 0 else -1, "hold_time": hold_time})

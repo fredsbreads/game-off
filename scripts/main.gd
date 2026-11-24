@@ -1830,11 +1830,20 @@ func _finisher_strike(k: Enemy, to_x: float, face: float, pose: int, grade: Stri
 ## `hold`: seconds the bolt stays at full strength before it fades (the last
 ## one stays up through her colour change).
 func _finisher_bolt(hold := 0.0) -> void:
+	_row_bolt(FINISHER_BOLT_SIZE, _fin_bolt_fps, BIG_STRIKE_FULL_FRAME if hold > 0.0 else -1, hold)
+
+
+## The big bolt from the other row down onto her (up onto her from the floor
+## when she's on the ceiling), its burst at her feet: cut off at both rows,
+## so none of it goes past the floor or the ceiling.
+func _row_bolt(size: Vector2, fps: float, hold := -1, hold_time := 0.0) -> void:
 	var feet := Vector2(player.x * Rules.TILE, Rules.surface_y(player.row))
 	var up := -1.0 if player.row == Rules.Row.FLOOR else 1.0   # toward the other row
-	var centre := feet + Vector2(0, up * (BIG_STRIKE_BURST_Y - 128.0) * FINISHER_BOLT_SIZE.y)
-	fx.bolt(Fx.Bolt.BIG_STRIKE, centre, 0.0 if player.row == Rules.Row.FLOOR else PI, FINISHER_BOLT_SIZE, _fin_bolt_fps,
-		0, false, BIG_STRIKE_FULL_FRAME if hold > 0.0 else -1, hold)
+	var bottom := BIG_STRIKE_BURST_Y   # (her row: the burst's line)
+	var top := maxf(0.0, bottom - Rules.ROW_GAP * Rules.TILE / size.y)   # (the other row)
+	var centre := feet + Vector2(0, up * (bottom - (top + bottom) / 2.0) * size.y)
+	fx.bolt(Fx.Bolt.BIG_STRIKE, centre, 0.0 if player.row == Rules.Row.FLOOR else PI, size, fps,
+		0, false, hold, hold_time, Vector2(top, bottom))
 
 
 ## The sweep is done: she's pink, with a flash, and the chain ends (the
@@ -2058,9 +2067,7 @@ func _auto_finale_strike(grade: String, k: Enemy) -> void:
 		player.x = _finale_home_x
 	if state != State.PLAYING:
 		return
-	var feet := Vector2(player.x * Rules.TILE, Rules.surface_y(player.row))
-	var up := -1.0 if player.row == Rules.Row.FLOOR else 1.0
-	fx.bolt(Fx.Bolt.BIG_STRIKE, feet + Vector2(0, up * (BIG_STRIKE_BURST_Y - 128.0) * 2.0), 0.0 if player.row == Rules.Row.FLOOR else PI, Vector2(1.8, 2.0), 7.0)
+	_row_bolt(Vector2(1.8, 2.0), 7.0)
 	var body := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row))
 	fx.bolt(Fx.Bolt.RING, body, randf() * TAU, Vector2.ONE * 3.2, 12.0)
 	player.zap_fx.zap(body, 12, Vector2.ZERO, Vector2(36, 54), 10)
