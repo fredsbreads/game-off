@@ -457,6 +457,57 @@ func slash(her_x: float, side := 1.0) -> void:
 	_slashing = true
 
 
+# (The Shadow's, her remnants') death: pushed back, tips, and fizzles out in
+# lavender blocks (the player's own dissolve).
+const DISSOLVE_SHADER := preload("res://shaders/dissolve.gdshader")
+const DEATH_PUSH := Vector2(150, -50)   # pixels/s (away from the player), slowing down
+const DEATH_TILT := 0.35
+var _dissolve_delay := -1.0   # < 0: not dissolving
+var _dissolve_time := 1.0
+var _dissolve_t := 0.0
+var _push := Vector2.ZERO
+var _push_early := false   # pushed from the start (not only once fizzling)
+
+
+## Fizzle out: after `delay` seconds, over `time`, pushed away (`away`: 1
+## to the right, -1 to the left) at `push` times the usual speed.
+func dissolve_out(delay: float, time: float, away := 1.0, push := 1.0, push_early := false) -> void:
+	if _dissolve_delay >= 0.0 or not visible:
+		return   # (already going)
+	_dissolve_delay = delay
+	_dissolve_time = time
+	_dissolve_t = 0.0
+	_push_early = push_early
+	_push = Vector2(DEATH_PUSH.x * away, DEATH_PUSH.y * (-1.0 if row == Rules.Row.CEILING else 1.0)) * push
+	var m := ShaderMaterial.new()
+	m.shader = DISSOLVE_SHADER
+	m.set_shader_parameter("edge_hot", Color(0.95, 0.92, 1.0))
+	m.set_shader_parameter("edge_red", Color(0.77, 0.7, 0.91))   # (her lightning's lavender)
+	if _sprite:
+		_sprite.material = m
+	_material = null   # (no glow now)
+
+
+func _update_dissolve(delta: float) -> void:
+	if _dissolve_delay < 0.0 or _sprite == null:
+		return
+	_dissolve_t += delta
+	var m := _sprite.material as ShaderMaterial
+	if _dissolve_t < _dissolve_delay and not _push_early:
+		return   # (the body, clear, until it fizzles)
+	_push *= exp(-3.0 * delta)
+	position += _push * delta
+	if _dissolve_t < _dissolve_delay:
+		return
+	var t := _dissolve_t - _dissolve_delay
+	rotation = lerpf(rotation, DEATH_TILT * scale.y * signf(_push.x if _push.x != 0.0 else 1.0), 1.0 - exp(-4.0 * delta))
+	var amount := clampf(t / _dissolve_time, 0.0, 1.0)
+	m.set_shader_parameter("amount", amount)
+	if amount >= 1.0:
+		visible = false
+		_dissolve_delay = -1.0
+
+
 ## (Before the killing blow) which swing it is: the art's "kill" (the
 ## Shadow's override picks one of two).
 func _pick_kill() -> void:
@@ -567,6 +618,7 @@ func _jagged(a: Vector2, b: Vector2, n: int, jag: float) -> PackedVector2Array:
 
 func _process(delta: float) -> void:
 	_bolt_timer -= delta
+	_update_dissolve(delta)
 	_update_next()
 	_update_thread(delta)
 	if _arc and _sprite:

@@ -123,7 +123,6 @@ func _process(delta: float) -> void:
 	super._process(delta)
 	_glow_t += delta
 	glow(_material, _glow_t, 1.0 if alive else 0.0)
-	_update_dissolve(delta)
 
 
 ## Her glow on a sprite's material (hers, a remnant's): pale, flickering.
@@ -135,59 +134,11 @@ static func glow(mat: ShaderMaterial, t: float, strength: float) -> void:
 	mat.set_shader_parameter("aura_px", GLOW_PX + 0.8 * sin(t * 3.1))
 
 
-# Her death (Shadow.fall, at the end of main.gd's finish on her): she's pushed
-# back, tips, and fizzles out in lavender blocks (the player's own dissolve).
-const DISSOLVE_SHADER := preload("res://shaders/dissolve.gdshader")
-const DEATH_PUSH := Vector2(150, -50)   # pixels/s (away from the player), slowing down
-const DEATH_TILT := 0.35
-var _dissolve_delay := -1.0   # < 0: not dissolving
-var _dissolve_time := 1.0
-var _dissolve_t := 0.0
-var _push := Vector2.ZERO
-var _fx: Fx
-
-
-## Fizzle out: after `delay` seconds, over `time`.
-func dissolve_out(delay: float, time: float, fx: Fx) -> void:
-	if _dissolve_delay >= 0.0 or not visible:
-		return   # (already going)
-	_dissolve_delay = delay
-	_dissolve_time = time
-	_dissolve_t = 0.0
-	_fx = fx
-	_push = Vector2(DEATH_PUSH.x, DEATH_PUSH.y * (-1.0 if row == Rules.Row.CEILING else 1.0))
-	var m := ShaderMaterial.new()
-	m.shader = DISSOLVE_SHADER
-	m.set_shader_parameter("edge_hot", Color(0.95, 0.92, 1.0))
-	m.set_shader_parameter("edge_red", Color(0.77, 0.7, 0.91))   # (her lightning's lavender)
-	if _sprite:
-		_sprite.material = m
-	_material = null   # (no glow on her now)
-
-
-func _update_dissolve(delta: float) -> void:
-	if _dissolve_delay < 0.0 or _sprite == null:
-		return
-	_dissolve_t += delta
-	var m := _sprite.material as ShaderMaterial
-	if _dissolve_t < _dissolve_delay:
-		return   # (her body, clear, until she fizzles)
-	var t := _dissolve_t - _dissolve_delay
-	_push *= exp(-3.0 * delta)
-	position += _push * delta
-	rotation = lerpf(rotation, DEATH_TILT * scale.y, 1.0 - exp(-4.0 * delta))
-	var amount := clampf(t / _dissolve_time, 0.0, 1.0)
-	m.set_shader_parameter("amount", amount)
-	if amount >= 1.0:
-		visible = false
-		_dissolve_delay = -1.0
-
-
 ## (A finisher's last strike) she falls: and fizzles out.
 func fall() -> void:
 	super.fall()
 	var main := get_tree().current_scene
-	dissolve_out(0.2, 0.6, main.get("fx") if main else null)
+	dissolve_out(0.2, 0.6)
 
 
 ## A remnant bursts: shards of her colours every way.

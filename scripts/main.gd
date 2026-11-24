@@ -2717,13 +2717,15 @@ func _fooled_by(e: Enemy) -> bool:
 
 
 ## Struck the wrong one: the strike lands and the world stops, zoomed in on
-## it: the one she cut flashes and reels (FOOLED_SHOW), then, a remnant, it
-## shatters, "FOOLED" (she, hit, just reels). A beat later (FOOLED_BEAT) the
-## nearest of hers jump the player: two if two are in reach (from either side),
-## else one; if none are, she does.
+## it: the one she cut (a remnant, or she herself) flashes and reels, knocked
+## back away from the player (FOOLED_SHOW), then falls and fizzles out,
+## "FOOLED". A beat later (FOOLED_BEAT) hers jump the player
+## (_fooled_attackers).
 const FOOLED_SHOW := 0.5
 const FOOLED_BEAT := 0.35
 const FOOLED_ZOOM := 0.2
+const FOOLED_FIZZLE := 0.8   # seconds it takes to fizzle out
+const FOOLED_PUSH := 2.5     # its knock-back, times her death's push (about two tiles)
 func _fooled(k: Knight) -> void:
 	player.cooldown = 0
 	player.strike()
@@ -2733,12 +2735,14 @@ func _fooled(k: Knight) -> void:
 	fx.kill_burst(at, 3)
 	cam.shake(0.12, 8.0)
 	cam.hold_zoom(at, FOOLED_ZOOM, 12.0, 0.5)
+	k.visible = true
 	k.take_hit()
-	var cut := k as Remnant
-	if cut:
-		cut.alive = false   # (not one of those that jump the player)
-		level.enemies.erase(cut)
-		level.corpses.append(cut)
+	var away := 1.0 if k.tile_x >= player.x else -1.0
+	k.dissolve_out(FOOLED_SHOW, FOOLED_FIZZLE, away, FOOLED_PUSH, true)
+	if k is Remnant:
+		k.alive = false   # (not one of those that jump the player)
+		level.enemies.erase(k)
+		level.corpses.append(k)
 	_clear_pending()
 	_fooled_hold = true
 	_hitstop = FOOLED_SHOW + FOOLED_BEAT
@@ -2748,10 +2752,9 @@ func _fooled(k: Knight) -> void:
 	var t := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_STOP)
 	t.tween_interval(FOOLED_SHOW)
 	t.tween_callback(func() -> void:
-		if cut:
-			cut.alive = true   # (die() wants it standing)
-			cut.die()
-			cam.shake(0.1, 6.0)
+		if is_instance_valid(k):
+			k.fall()   # (falls as it fizzles)
+		cam.shake(0.1, 6.0)
 		if chain > 0:
 			_end_chain("DROPPED", "FOOLED"))
 	t.tween_interval(FOOLED_BEAT)
@@ -2763,8 +2766,9 @@ func _fooled(k: Knight) -> void:
 
 
 ## Hers that jump a player who's been fooled: her remnants still standing
-## (never her while any are: she waits at her spot), the nearest two within a
-## teleport's reach, else the nearest one wherever it is. Only if none are
+## (never her while any are: she waits at her spot), the nearest two within
+## one teleport of the player (ahead or behind), else the nearest one wherever
+## it is. Only if none are
 ## left, she does. Any not yet shown (the player moved during her blinks) are
 ## shown as they strike.
 func _fooled_attackers(sh: Shadow) -> Array[Knight]:
@@ -2780,9 +2784,11 @@ func _fooled_attackers(sh: Shadow) -> Array[Knight]:
 			out.append(sh)
 		return out
 	left.sort_custom(func(a: Knight, b: Knight) -> bool: return absf(a.tile_x - player.x) < absf(b.tile_x - player.x))
-	var reach := Rules.FORWARD + Rules.STRIKE_OFFSET
+	# In reach: within one teleport of the player, ahead or behind, either
+	# row (as far as a forward teleport's far kill-zone edge).
+	var reach := Rules.FORWARD + Rules.kill_zone(Rules.Move.FORWARD).y
 	for r in left:
-		if out.size() < 2 and absf(r.tile_x - player.x) <= reach:
+		if out.size() < 2 and absf(r.tile_x - player.x) < reach:
 			out.append(r)
 	if out.is_empty():
 		out.append(left[0])
