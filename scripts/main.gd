@@ -127,7 +127,6 @@ const FINISHER_BOLT_FPS := 4.5
 const FINISHER_BOLT_SIZE := Vector2(1.2, 1.4)
 const BIG_STRIKE_BURST_Y := 225.0   # pixels down its frame where the ground burst is
 const BIG_STRIKE_FULL_FRAME := 2     # its frame with the whole bolt and the sparks
-const BIG_STRIKE_ART := Vector2(9.0, 243.0)   # the rows of its frames (of 256) that the bolt reaches, top to bottom
 const FINISHER_SWEEP_AFTER := 0.3  # on the last pose, this long before the colour sweeps
 const FINISHER_SWEEP_TIME := 1.1   # her new colour sweeps across the screen, right to left, over this long
 const FINISHER_HOLD := 0.8         # after the level-up, the freeze frame holds this long
@@ -1849,19 +1848,17 @@ func _finisher_strike(k: Enemy, to_x: float, face: float, pose: int, grade: Stri
 ## `hold`: seconds the bolt stays at full strength before it fades (the last
 ## one stays up through her colour change).
 func _finisher_bolt(hold := 0.0) -> void:
-	_row_bolt(FINISHER_BOLT_SIZE.x, _fin_bolt_fps, BIG_STRIKE_FULL_FRAME if hold > 0.0 else -1, hold)
+	_row_bolt(FINISHER_BOLT_SIZE, _fin_bolt_fps, BIG_STRIKE_FULL_FRAME if hold > 0.0 else -1, hold)
 
 
-## The big bolt from the other row down onto her (up onto her from the floor
-## when she's on the ceiling): the whole of it, sized to fill the gap between
-## the floor and the ceiling exactly (`width`: how wide), so none of it goes
-## past either.
-func _row_bolt(width: float, fps: float, hold := -1, hold_time := 0.0) -> void:
+## The big bolt down onto her (up onto her from the floor when she's on the
+## ceiling), its burst at her feet, at `size` (it reaches past the rows: the
+## bigger the hit, the bigger it is).
+func _row_bolt(size: Vector2, fps: float, hold := -1, hold_time := 0.0) -> void:
 	var feet := Vector2(player.x * Rules.TILE, Rules.surface_y(player.row))
 	var up := -1.0 if player.row == Rules.Row.FLOOR else 1.0   # toward the other row
-	var sy := Rules.ROW_GAP * Rules.TILE / (BIG_STRIKE_ART.y - BIG_STRIKE_ART.x)
-	var centre := feet + Vector2(0, up * (BIG_STRIKE_ART.y - 128.0) * sy)   # (its lowest pixels on her row)
-	fx.bolt(Fx.Bolt.BIG_STRIKE, centre, 0.0 if player.row == Rules.Row.FLOOR else PI, Vector2(width, sy), fps,
+	var centre := feet + Vector2(0, up * (BIG_STRIKE_BURST_Y - 128.0) * size.y)
+	fx.bolt(Fx.Bolt.BIG_STRIKE, centre, 0.0 if player.row == Rules.Row.FLOOR else PI, size, fps,
 		0, false, hold, hold_time)
 
 
@@ -2086,7 +2083,7 @@ func _auto_finale_strike(grade: String, k: Enemy) -> void:
 		player.x = _finale_home_x
 	if state != State.PLAYING:
 		return
-	_row_bolt(1.8, 7.0)
+	_row_bolt(Vector2(1.8, 2.0), 7.0)
 	var body := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row))
 	fx.bolt(Fx.Bolt.RING, body, randf() * TAU, Vector2.ONE * 3.2, 12.0)
 	player.zap_fx.zap(body, 12, Vector2.ZERO, Vector2(36, 54), 10)
