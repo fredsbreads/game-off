@@ -21,7 +21,7 @@ const IDLE_FPS := 10.0
 const DEATH_FPS := 16.0
 const ATTACK_FPS := 14.0
 const HIT_FPS := 12.0
-const REEL_FRAME := 1   # his death's stagger: held between finisher strikes
+const REEL_FRAME := 2   # his death's stumble (sword dropping): held between finisher strikes
 const HIT_FIT := 0.8   # a take-hit squeezed between quick strikes takes this much of the gap
 # Start the attack on the slash frame, so it lands right as she touches him (the first
 # frames are a wind-up).
@@ -219,7 +219,7 @@ func _on_animation_finished() -> void:
 		_sprite.play("idle")
 	elif _sprite.animation == "hit" and not self is Knight:
 		# (the grunt) his take-hit ends standing up straight: instead he's held
-		# reeling (his death's second frame: the first is still upright) until
+		# reeling (his death's stumble: its first frames are still upright) until
 		# the next strike or his fall.
 		_sprite.play("death")
 		_sprite.frame = REEL_FRAME
