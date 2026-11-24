@@ -1727,6 +1727,11 @@ func _teleport(move: int) -> void:
 		if _pause_is_chain:
 			if not _clashed and not _knight_felled:   # those have their own, bigger zoom
 				cam.punch(to)
+			if _felled_shadow:
+				# The Shadow cut down mid-chain: she falls and fizzles out
+				# (her finale is only when she ends the chain).
+				_felled_shadow.fall()
+				_felled_shadow = null
 			_chain_awaiting = true
 			_pressed_during_pause = false
 		else:

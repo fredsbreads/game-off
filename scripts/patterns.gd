@@ -87,16 +87,17 @@ const MASTER_FULL_LEVEL := 20
 const NINJA_GROUP := 1000
 const MASTER_GROUP := 2000
 const SHADOW_GROUP := 3000   # (the Shadow: none of the others' rules)
-# The Shadow (see shadow.gd): her own chain, alone. Her debut level opens
-# with her; after it, a generated chain is hers with SHADOW_CHANCE, rising by
-# SHADOW_CHANCE_STEP a level up to SHADOW_CHANCE_MAX. She fights in rounds
-# (three at her debut, then two or three): each round she blinks SHADOW_BLINKS_MIN-MAX times
+const SHADOW_ENTRY := -9999  # (generate's hits: her slot)
+# The Shadow (see shadow.gd): her debut level opens with her, alone. She
+# fights in rounds: each round she blinks SHADOW_BLINKS_MIN-MAX times
 # through the three columns on screen (each a move the player could make),
 # leaving a remnant on every spot but the last, where she waits.
 const SHADOW_DEBUT_LEVEL := 20
-const SHADOW_CHANCE := 0.1
-const SHADOW_CHANCE_STEP := 0.02
-const SHADOW_CHANCE_MAX := 0.25
+# After her debut (alone) she's in a generated chain with SHADOW_CHANCE (at
+# most once), anywhere in it, always SHADOW_CHAIN_ROUNDS rounds; her fight's
+# cuts count towards the chain's length.
+const SHADOW_CHANCE := 0.2
+const SHADOW_CHAIN_ROUNDS := 3
 const SHADOW_BLINKS_MIN := 4
 const SHADOW_BLINKS_MAX := 5
 ## (Testing) every generated chain is the Shadow's.
@@ -233,11 +234,11 @@ static func is_shadow_group(group: int) -> bool:
 	return group >= SHADOW_GROUP
 
 
-## The chance that a generated chain is the Shadow's (after her debut).
+## The chance that a generated chain has the Shadow in it (after her debut).
 static func shadow_chance(level: int) -> float:
 	if level <= SHADOW_DEBUT_LEVEL:
 		return 0.0
-	return minf(SHADOW_CHANCE + SHADOW_CHANCE_STEP * (level - SHADOW_DEBUT_LEVEL - 1), SHADOW_CHANCE_MAX)
+	return SHADOW_CHANCE
 
 
 ## The Shadow's chain: her spots, one a round apart (where you first clash
@@ -246,16 +247,49 @@ static func shadow_chance(level: int) -> float:
 ## her remnants), each one move on from the one before, never back. Relative
 ## to her first spot, like `enemies`.
 static func shadow_chain(level: int, rng: RandomNumberGenerator, debut := false) -> Dictionary:
-	var spots: Array[Vector2] = [Vector2(0, 0)]
-	var paths: Array = []
 	# Rounds: three the first time (her debut); after that, two or three.
 	var rounds := SHADOW_DEBUT_ROUNDS if debut else rng.randi_range(SHADOW_ROUNDS_MIN, SHADOW_ROUNDS_MAX)
+	var fight := shadow_rounds(Vector2(0, 0), shadow_blinks(rounds, rng), rng)
+	var spots: Array[Vector2] = [Vector2(0, 0)]
+	spots.append_array(fight["spots"])
+	var knights: Array[int] = []
+	for i in spots.size():
+		knights.append(SHADOW_GROUP)
+	var name := "%s: %d rounds" % ["shadow alone" if debut else "shadow", rounds]
+	# Empty run after her: the next chain doesn't show while she's fought.
+	return {"enemies": spots, "knights": knights, "steps": "S(%d)" % rounds, "name": name, "shadow_paths": fight["paths"],
+		"tail": Rules.FORWARD * 2.0}
+
+
+## Her blinks for each of `rounds` rounds (SHADOW_BLINKS_MIN-MAX each).
+static func shadow_blinks(rounds: int, rng: RandomNumberGenerator) -> Array[int]:
+	var out: Array[int] = []
 	for r in rounds:
-		var blinks := rng.randi_range(SHADOW_BLINKS_MIN, SHADOW_BLINKS_MAX)
-		# Three columns: an across in each (optional), a forward or diagonal
-		# between them; as many acrosses as the blinks leave room for.
+		out.append(rng.randi_range(SHADOW_BLINKS_MIN, SHADOW_BLINKS_MAX))
+	return out
+
+
+## The cuts her fight takes (for a chain's length): the first clash, then
+## every blink (each remnant, and her at the round's end).
+static func shadow_cuts(blinks: Array[int]) -> int:
+	var n := 1
+	for b in blinks:
+		n += b
+	return n
+
+
+## Her rounds from `start` (where she's first clashed with): {spots: where
+## each round ends, paths: each round's blinks (the last is where she waits;
+## the others get her remnants)}, each one move on from the one before, never
+## back. Three columns a round: an across in each (optional), a forward or
+## diagonal between them; as many acrosses as the blinks leave room for.
+static func shadow_rounds(start: Vector2, blinks: Array[int], rng: RandomNumberGenerator) -> Dictionary:
+	var spots: Array[Vector2] = []
+	var paths: Array = []
+	var at := start
+	for b in blinks:
 		var acrosses := [true, true, true]
-		if blinks == 4:
+		if b == 4:
 			acrosses[rng.randi_range(0, 2)] = false
 		var tokens: Array[String] = []
 		for c in 3:
@@ -264,19 +298,12 @@ static func shadow_chain(level: int, rng: RandomNumberGenerator, debut := false)
 			if c < 2:
 				tokens.append(["F", "D"][rng.randi_range(0, 1)])
 		var path: Array[Vector2] = []
-		var at: Vector2 = spots.back()
 		for t in tokens:
 			at = _apply(at, t)
 			path.append(at)
 		paths.append(path)
 		spots.append(at)
-	var knights: Array[int] = []
-	for i in spots.size():
-		knights.append(SHADOW_GROUP)
-	var name := "%s: %d rounds" % ["shadow alone" if debut else "shadow", paths.size()]
-	# Empty run after her: the next chain doesn't show while she's fought.
-	return {"enemies": spots, "knights": knights, "steps": "S(%d)" % paths.size(), "name": name, "shadow_paths": paths,
-		"tail": Rules.FORWARD * 2.0}
+	return {"spots": spots, "paths": paths}
 
 
 ## A random chain for a generated level: a length from chain_length_range,
@@ -292,17 +319,20 @@ static func shadow_chain(level: int, rng: RandomNumberGenerator, debut := false)
 ## knights = false: no knights in it (before her debut); ninjas = false: no
 ## ninjas (before his); masters = false: no masters.
 static func generate(level: int, rng: RandomNumberGenerator, knights := true, ninjas := true, masters := true, shadows := true) -> Dictionary:
-	if shadows and (force_shadows or rng.randf() < shadow_chance(level)):
-		return shadow_chain(level, rng)
 	var lengths := chain_length_range(level)
 	var chance := knight_chance(level) if knights else 0.0
 	var share := ninja_share(level) if ninjas else 0.0
 	var mshare := master_share(level) if masters else 0.0
+	var with_shadow := shadows and (force_shadows or rng.randf() < shadow_chance(level))
 	for _attempt in 40:
 		var n := rng.randi_range(lengths.x, lengths.y)
 		# Spend n spots: a plain enemy takes one, a knight her hits.
 		var hits: Array[int] = []   # per enemy: 1, or a knight's hits (negative: a ninja's)
 		var left := n
+		var shadow_blinks_: Array[int] = []   # (the Shadow's, if she's in it)
+		if with_shadow:
+			shadow_blinks_ = shadow_blinks(SHADOW_CHAIN_ROUNDS, rng)
+			left = maxi(left - shadow_cuts(shadow_blinks_), 0)
 		while left > 0:
 			if left >= Rules.KNIGHT_HITS_MIN and rng.randf() < chance:
 				# A master (5-6 hits), a ninja (4-5) or a knight (3-4), each only
@@ -322,7 +352,9 @@ static func generate(level: int, rng: RandomNumberGenerator, knights := true, ni
 			else:
 				hits.append(1)
 				left -= 1
-		var built := _build(hits, rng, PAIR_CHANCE)
+		if with_shadow:
+			hits.insert(rng.randi_range(0, hits.size()), SHADOW_ENTRY)   # (anywhere in it)
+		var built := _build(hits, rng, PAIR_CHANCE, shadow_blinks_)
 		if not built.is_empty():
 			built["name"] = "generated L%d: %s" % [level, built["steps"]]
 			return built
@@ -367,19 +399,38 @@ static func ninja_alone(rng: RandomNumberGenerator) -> Dictionary:
 ## Lays out one chain: `hits` has one entry per enemy, 1 for a plain enemy or
 ## a knight's number of hits (minus it: a ninja's). Returns {} if the random
 ## steps put two things in one spot.
-static func _build(hits: Array[int], rng: RandomNumberGenerator, pair_chance := 0.0) -> Dictionary:
+static func _build(hits: Array[int], rng: RandomNumberGenerator, pair_chance := 0.0, shadow_blinks_: Array[int] = []) -> Dictionary:
 	var enemies: Array[Vector2] = []
 	var knights: Array[int] = []
 	var tokens: PackedStringArray = []
 	var next_group := {"knight": 0, "ninja": NINJA_GROUP, "master": MASTER_GROUP}
+	var taken: Array[Vector2] = []   # her remnants' spots (nothing else may go there)
+	var paths: Array = []
 	var i := 0
 	while i < hits.size():
 		if i > 0:
-			var token := _free_step(GENERATED_STEPS, enemies, rng)
+			var token := _free_step(GENERATED_STEPS, enemies, rng, taken)
 			enemies.append(_apply(enemies.back(), token))
 			tokens.append(token)
 		else:
 			enemies.append(Vector2(0, 0))
+		if hits[i] == SHADOW_ENTRY:
+			# The Shadow: her rounds from here, a spot where each one ends.
+			var fight := shadow_rounds(enemies.back(), shadow_blinks_, rng)
+			knights.append(SHADOW_GROUP)
+			for spot in fight["spots"]:
+				if enemies.has(spot):
+					return {}
+				enemies.append(spot)
+				knights.append(SHADOW_GROUP)
+			paths = fight["paths"]
+			for path in paths:
+				for spot in path:
+					if spot != path.back():
+						taken.append(spot)
+			tokens.append("S(%d)" % shadow_blinks_.size())
+			i += 1
+			continue
 		if absi(hits[i]) <= 1:
 			knights.append(-1)
 			i += 1
@@ -389,7 +440,7 @@ static func _build(hits: Array[int], rng: RandomNumberGenerator, pair_chance := 
 		# Two teleporters side by side: sometimes their duels interleave (her
 		# spots and his alternate, each one step from the last), so while one
 		# blinks away the other's standing there to hit.
-		if i + 1 < hits.size() and absi(hits[i + 1]) > 1 and rng.randf() < pair_chance:
+		if i + 1 < hits.size() and absi(hits[i + 1]) > 1 and hits[i + 1] != SHADOW_ENTRY and rng.randf() < pair_chance:
 			var b := _teleporter(hits[i + 1], next_group)
 			tokens.append("P(" + a["label"] + b["label"])
 			var token := _free_step(GENERATED_STEPS, enemies, rng)
@@ -429,7 +480,13 @@ static func _build(hits: Array[int], rng: RandomNumberGenerator, pair_chance := 
 		i += 1
 	if _overlaps(enemies, knights) or _strands_by_knight(enemies, knights):
 		return {}
-	return {"enemies": enemies, "knights": knights, "steps": " ".join(tokens)}
+	for spot in taken:
+		if enemies.has(spot):
+			return {}   # (an earlier enemy on one of her remnants' spots)
+	var out := {"enemies": enemies, "knights": knights, "steps": " ".join(tokens)}
+	if not paths.is_empty():
+		out["shadow_paths"] = paths
+	return out
 
 
 ## A blink one move from the chain's last spot that's also one move from
@@ -463,10 +520,11 @@ static func _teleporter(entry: int, next_group: Dictionary) -> Dictionary:
 ## A random step from `steps` that lands on a spot not used yet in the chain
 ## (in practice: no across right after an across). F and D always move on,
 ## so there's always one.
-static func _free_step(steps: Array, used: Array[Vector2], rng: RandomNumberGenerator) -> String:
+static func _free_step(steps: Array, used: Array[Vector2], rng: RandomNumberGenerator, taken: Array[Vector2] = []) -> String:
 	var free: Array = []
 	for token in steps:
-		if not used.has(_apply(used.back(), token)):
+		var spot := _apply(used.back(), token)
+		if not used.has(spot) and not taken.has(spot):
 			free.append(token)
 	if free.is_empty():
 		return steps[rng.randi_range(0, steps.size() - 1)]
@@ -493,7 +551,7 @@ static func _strands_by_knight(enemies: Array[Vector2], knights: Array[int]) -> 
 		if knights[i] >= 0:
 			furthest[knights[i]] = maxf(furthest.get(knights[i], -INF), enemies[i].x)
 	for group in furthest:
-		if knights[last] == group:
+		if knights[last] == group or is_shadow_group(group):   # (she's never left behind: her fight can't be left)
 			continue   # she's the chain's last enemy: it ends on her
 		if enemies[last].x - float(furthest[group]) <= Rules.FORWARD + Rules.STRIKE_OFFSET:
 			return true
