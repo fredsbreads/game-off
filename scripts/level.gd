@@ -114,7 +114,8 @@ func _pick_pattern() -> Dictionary:
 		push_warning("test chain: " + ", ".join(p["errors"]))
 		print("TEST CHAIN ERRORS: ", ", ".join(p["errors"]))
 	# Right after every other auto-chain (main.gd): a chain of grunts only.
-	if grunts_next:
+	# A debut due now comes first; the grunts follow it.
+	if grunts_next and not _debut_due():
 		grunts_next = false
 		var grunts := Patterns.generate(level, _rng, false, false, false, false)
 		grunts["name"] = "grunts after auto: " + str(grunts["steps"])
@@ -228,6 +229,17 @@ func _append_pattern(pattern: Dictionary) -> void:
 	var last: Vector2 = shape.back()
 	_cursor += last.x + Patterns.break_gap(level) + float(pattern.get("tail", 0.0))   # (the Shadow's: room so nothing else shows while she's fought)
 	_cursor_row = last_row
+
+
+## True if the next chain laid would be a debut (one due at this level, not
+## held back by debut_wait).
+func _debut_due() -> bool:
+	if debut_wait:
+		return false
+	return (level >= Patterns.KNIGHT_DEBUT_LEVEL and not _knight_intro_done) \
+			or (level >= Patterns.NINJA_DEBUT_LEVEL and not _ninja_intro_done) \
+			or (level >= Patterns.MASTER_DEBUT_LEVEL and not _master_intro_done) \
+			or (level >= Patterns.SHADOW_DEBUT_LEVEL and not _shadow_intro_done)
 
 
 ## True while a debut (the knight's, the ninja's) is still to come at this
