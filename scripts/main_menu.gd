@@ -112,9 +112,9 @@ func _buttons() -> Array[String]:
 	if level_choice:
 		b.append("level")
 	b.append("options")
-	b.append("credits")
-	if Hud.rotated:   # (a phone held upright: under Credits)
+	if Hud.rotated:   # (a phone held upright: under Options, above Credits)
 		b.append("flip")
+	b.append("credits")
 	return b
 
 
