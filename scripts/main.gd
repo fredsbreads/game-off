@@ -1329,6 +1329,12 @@ func _on_option_changed(key: String) -> void:
 		# recolour them now, so a colour picked over the game shows at once.
 		player._update_markers(0.0)
 		player.queue_redraw()
+	if key == "background" or key == "reset":
+		# The world's drawn when the camera moves, which stops while paused:
+		# redraw it now, so the background picked over the game shows at once.
+		level.queue_redraw()
+		hud._top.queue_redraw()
+		player._update_markers(0.0)
 	if key == "sfx" or key == "reset":
 		_clash_sound.pitch_scale = 1.0
 		_clash_sound.play()

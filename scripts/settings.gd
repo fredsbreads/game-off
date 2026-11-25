@@ -22,7 +22,17 @@ const FLASH_SOFT := 0.3
 ## offered once she's had it): off = she keeps her flawless colour.
 static var rainbow := true
 
-const DEFAULTS := {"colour": "default", "rainbow": true, "music": 1.0, "sfx": 1.0, "shake": 1.0, "flashes": 1.0}
+## The background (the "Background" option): "forest" (the sepia forest,
+## wooden ceiling and earth floor) or "simple" (plain bands, as the game
+## first looked).
+static var background := "forest"
+
+const DEFAULTS := {"colour": "default", "rainbow": true, "music": 1.0, "sfx": 1.0, "shake": 1.0, "flashes": 1.0, "background": "forest"}
+
+
+## True with the forest background picked (else the simple one).
+static func forest() -> bool:
+	return background != "simple"
 
 
 ## True once she's reached the rainbow in any run (kept in the save file):
@@ -44,6 +54,7 @@ static func load_all() -> void:
 	sfx = float(cfg.get_value("settings", "sfx", DEFAULTS["sfx"]))
 	shake = float(cfg.get_value("settings", "shake", DEFAULTS["shake"]))
 	flashes = float(cfg.get_value("settings", "flashes", DEFAULTS["flashes"]))
+	background = String(cfg.get_value("settings", "background", DEFAULTS["background"]))
 	apply()
 
 
@@ -70,6 +81,7 @@ static func get_value(key: String) -> Variant:
 		"sfx": return sfx
 		"shake": return shake
 		"flashes": return flashes
+		"background": return background
 	return null
 
 
@@ -81,6 +93,7 @@ static func set_value(key: String, value: Variant) -> void:
 		"sfx": sfx = float(value)
 		"shake": shake = float(value)
 		"flashes": flashes = float(value)
+		"background": background = String(value)
 
 
 ## Puts every setting into effect.

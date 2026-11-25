@@ -18,6 +18,28 @@ const GROUND_TOP := Color(0.55, 0.58, 0.66)
 const SPIKE_COLOR := Color(0.85, 0.85, 0.9)
 const SIGN_COLOR := Color(0.6, 0.62, 0.7, 0.6)
 
+# The forest background (Settings.background "forest"): a night-forest
+# parallax recoloured a muted sepia (assets/backgrounds/forest, far to near),
+# trimmed and scaled so its forest floor sits on the floor and its canopy's
+# edge at the ceiling; earth under the floor, grass along it; a wooden ceiling
+# above. Muted so she and the enemies stand out on it.
+const FOREST_LAYERS := [
+	preload("res://assets/backgrounds/forest/0.png"), preload("res://assets/backgrounds/forest/1.png"),
+	preload("res://assets/backgrounds/forest/2.png"), preload("res://assets/backgrounds/forest/3.png"),
+]
+const FOREST_GRASS := preload("res://assets/backgrounds/forest/grass.png")
+const FOREST_FLOOR_ROW := 300.0   # the art's forest floor (its pixel row): on the floor
+const FOREST_TOP_ROW := 95.0      # the canopy's edge: at the ceiling
+const FOREST_PARALLAX := Vector2(0.06, 0.4)   # how much the farthest and nearest layers move with her
+const EARTH := Color(0.22, 0.11, 0.09)
+const EARTH_DEPTH := 40.0         # the earth band, then a fade into the dark
+const EARTH_DARK := Color(0.04, 0.03, 0.03)
+const TURF := Color(0.16, 0.28, 0.15)   # the floor's top edge, under the grass
+const TURF_H := 8.0
+const GRASS_TINT := Color(1.45, 1.0, 0.5)   # the grass art's teal, to a muted olive
+const WOOD := Color(0.21, 0.12, 0.08)       # the ceiling and everything above it
+const FLOOR_VEIL := Color(0.32, 0.34, 0.40, 0.1)
+
 var start_x := 0.0
 var tiles := PackedByteArray()
 var enemies: Array[Enemy] = []
@@ -413,12 +435,16 @@ func _draw() -> void:
 	var bottom := gy + _view_size.y + 64.0  # comfortably past the bottom of any screen
 	var first := int(floor(_view_left / t)) - 1
 	var last := first + int(_view_size.x / t) + 3
+	var forest := Settings.forest()
+	if forest:
+		_draw_forest(bottom)
 
 	for i in range(first, last + 1):
 		var x0 := i * t
 		var tile := tile_at(i)
-		draw_rect(Rect2(x0, gy, t, bottom - gy), GROUND_A if i % 2 == 0 else GROUND_B)
-		draw_rect(Rect2(x0, gy, t, 4), GROUND_TOP)
+		if not forest:
+			draw_rect(Rect2(x0, gy, t, bottom - gy), GROUND_A if i % 2 == 0 else GROUND_B)
+			draw_rect(Rect2(x0, gy, t, 4), GROUND_TOP)
 		if tile == Rules.Tile.SPIKES:
 			for s in 2:
 				var sx := x0 + s * t * 0.5
@@ -430,6 +456,8 @@ func _draw() -> void:
 	var cy := Rules.CEILING_Y
 	var roof := cy - _view_size.y - 64.0
 	for i in range(first, last + 1):
+		if forest:
+			break   # (the forest has its own: _draw_forest)
 		var x0 := i * t
 		draw_rect(Rect2(x0, roof, t, cy - roof), GROUND_A if i % 2 == 0 else GROUND_B)
 		draw_rect(Rect2(x0, cy - 4, t, 4), GROUND_TOP)
@@ -444,6 +472,63 @@ func _draw() -> void:
 		var sx := (start_x + n * SIGN_EVERY) * t
 		draw_line(Vector2(sx, gy), Vector2(sx, gy - 90), SIGN_COLOR, 3.0)
 		draw_string(font, Vector2(sx + 6, gy - 76), "%d m" % (n * SIGN_EVERY), HORIZONTAL_ALIGNMENT_LEFT, -1, 18, SIGN_COLOR)
+
+
+## The forest background (see FOREST_LAYERS): the trees, the floor's earth
+## and grass, the wooden ceiling.
+func _draw_forest(bottom: float) -> void:
+	var gy := Rules.GROUND_Y
+	var cy := Rules.CEILING_Y
+	var vl := _view_left
+	var x0 := vl - Rules.TILE
+	var wide := _view_size.x + 2.0 * Rules.TILE
+	# The trees: each layer looping sideways, the nearer ones moving more.
+	var sc := (gy - cy) / (FOREST_FLOOR_ROW - FOREST_TOP_ROW)
+	for i in FOREST_LAYERS.size():
+		var tex: Texture2D = FOREST_LAYERS[i]
+		var p := lerpf(FOREST_PARALLAX.x, FOREST_PARALLAX.y, float(i) / (FOREST_LAYERS.size() - 1))
+		var w := tex.get_width() * sc
+		var x := vl - fposmod(vl * p, w)
+		for j in int(ceil((_view_size.x + w) / w)) + 1:
+			draw_texture_rect(tex, Rect2(x + j * w, gy - FOREST_FLOOR_ROW * sc, w, tex.get_height() * sc), false)
+	# The floor: a band of earth fading into the dark, turf along its top.
+	draw_rect(Rect2(x0, gy, wide, EARTH_DEPTH), EARTH)
+	for k in 8:
+		draw_rect(Rect2(x0, gy + EARTH_DEPTH + k * 10.0, wide, 10.0), EARTH.darkened(0.12 * (k + 1)))
+	draw_rect(Rect2(x0, gy + EARTH_DEPTH + 80.0, wide, bottom - gy), EARTH_DARK)
+	draw_rect(Rect2(x0, gy, wide, TURF_H), TURF)
+	# Stones and roots in it, fixed to the world (they scroll with it).
+	var first_cell := int(floor(vl / 32.0)) - 1
+	for i in range(first_cell, first_cell + int(_view_size.x / 32.0) + 3):
+		var h := absi((i * 73856093) ^ 19349663) % 1000
+		if h % 3 == 0:
+			var sy := gy + 12.0 + float((h / 20) % int(EARTH_DEPTH - 22.0))
+			draw_rect(Rect2(i * 32.0 + float(h % 20), sy, 8.0 + float(h % 3) * 4.0, 4.0), EARTH.lightened(0.12))
+		if h % 5 == 1:
+			draw_rect(Rect2(i * 32.0 + 6.0, gy + 6.0, 4.0, 8.0 + float(h % 4) * 4.0), EARTH.darkened(0.25))
+	# Grass along the floor (drawn at twice its size, as the characters are).
+	var gw := FOREST_GRASS.get_width() * 2.0
+	var gx := vl - fposmod(vl, gw)
+	for j in int(_view_size.x / gw) + 3:
+		draw_texture_rect(FOREST_GRASS, Rect2(gx + j * gw, gy - 36.0, gw, FOREST_GRASS.get_height() * 2.0), false, GRASS_TINT)
+	draw_rect(Rect2(x0, gy, wide, bottom - gy), FLOOR_VEIL)
+	# The ceiling: plain wood from the ceiling up behind the top bar, with
+	# faint short fibres scattered in it (fixed to the world).
+	var roof := cy - _view_size.y - 64.0
+	draw_rect(Rect2(x0, roof, wide, cy - roof), WOOD)
+	var fc := 22.0
+	var f0 := floorf(x0 / fc) * fc - fc
+	var n := 0
+	while f0 + n * fc < x0 + wide + fc:
+		var fx := f0 + n * fc
+		var col := int(fx / fc)
+		for row in 19:
+			var h := absi((col * 73856093) ^ (row * 19349663)) % 1000
+			if h % 3 != 0:
+				continue
+			var tone := WOOD.lightened(0.07) if h % 2 == 0 else WOOD.darkened(0.12)
+			draw_rect(Rect2(fx + float(h % 13), cy - 8.0 - row * 10.0 - float((h / 13) % 6), 6.0 + float(h % 4) * 4.0, 2.0), tone)
+		n += 1
 
 
 ## Adds an enemy during play (the Shadow's remnants), in the same group of

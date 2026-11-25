@@ -106,6 +106,8 @@ const ANIMS := {
 # "your move" freeze the red drains toward the tip as the time to act runs out.
 const MARKER_READY := Color(1, 1, 1, 0.32)      # plain, can teleport
 const MARKER_COOLDOWN := Color(1, 1, 1, 0.12)   # plain, in the cooldown
+const MARKER_FOREST := Color(1, 1, 1, 0.65)      # plain on the forest background (it's outlined there too)
+const MARKER_OUTLINE := Color(0.06, 0.05, 0.05, 0.9)
 const MARKER_LIT := Color(0.95, 0.15, 0.2, 1.0) # an enemy is in this teleport's kill zone
 const MARKER_KATANA := preload("res://assets/sprites/kunoichi_sword_diagonal.png")  # hilt top-left, tip bottom-right
 const MARKER_KATANA_SCALE := 1.25
@@ -183,6 +185,11 @@ func _ready() -> void:
 		m.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		var mat := ShaderMaterial.new()
 		mat.shader = MARKER_SHADER
+		# (Padded by 2 pixels: room for the outline the forest background gives it.)
+		var img := MARKER_KATANA.get_image()
+		var padded := Image.create(img.get_width() + 4, img.get_height() + 4, false, Image.FORMAT_RGBA8)
+		padded.blit_rect(img, Rect2i(Vector2i.ZERO, img.get_size()), Vector2i(2, 2))
+		m.texture = ImageTexture.create_from_image(padded)
 		m.material = mat
 		add_child(m)
 		_markers.append(m)
@@ -707,6 +714,9 @@ func _update_markers(delta: float) -> void:
 	var t := Rules.TILE
 	var gap := Rules.ROW_GAP * t
 	var plain := MARKER_READY if cooldown == 0 else MARKER_COOLDOWN
+	var forest := Settings.forest()
+	if forest:   # (on the forest: brighter, with a dark outline)
+		plain = Color(MARKER_FOREST, MARKER_FOREST.a * (1.0 if cooldown == 0 else 0.4))
 	var s := MARKER_KATANA_SCALE
 	for i in 3:
 		var m := _markers[i]
@@ -729,6 +739,7 @@ func _update_markers(delta: float) -> void:
 		_marker_lit_mix[i] = 1.0 if lit else lerpf(float(_marker_lit_mix[i]), 0.0, 1.0 - exp(-MARKER_COLOUR_RATE * delta))
 		var mat := m.material as ShaderMaterial
 		mat.set_shader_parameter("plain", plain)
+		mat.set_shader_parameter("outline", MARKER_OUTLINE if forest else Color(0, 0, 0, 0))
 		mat.set_shader_parameter("lit", MARKER_LIT)
 		mat.set_shader_parameter("lit_mix", _marker_lit_mix[i])
 		mat.set_shader_parameter("fill", marker_fill if lit else 1.0)

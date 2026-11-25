@@ -406,6 +406,8 @@ func _fill(x0: float, x1: float, c: Color, off := Vector2.ZERO) -> void:
 
 func _draw_blade() -> void:
 	var w := BLADE.x
+	if Settings.forest():   # (solid underneath, the grey it sat on in the simple look: no wood shows through)
+		_fill(0.0, w, Color(0.34, 0.36, 0.42))
 	_fill(0.0, w, EMPTY)
 	if not _result.is_empty():
 		_draw_result()

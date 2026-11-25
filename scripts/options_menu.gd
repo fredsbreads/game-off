@@ -33,6 +33,7 @@ const ROWS := [
 	{"key": "sfx", "label": "Sound Effects"},
 	{"key": "shake", "label": "Camera Shake & Zoom"},   # (screen shake and the camera's zooms in)
 	{"key": "flashes", "label": "Screen Flashes"},
+	{"key": "background", "label": "Background"},
 	{"action": "reset", "label": "Reset To Defaults"},
 	{"action": "back", "label": "Back"},
 ]
@@ -138,7 +139,7 @@ func _step(i: int, dir: int) -> void:
 	if at == -1:   # (a saved value between steps: the nearest one)
 		at = _nearest(values, Settings.get_value(key))
 	# Colours, flashes and shake go round; volumes stop at their ends.
-	var to := posmod(at + dir, values.size()) if key in ["colour", "rainbow", "flashes", "shake"] else clampi(at + dir, 0, values.size() - 1)
+	var to := posmod(at + dir, values.size()) if key in ["colour", "rainbow", "flashes", "shake", "background"] else clampi(at + dir, 0, values.size() - 1)
 	if to == at:
 		return
 	Settings.set_value(key, values[to])
@@ -155,6 +156,7 @@ func _values(key: String) -> Array:
 		"music", "sfx": return STEPS_VOLUME
 		"shake": return STEPS_SHAKE
 		"flashes": return [0.0, Settings.FLASH_SOFT, 1.0]   # None, Soft, Full
+		"background": return ["forest", "simple"]
 	return []
 
 
@@ -181,6 +183,8 @@ func _value_text(key: String) -> String:
 			return "Off" if float(v) <= 0.001 else "%d%%" % roundi(float(v) * 100.0)
 		"flashes":
 			return "Full" if float(v) >= 0.99 else ("None" if float(v) <= 0.001 else "Soft")
+		"background":
+			return "Simple" if v == "simple" else "Forest"
 	return ""
 
 
