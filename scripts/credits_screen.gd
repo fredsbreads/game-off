@@ -20,8 +20,9 @@ const CREDITS := [
 	["Enemies", "Martial Hero, Martial Hero 2, Martial Hero 3 and Hero Knight, by LuizMelo"],
 	["Frog", "Frogs Pixel Asset Pack, by Pop Shop Packs"],
 	["Forest", "Free Pixel Night Forest, by thqian"],
-	["Lightning", "Pixel Art Skill Animations: Lightning (effects and sounds), by Frostwindz"],
-	["Music", "Suspense Tension Building, from Pixabay"],
+	["Lightning", "Pixel Art Skill Animations: Lightning, by Frostwindz"],
+	["Lightning Sounds", "Lightning Magic Sound Effects Pack, by Hove Audio"],
+	["Music", "Suspense Tension Building, by Monume (Pixabay)"],
 	["Sound Effects", "Mixkit"],
 ]
 
