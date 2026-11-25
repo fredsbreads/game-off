@@ -96,7 +96,7 @@ const SHADOW_DEBUT_LEVEL := 20
 # After her debut (alone) she's in a generated chain with SHADOW_CHANCE (at
 # most once), anywhere in it, always SHADOW_CHAIN_ROUNDS rounds; her fight's
 # cuts count towards the chain's length.
-const SHADOW_CHANCE := 0.2
+const SHADOW_CHANCE := 0.25
 const SHADOW_CHAIN_ROUNDS := 3
 const SHADOW_BLINKS_MIN := 4
 const SHADOW_BLINKS_MAX := 5

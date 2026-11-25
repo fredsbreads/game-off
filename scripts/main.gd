@@ -974,6 +974,8 @@ func _tutorial_move(move: int) -> void:
 	if key != "" and int(_drill_counts.get(key, 0)) < DRILL_REPS:
 		_drill_counts[key] = int(_drill_counts.get(key, 0)) + 1
 		hud.tutorial_count(key, _drill_counts[key])
+	elif key != "":
+		hud.tutorial_bump(key)   # (done already: it still gives its little bounce)
 	for k in ["left", "right", "both"]:
 		if int(_drill_counts.get(k, 0)) < DRILL_REPS:
 			return

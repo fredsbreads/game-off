@@ -1100,6 +1100,11 @@ func tutorial_done(key: String) -> void:
 	_tut_lit[key] = 0.0
 
 
+## A move done again after its count is full: just the little bounce.
+func tutorial_bump(key: String) -> void:
+	_tut_bump[key] = 0.0
+
+
 ## One more of a move: its count goes up (and it lights once it's done enough).
 func tutorial_count(key: String, n: int) -> void:
 	_tut_count[key] = n
@@ -1154,8 +1159,8 @@ func _draw_tutorial() -> void:
 		var lit := _tut_lit.has(key)
 		var t: float = _tut_lit.get(key, 0.0)
 		var pop := 1.0 + 0.3 * maxf(0.0, 1.0 - t / 0.25) if lit else 1.0   # a pop as it lights
-		if not lit and _tut_bump.has(key):   # (a smaller one as its count goes up)
-			pop = 1.0 + 0.15 * maxf(0.0, 1.0 - float(_tut_bump[key]) / 0.2)
+		if _tut_bump.has(key):   # (a smaller one on each press, done or not)
+			pop = maxf(pop, 1.0 + 0.15 * maxf(0.0, 1.0 - float(_tut_bump[key]) / 0.2))
 		var size := int(SIZE * pop)
 		var cy := top + i * LINE - drift
 		var col := Color(MainMenu.TITLE_TEXT_RED, fade) if lit else Color(1, 1, 1, 0.3 * fade)
