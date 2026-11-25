@@ -387,7 +387,7 @@ func _ready() -> void:
 		debug.main = self
 		add_child(debug)
 	_read_test_link()
-	if LEVEL_CHOICE and progression.level == 1:   # (not set by the debug --level option)
+	if LEVEL_CHOICE and progression.level == 1 and not _retry_tutorial:   # (not set by the debug --level option; the tutorial: level 1)
 		var start := _session_start_level
 		progression.level = start if start in _unlocked_start_levels() else 1
 		level.level = progression.level
@@ -434,7 +434,11 @@ func _ready() -> void:
 	cam.snap(player.x)
 	best_score = _load_best()
 	_prewarm()
-	if _retry:
+	if _retry and _retry_tutorial:
+		_retry = false
+		_retry_tutorial = false
+		begin(true, true)   # the tutorial, then a run from level 1
+	elif _retry:
 		_retry = false
 		begin(false)   # a retry goes straight into the run (no tutorial)
 	else:
@@ -456,10 +460,10 @@ func score() -> int:
 ## `play`: started with Play on the title screen, which begins with the
 ## tutorial (it can be skipped) when the start level is 1; a later start
 ## level goes straight into the run.
-func begin(play := true) -> void:
+func begin(play := true, force_tutorial := false) -> void:
 	_run_start_level = progression.level   # (the death screen says if it wasn't 1)
 	_set_save_flag("played")
-	if play and not debug and progression.level == 1:   # (a later start level: straight into the run)
+	if ((play and not debug) or force_tutorial) and progression.level == 1:   # (a later start level: straight into the run)
 		_tutorial_target = progression.level
 		progression.level = 0
 		progression.bar = 0.0
@@ -1216,10 +1220,17 @@ func _unhandled_input(event: InputEvent) -> void:
 				pick = "retry"
 		if pick == "options" and _state_time >= RETRY_DELAY:
 			hud.open_options(true)
+		elif pick == "tutorial" and _state_time >= RETRY_DELAY:
+			_replay_tutorial()
 		elif pick != "" and _state_time >= RETRY_DELAY:
 			if pick == "retry":
 				_retry = true
 			get_tree().reload_current_scene()
+		return
+	if state == State.OVER and _state_time >= RETRY_DELAY and event is InputEventScreenTouch and event.pressed \
+			and hud.over_tutorial_button_contains(_screen_pos(event)):
+		get_viewport().set_input_as_handled()
+		_replay_tutorial()   # (a tap anywhere else is a new run)
 		return
 	if state == State.OVER and _state_time >= RETRY_DELAY and event is InputEventScreenTouch and event.pressed \
 			and hud.over_options_button_contains(_screen_pos(event)):
@@ -1274,6 +1285,17 @@ func _unhandled_input(event: InputEvent) -> void:
 ## Set just before a retry reloads the scene: the new run starts at once
 ## instead of on the title screen.
 static var _retry := false
+## Set with _retry by the game-over screen's "Tutorial": the new run is the
+## tutorial, then a run from level 1 (whatever level runs were starting at),
+## and New Run starts at level 1 after that.
+static var _retry_tutorial := false
+
+
+func _replay_tutorial() -> void:
+	_retry = true
+	_retry_tutorial = true
+	_session_start_level = 1   # (New Run starts at level 1 from now on, too)
+	get_tree().reload_current_scene()
 
 
 func _is_menu_key(event: InputEvent) -> bool:

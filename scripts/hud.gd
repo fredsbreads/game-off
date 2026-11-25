@@ -84,6 +84,7 @@ var _skip_button: Control         # ...and the one on screen while it plays
 var _skip_on := false
 const SKIP_BUTTON_SIZE := Vector2(170, 44)
 var _over_options_button: Control
+var _over_tutorial_button: Control   # the game-over screen's "Tutorial" (plays it, then a run from level 1)
 var _on_over_screen := false
 # ...and "Resume". The pause screen's buttons stand in a column under
 # "PAUSED"; on a keyboard Up/Down pick one (Resume, each time it opens) and
@@ -238,8 +239,14 @@ func _ready() -> void:
 	_over_options_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_over_options_button.size = FLIP_BUTTON_SIZE
 	_over_options_button.visible = false
-	_over_options_button.draw.connect(func() -> void: _draw_menu_style_button(_over_options_button, "Options", false, not is_touch() and _over_sel == 1))
+	_over_options_button.draw.connect(func() -> void: _draw_menu_style_button(_over_options_button, "Options", false, not is_touch() and _over_sel == 2))
 	add_child(_over_options_button)
+	_over_tutorial_button = Control.new()
+	_over_tutorial_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_over_tutorial_button.size = FLIP_BUTTON_SIZE
+	_over_tutorial_button.visible = false
+	_over_tutorial_button.draw.connect(func() -> void: _draw_menu_style_button(_over_tutorial_button, "Tutorial", false, not is_touch() and _over_sel == 1))
+	add_child(_over_tutorial_button)
 
 	auto_overlay = AutoOverlay.new()
 	add_child(auto_overlay)
@@ -329,19 +336,21 @@ func _process(delta: float) -> void:
 	var col := shown.size() * FLIP_BUTTON_SIZE.y + maxf(shown.size() - 1, 0) * gap
 	var bx := (view.x - FLIP_BUTTON_SIZE.x) / 2.0
 	if _backdrop_mode == "over":
-		var n := 2.0 if is_touch() else 3.0   # (Options and Main Menu; New Run too on a computer)
+		var n := 3.0 if is_touch() else 4.0   # (Tutorial, Options and Main Menu; New Run too on a computer)
 		var buttons_h := FLIP_BUTTON_SIZE.y * n + gap * (n - 1.0)
 		var h := OVER_TITLE_H + OVER_STATS_H + (OVER_HINT_H if is_touch() else 24.0) + buttons_h
 		_band = Rect2(0, (view.y - h) / 2.0 - BAND_PAD, view.x, h + BAND_PAD * 2.0)
 		_menu_button.position = Vector2(bx, _band.end.y - BAND_PAD - FLIP_BUTTON_SIZE.y)
 		_over_options_button.position = _menu_button.position - Vector2(0, FLIP_BUTTON_SIZE.y + gap)
-		_retry_button.position = _over_options_button.position - Vector2(0, FLIP_BUTTON_SIZE.y + gap)
+		_over_tutorial_button.position = _over_options_button.position - Vector2(0, FLIP_BUTTON_SIZE.y + gap)
+		_retry_button.position = _over_tutorial_button.position - Vector2(0, FLIP_BUTTON_SIZE.y + gap)
 		if _pause_dim.visible:
 			_over_t += delta
 			_pause_dim.queue_redraw()
 			_menu_button.modulate.a = _over_fade()
 			_retry_button.modulate.a = _over_fade()
 			_over_options_button.modulate.a = _over_fade()
+			_over_tutorial_button.modulate.a = _over_fade()
 	else:
 		_band = Rect2(0, (view.y - PAUSE_TITLE_H - col) / 2.0 - BAND_PAD, view.x, PAUSE_TITLE_H + col + BAND_PAD * 2.0)
 		var y := _band.position.y + BAND_PAD + PAUSE_TITLE_H
@@ -383,7 +392,7 @@ func open_options(over_game: bool) -> void:
 	if _on_over_screen:
 		# From the game-over screen: it steps aside while Options is open.
 		options.see_through = true
-		for b in [_pause_dim, _retry_button, _over_options_button, _menu_button]:
+		for b in [_pause_dim, _retry_button, _over_tutorial_button, _over_options_button, _menu_button]:
 			b.visible = false
 	elif over_game:
 		_message.visible = false
@@ -400,6 +409,7 @@ func _on_options_closed() -> void:
 	if _on_over_screen:
 		_pause_dim.visible = true
 		_retry_button.visible = not is_touch()
+		_over_tutorial_button.visible = true
 		_over_options_button.visible = true
 		_menu_button.visible = true
 		_redraw_over_buttons()
@@ -521,6 +531,7 @@ func show_game_over(stats: Dictionary) -> void:
 	_over_hint = "Tap Anywhere To Retry" if is_touch() else ""
 	_over_sel = 0
 	_retry_button.visible = not is_touch()
+	_over_tutorial_button.visible = true
 	_over_options_button.visible = true
 	_on_over_screen = true
 	_redraw_over_buttons()
@@ -535,29 +546,35 @@ func menu_button_contains(pos: Vector2) -> bool:
 
 
 func _draw_menu_button() -> void:
-	_draw_menu_style_button(_menu_button, "Main Menu", false, not is_touch() and _retry_button.visible and _over_sel == 2)
+	_draw_menu_style_button(_menu_button, "Main Menu", false, not is_touch() and _retry_button.visible and _over_sel == 3)
 
 
 ## The game-over screen's buttons (computer): Up/Down.
 func over_move(dir: int) -> void:
-	_over_sel = posmod(_over_sel + dir, 3)
+	_over_sel = posmod(_over_sel + dir, 4)
 	_redraw_over_buttons()
 
 
-## What the picked game-over button does: "retry", "options" or "menu".
+## What the picked game-over button does: "retry", "tutorial", "options" or "menu".
 func over_selected() -> String:
-	return ["retry", "options", "menu"][clampi(_over_sel, 0, 2)]
+	return ["retry", "tutorial", "options", "menu"][clampi(_over_sel, 0, 3)]
 
 
 ## The game-over button under a click, or "".
 func over_button_at(pos: Vector2) -> String:
 	if _retry_button.visible and _retry_button.get_rect().has_point(pos):
 		return "retry"
+	if over_tutorial_button_contains(pos):
+		return "tutorial"
 	if over_options_button_contains(pos):
 		return "options"
 	if menu_button_contains(pos):
 		return "menu"
 	return ""
+
+
+func over_tutorial_button_contains(pos: Vector2) -> bool:
+	return _over_tutorial_button.visible and not options.visible and _over_tutorial_button.get_rect().has_point(pos)
 
 
 func over_options_button_contains(pos: Vector2) -> bool:
@@ -566,6 +583,7 @@ func over_options_button_contains(pos: Vector2) -> bool:
 
 func _redraw_over_buttons() -> void:
 	_retry_button.queue_redraw()
+	_over_tutorial_button.queue_redraw()
 	_over_options_button.queue_redraw()
 	_menu_button.queue_redraw()
 
@@ -1150,6 +1168,10 @@ func _draw_tutorial() -> void:
 		var k := clampf(_tut_fizzle / TUT_FIZZLE_TIME, 0.0, 1.0)
 		fade = (1.0 - k) * (0.55 + 0.45 * _tut_rng.randf())   # flickering out
 		drift = 30.0 * _tut_fizzle   # drifting up
+	# A dark panel behind the three lines, so they read on any background.
+	var panel := Rect2(left - 26.0, top - LINE * 0.75 - drift, ARROW + GAP + widest + 52.0, LINE * (prompts.size() - 1) + LINE * 1.5)
+	c.draw_rect(panel, Color(0.03, 0.02, 0.03, 0.62 * fade))
+	c.draw_rect(panel, Color(1, 1, 1, 0.12 * fade), false, 2.0)
 	for i in prompts.size():
 		var p: Array = prompts[i]
 		var key: String = p[0]
@@ -1163,7 +1185,7 @@ func _draw_tutorial() -> void:
 			pop = maxf(pop, 1.0 + 0.15 * maxf(0.0, 1.0 - float(_tut_bump[key]) / 0.2))
 		var size := int(SIZE * pop)
 		var cy := top + i * LINE - drift
-		var col := Color(MainMenu.TITLE_TEXT_RED, fade) if lit else Color(1, 1, 1, 0.3 * fade)
+		var col := Color(MainMenu.TITLE_TEXT_RED, fade) if lit else Color(1, 1, 1, 0.6 * fade)
 		# The arrow.
 		var centre := Vector2(left + ARROW / 2.0, cy)
 		var half := dir * ARROW * 0.5 * pop
