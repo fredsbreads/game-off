@@ -18,6 +18,17 @@ assert s.count(old) == 1, "web audio patch: Godot's index.js changed, check tool
 open(p, "w").write(s.replace(old, "getAudioBuffer(){return this._audioBuffer}"))
 print("patched web audio: sounds share their buffer")
 PY
+# A crash log: the page keeps the last console errors and the game's beats
+# (main.gd _crashlog_beat) in localStorage, so they survive the tab being
+# killed; after a crash, open the game with ?crashlog=1 to see them.
+python3 - <<'PY'
+p = "build/web/index.html"
+s = open(p).read()
+script = open("tools/crashlog.js").read()
+assert s.count("<head>") == 1, "crash log: no <head> in index.html"
+open(p, "w").write(s.replace("<head>", "<head>\n<script>\n" + script + "\n</script>", 1))
+print("added the crash log (?crashlog=1)")
+PY
 rm -f build/red-flash-web.zip
 (cd build/web && zip -qr ../red-flash-web.zip .)
 echo "build/red-flash-web.zip"

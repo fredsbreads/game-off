@@ -1556,6 +1556,7 @@ func _physics_process(delta: float) -> void:
 	_update_pause_visuals()
 	_update_shadow_mood(delta)
 	_poll_keylog()
+	_crashlog_beat(delta)
 	if _kunai_beat > 0 and not (_tut_hold or _tutorial):
 		_kunai_beat = 0   # (the move was made: the words are gone)
 	# The lit boxes follow the katanas as the screen's drawn (worked out here,
@@ -3108,6 +3109,25 @@ func _shadow_need() -> Enemy:
 		if e is Shadow and e.alive and (e as Shadow).engaged:
 			return (e as Shadow).next_target()
 	return null
+
+
+## (Testing, the web) what the game's doing, every CRASHLOG_BEAT seconds, for
+## the page's crash log (export_web.sh): after a crash, ?crashlog=1 shows the
+## last of these with any errors around them.
+const CRASHLOG_BEAT := 2.0
+var _crashlog_t := 0.0
+
+func _crashlog_beat(delta: float) -> void:
+	if not OS.has_feature("web"):
+		return
+	_crashlog_t -= delta
+	if _crashlog_t > 0.0:
+		return
+	_crashlog_t = CRASHLOG_BEAT
+	var what := "state=%s lesson=%d tut=%s level=%d chain=%d kills=%d x=%.1f enemies=%d fps=%d" % [
+		State.keys()[state], _lesson, _tutorial, progression.level, chain, kills, player.x,
+		level.enemies.size(), Engine.get_frames_per_second()]
+	JavaScriptBridge.eval("window.rfBeat && window.rfBeat(%s)" % JSON.stringify(what), true)
 
 
 ## (Testing, ?keylog=1) a log of every key event, top-left: what the browser
