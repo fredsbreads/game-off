@@ -22,7 +22,7 @@ const CREDITS := [
 	["Forest", "Free Pixel Night Forest, by thqian"],
 	["Lightning", "Pixel Art Skill Animations: Lightning, by Frostwindz"],
 	["Lightning Sounds", "Lightning Magic Sound Effects Pack, by Hove Audio"],
-	["Music", "Suspense Tension Building, by Monume (Pixabay)"],
+	["Music", "Suspense Tension Building, by Monume"],
 	["Sound Effects", "Mixkit"],
 ]
 
