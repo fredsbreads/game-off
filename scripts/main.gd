@@ -1110,6 +1110,10 @@ func _tutorial_move(move: int) -> void:
 
 # --- input ---------------------------------------------------------------
 
+func _input(event: InputEvent) -> void:
+	Hud.note_input(event)   # (keys or taps: what the words say)
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if _keylog and event is InputEventKey:
 		var k := event as InputEventKey

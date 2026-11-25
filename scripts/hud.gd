@@ -375,10 +375,24 @@ static func flip_screen() -> void:
 
 
 static var _touch := -1
+
+
+## Follows the player's hands: a key or a click means the words name keys,
+## a tap means they say "Tap" (a laptop with a touchscreen can be either).
+static func note_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed:
+		_touch = 0
+	elif event is InputEventMouseButton and event.pressed:
+		_touch = 0
+	elif event is InputEventScreenTouch and event.pressed:
+		_touch = 1
 static func is_touch() -> bool:
 	if _touch < 0:
 		if OS.has_feature("web"):
-			_touch = int(JavaScriptBridge.eval("(('ontouchstart' in window) || navigator.maxTouchPoints > 0) ? 1 : 0", true))
+			# A first guess from the main pointer: a finger (phones, tablets) is
+			# touch; a mouse or trackpad isn't, even with a touchscreen too
+			# (a Chromebook). note_input() then follows what's actually used.
+			_touch = int(JavaScriptBridge.eval("(window.matchMedia ? window.matchMedia('(pointer: coarse)').matches : (('ontouchstart' in window) || navigator.maxTouchPoints > 0)) ? 1 : 0", true))
 		else:
 			_touch = 1 if OS.has_feature("mobile") or DisplayServer.is_touchscreen_available() else 0
 	return _touch == 1
