@@ -93,6 +93,8 @@ static func use_colour(name: String) -> void:
 	RenderingServer.global_shader_parameter_set("accent_sat", float(_hsv[1]))
 	RenderingServer.global_shader_parameter_set("accent_val", float(_hsv[2]))
 	RenderingServer.global_shader_parameter_set("accent2", secondary())   # (her katana's hilt)
+	if rainbow:
+		tick(0.0)   # (mid-rainbow, e.g. an option changed while paused: she stays where the rainbow is)
 
 
 # --- The rainbow (a flawless streak of 100) ----------------------------------
