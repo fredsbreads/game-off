@@ -31,10 +31,10 @@ var bar := 0.0
 
 func bar_size() -> float:
 	if level <= 0:
-		return TUTORIAL_BAR   # (the tutorial: its single kill and its D F chain fill it)
+		return TUTORIAL_BAR   # (the tutorial: its last chain, the save, fills it)
 	return CHAINS_PER_LEVEL * Patterns.average_chain_length(level)
 
-const TUTORIAL_BAR := 8.0   # (its single kill and D F D chain don't fill it; its last chain, the save, does)
+const TUTORIAL_BAR := 19.0   # (its single kill, D F D chain and perfect combo don't fill it; its last chain, the save, does)
 
 
 ## Adds a finished chain to the bar. Returns true if it levelled up.

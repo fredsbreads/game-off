@@ -483,7 +483,7 @@ func begin(play := true) -> void:
 ## kill it), then a chain, D F (time stops while she can chain), then the
 ## katana and the power-up bolt filling. Until they're done, only a move that
 ## kills goes: any other is blocked (a thud, the words shake).
-enum Lesson { NONE, FIRST_KILL, CHAIN, SAVE }
+enum Lesson { NONE, FIRST_KILL, CHAIN, PERFECT, SAVE }
 var _lesson := Lesson.NONE
 var _tut_hold := false        # time stopped for a lesson, waiting for the right move
 var _wrong_sound: AudioStreamPlayer
@@ -516,6 +516,22 @@ var _rw_fx: Control
 const SAVE_SHAPE := [Vector2(0, 0), Vector2(0, 1), Vector2(6.7, 1), Vector2(6.7, 0)]
 # The chain lesson: D F D (it ends back on the floor, where the save comes).
 const CHAIN_STEPS := "D F D"
+# The perfect lesson (after the chain lesson): "Perfect Combos = No
+# Survivors" while she runs on, then "Time A Perfect Combo": a lone enemy on
+# the floor, time doesn't stop for him (a wrong direction, too early or too
+# late: told so, and she's rewound to try again). Once he's cut down, the
+# rest is a combo that only takes moves leaving no one behind.
+const PERFECT_STEPS := "F V D D F V"
+const PERFECT_RUN_IN := 5.0       # tiles before his red window that a retry starts
+const PERFECT_FAIL_HOLD := 0.7
+const PERFECT_WORDS_DELAY := 1.0  # seconds after the chain lesson's combo before its words    # seconds a wrong direction / too early stays still before the rewind
+var _perfect_phase := 0           # 0: its words; 1: the timed strike; 2: the combo
+var _perfect_base := 0            # kills before it
+var _perfect_first: Enemy = null  # the lone one she times
+var _perfect_late := false        # his window has passed: she's cut down, then rewound
+var _perfect_fail_t := -1.0       # counting down a wrong direction / too early, then the rewind
+var _perfect_x := 0.0             # where the perfect lesson's first enemy is
+var _rw_back_speed := 0.0         # tiles/s she runs backwards in the rewind
 const SAVE_STOP_AT := 0.4     # tiles short of being cut down that time stops (the teleport across still reaches)
 const LESSON_METERS_TIME := 4.0   # seconds each of the closing words stays up
 const START_WORD_TIME := 1.0      # ...and "Start!"
@@ -532,7 +548,12 @@ func _start_lessons() -> void:
 	# The save's group: the usual gap after the chain's last enemy (the chain
 	# ends on the floor, so it's run into there).
 	var chain_shape: Array = Patterns.parse(CHAIN_STEPS)["enemies"]
-	_save_pair_x = chain_x + float(chain_shape.back().x) + Patterns.break_gap(1)
+	# The perfect lesson: far enough on for its words to be read on the way.
+	_perfect_x = chain_x + float(chain_shape.back().x) + Patterns.break_gap(1) \
+			+ Rules.speed_for_level(0) * (PERFECT_WORDS_DELAY + LESSON_METERS_TIME) + Rules.FORWARD + PERFECT_RUN_IN
+	level.lay(PERFECT_STEPS, "tutorial: perfect", _perfect_x, Rules.Row.FLOOR)
+	var perfect_shape: Array = Patterns.parse(PERFECT_STEPS)["enemies"]
+	_save_pair_x = _perfect_x + float(perfect_shape.back().x) + Patterns.break_gap(1)
 	level.lay_shape(SAVE_SHAPE, "tutorial: save", _save_pair_x, Rules.Row.FLOOR)
 	level.spawn_hold = true   # nothing else until the lessons are over
 
@@ -567,6 +588,21 @@ func _lesson_pick() -> int:
 	return best
 
 var _hold_move := Rules.Move.NONE
+
+
+## True if `move` cuts down the nearest one still standing (so no one's left
+## behind: the perfect lesson's combo takes only these).
+func _keeps_perfect(move: int) -> bool:
+	var nearest := INF
+	for e in level.enemies:
+		if e.alive and e.tile_x > player.x - Rules.KILL_BEHIND - 0.5:
+			nearest = minf(nearest, e.tile_x)
+	var tx: float = player.x + Rules.move_dx(move)
+	var trow: int = (1 - player.row) if Rules.move_flips_row(move) else player.row
+	for e in level.enemies_hit_by(move, tx, trow):
+		if e.tile_x <= nearest + 0.01:
+			return true
+	return false
 
 func _begin_hold(title: String, name_the_move := true) -> void:
 	_tut_hold = true
@@ -681,7 +717,7 @@ func _lesson_frame() -> bool:
 		var move := _take_pending_move(true)
 		if move == Rules.Move.NONE:
 			return true
-		if not _would_slash(move):
+		if not _would_slash(move) or (_lesson == Lesson.PERFECT and not _keeps_perfect(move)):
 			_wrong_move()   # (any move that kills goes: the one named is just the nearest)
 			return true
 		_tut_hold = false
@@ -703,7 +739,29 @@ func _lesson_frame() -> bool:
 				hud.show_coach(hud._coach_title, "Kill Him")
 				return true
 			if kills >= _lesson_kills + 1 + CHAIN_STEPS.split(" ").size() + 1 and chain == 0:
+				_begin_perfect_lesson()
+		Lesson.PERFECT:
+			if _perfect_fail_t >= 0.0:
+				_refuse_pending()
+				_perfect_fail_t -= get_physics_process_delta_time()
+				if _perfect_fail_t < 0.0:
+					_rewind_alive()
+				return true
+			if _perfect_phase == 1:
+				if _perfect_first == null:
+					for e in level.enemies:
+						if e.alive and absf(e.tile_x - _perfect_x) < 0.01 and e.row == Rules.Row.FLOOR:
+							_perfect_first = e
+				if kills > _perfect_base:
+					_perfect_phase = 2   # (cut down: the combo's freezes take it from here)
+				elif not _perfect_late and is_instance_valid(_perfect_first) and _perfect_first.alive \
+						and _perfect_first.tile_x - player.x < Rules.FORWARD and not _would_slash(Rules.Move.FORWARD):
+					_perfect_late = true   # (his window's gone: stopped and rewound at once)
+					_perfect_fail("Too Late!", "Strike The Instant It's Red")
+					return true
+			elif _perfect_phase == 2 and kills >= _perfect_base + Patterns.parse(PERFECT_STEPS)["enemies"].size() and chain == 0:
 				# The save: a stacked pair, across from each other, run at.
+				hud.hide_coach()
 				_lesson = Lesson.SAVE
 				_save_done = false
 				_save_rewound = false
@@ -718,11 +776,63 @@ func _lesson_frame() -> bool:
 	return false
 
 
+func _begin_perfect_lesson() -> void:
+	_lesson = Lesson.PERFECT
+	_perfect_phase = 0
+	_perfect_base = kills
+	_perfect_late = false
+	_perfect_fail_t = -1.0
+	_perfect_first = null   # (found once it's laid out: _lesson_frame)
+	var t := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_STOP)
+	t.tween_interval(PERFECT_WORDS_DELAY)   # (the combo's PERFECT goes by first)
+	t.tween_callback(func() -> void:
+		if _lesson == Lesson.PERFECT and _perfect_phase == 0:
+			hud.show_coach("Perfect Combos = No Survivors", "Kill Everyone!"))
+	t.tween_interval(LESSON_METERS_TIME)
+	t.tween_callback(func() -> void:
+		if _lesson == Lesson.PERFECT and _perfect_phase == 0:
+			_perfect_phase = 1
+			hud.show_coach("Time A Perfect Combo"))
+
+
+## A wrong direction, too early or too late in the perfect lesson's timed strike: said,
+## a moment's stillness, then she's rewound to try again.
+func _perfect_fail(title: String, line := "") -> void:
+	_clear_pending()
+	_wrong_sound.play()
+	hud.show_coach(title, line)
+	_perfect_fail_t = PERFECT_FAIL_HOLD
+
+
+## Where a retry of the timed strike starts.
+func _perfect_retry_x() -> float:
+	return _perfect_x - Rules.FORWARD - Rules.KILL_AHEAD - PERFECT_RUN_IN
+
+
+## The rewind without a death (a wrong direction, too early): she runs
+## backwards to the retry spot.
+func _rewind_alive() -> void:
+	_perfect_fail_t = -1.0
+	_rw_killer = null
+	_clear_pending()
+	_rewinding = true
+	_rw_t = UNFALL_TIME   # (nothing to undo: straight to the running back)
+	_rw_back_speed = maxf(player.x - _perfect_retry_x(), 0.0) / RUN_BACK_TIME
+	_rw_layer.visible = true
+	player.run_backwards()
+	_pink_shift_sound.pitch_scale = 0.7
+	_pink_shift_sound.play()
+
+
 ## The tutorial's rewind: after she's been shown dying, she's back on her feet
 ## a little way before the pair (laid again), and the save is taught.
 func _rewind() -> void:
 	_rewind_pending = false
-	_save_rewound = true
+	if _lesson == Lesson.PERFECT:
+		_rw_back_speed = maxf(player.x - _perfect_retry_x(), 0.0) / RUN_BACK_TIME
+	else:
+		_save_rewound = true
+		_rw_back_speed = Rules.speed
 	_rw_killer = _killer
 	state = State.PLAYING
 	_state_time = 0.0
@@ -762,7 +872,7 @@ func _rewind_frame(delta: float) -> void:
 			_rw_killer.unattack(1.0)
 		player.run_backwards()
 	if _rw_t < UNFALL_TIME + RUN_BACK_TIME:
-		player.x -= Rules.speed * delta
+		player.x -= _rw_back_speed * delta
 		return
 	_after_rewind()
 
@@ -774,6 +884,9 @@ func _after_rewind() -> void:
 	player.end_rewind()
 	player.running = true   # (straight on: running at them again)
 	hud.set_pause_button_visible(true)
+	if _lesson == Lesson.PERFECT:   # (the timed strike again)
+		_perfect_late = false
+		hud.show_coach("Time A Perfect Combo")
 
 
 ## Skip pressed while the tutorial shows her dying, or while it rewinds:
@@ -865,8 +978,6 @@ func _finish_tutorial(skipped: bool) -> void:
 		_outro = t   # (Skip Tutorial still cuts it short)
 		t.tween_interval(LESSON_METERS_TIME)
 		t.tween_callback(hud.show_coach.bind("Combos Also Charge Up Your", "Red Flash", ["bolt"], 46))
-		t.tween_interval(LESSON_METERS_TIME)
-		t.tween_callback(hud.show_coach.bind("Perfect Chains = No Survivors. Kill Everyone!", "", ["streak"]))
 		t.tween_interval(LESSON_METERS_TIME)
 		t.tween_callback(hud.show_coach.bind("", "Start!"))   # (in red)
 		t.tween_callback(hud.set_skip_visible.bind(false))   # (nothing left to skip)
@@ -1390,10 +1501,12 @@ func _physics_process(delta: float) -> void:
 		State.PLAYING:
 			if hud.needs_portrait():
 				pass
-			elif (_lesson == Lesson.CHAIN or _lesson == Lesson.SAVE) and _hitstop > 0.0 and _pause_is_chain and _chain_awaiting and not _tut_hold:
+			elif (_lesson == Lesson.CHAIN or _lesson == Lesson.SAVE or _lesson == Lesson.PERFECT) and _hitstop > 0.0 and _pause_is_chain and _chain_awaiting and not _tut_hold:
 				# The chain's freeze holds until she makes the right move.
 				_hitstop = 0.0
-				if _lesson == Lesson.SAVE:
+				if _lesson == Lesson.PERFECT:
+					_begin_hold("Leave No Survivors", false)   # (the move is theirs to find)
+				elif _lesson == Lesson.SAVE:
 					_begin_hold("Now Finish The Combo", false)   # (their own move to find)
 				else:
 					_begin_hold("Combos Stop Time")
@@ -1589,9 +1702,15 @@ func _step() -> void:
 	if move != Rules.Move.NONE and _lesson == Lesson.SAVE and not _save_done:
 		move = Rules.Move.NONE   # (the save: no moves on the way in, until time stops)
 		_say_wait()
+	if move != Rules.Move.NONE and _lesson == Lesson.PERFECT and _perfect_phase == 1 \
+			and (_perfect_late or player.x < _perfect_retry_x() + 0.5):
+		move = Rules.Move.NONE   # (too late already; or so early a rewind would put her where she is: not taken)
 	if move != Rules.Move.NONE and player.cooldown == 0 and _lesson != Lesson.NONE \
 			and is_nan(snap_to) and not _would_slash(move):
-		_say_wait()   # (the lessons: only a move that kills)
+		if _lesson == Lesson.PERFECT and _perfect_phase == 1:
+			_perfect_fail("Wait Until It's Red" if move == Rules.Move.FORWARD else "Wrong Direction")
+		else:
+			_say_wait()   # (the lessons: only a move that kills)
 		move = Rules.Move.NONE
 	# Back to where the press was, now that the move's going ahead (a move the
 	# tutorial blocks leaves her where she is: pulled back then held, she
@@ -3140,6 +3259,9 @@ func _die(kind: String, killer: Enemy = null) -> void:
 	if _lesson == Lesson.SAVE and not _save_rewound:
 		_rewind_pending = true   # (the tutorial: shown dying, then it rewinds)
 		hud.show_coach("Running Into An Enemy Kills You")
+	elif _lesson == Lesson.PERFECT:
+		_rewind_pending = true   # (too late: shown dying, then rewound to try again)
+		hud.show_coach("Too Late!", "Strike The Instant It's Red")
 	state = State.DYING
 	hud.set_pause_button_visible(false)
 	_state_time = 0.0
