@@ -1123,6 +1123,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not _is_fresh_press(event):
 		return
 	# The Options screen, while it's open, takes every press.
+	if hud.credits.visible:
+		get_viewport().set_input_as_handled()
+		hud.credits.handle(event)
+		return
 	if hud.options.visible:
 		get_viewport().set_input_as_handled()
 		if event is InputEventKey or event is InputEventScreenTouch or event is InputEventMouseButton:
@@ -1201,6 +1205,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			"options":
 				_start_music()   # (so its volume can be heard while it's set)
 				hud.open_options(false)
+			"credits":
+				hud.credits.open()
 		return
 	if state == State.OVER and not Hud.is_touch() and (event is InputEventKey or event is InputEventMouseButton):
 		# The game-over screen on a computer: New Run (picked first), Options,

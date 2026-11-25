@@ -102,6 +102,7 @@ var _message_visible_before_pause := false
 # The level bar (a katana), the power-up bolt and the flawless streak,
 # centred above the ceiling row (scripts/top_bar.gd).
 var _top: TopBar
+var credits: CreditsScreen   # the title screen's Credits
 # The tutorial: "Tap Left", "Tap Right", "Tap Both" stacked on the right of
 # the screen, each with an arrow to its left showing where that move takes
 # her from where she is (up or down; forward; up-right or down-right). Dull
@@ -255,6 +256,8 @@ func _ready() -> void:
 	options = OptionsMenu.new()
 	add_child(options)
 	options.closed.connect(_on_options_closed)   # over everything but the "turn your phone" screen
+	credits = CreditsScreen.new()
+	add_child(credits)
 
 	# The "turn your phone" screen, in the title screen's look: its dark
 	# background, the heading in her red with a glow, a red frog croaking
