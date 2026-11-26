@@ -33,8 +33,8 @@ const KILL_HIT := 0.06
 # A chain's first pause: KILL_PAUSE_START at level 1, KILL_PAUSE_LEVEL_STEP
 # shorter each level, down to KILL_PAUSE at level 21 and after (a run started
 # later gets that level's time).
-const KILL_PAUSE_START := 1.4
-const KILL_PAUSE_LEVEL_STEP := 0.035
+const KILL_PAUSE_START := 2.0
+const KILL_PAUSE_LEVEL_STEP := 0.065
 const KILL_PAUSE := 0.7
 # ...shrinking by this much per kill in the chain so far (resets with the
 # chain), down to KILL_PAUSE_FLOOR.
