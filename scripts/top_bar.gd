@@ -109,6 +109,18 @@ var _charge_pop := 0.0
 ## (main.gd CHARGE_GOLDEN_PERFECT). The bolt shows it: gold glow and rim,
 ## gold sparks rising, and a bigger pop with a ring per gain.
 var _boosted := false
+var _charge_units := 0     # the charge as counted (CHARGE_FULL is full)
+var _charge_full := 10
+var _charge_mult := 1.0    # how fast a PERFECT fills it now (golden 1.5, rainbow 2): its badge
+var _ring_flash := {}      # arc index -> seconds since it gained
+var _ring_sparks: Array = []   # [pos, vel, life, max_life, colour]
+var _turn_ring := 0.0     # the ring bursting out as she turns, 1 easing to 0
+const TURN_RING_TIME := 0.5
+var _badge_pop := -1.0     # seconds since the speed badge appeared (-1: none)
+const RING_FLASH := 0.35
+const PIP_UNITS := 2       # charge per pip: one PERFECT (a CLEAN fills half)
+const PIP := 9.0           # a pip's size
+const PIP_GAP := 4.0
 var _discharge := 0.0   # 1 as a full bolt empties (the power-up used), fading
 var _boost_ring := 0.0
 var _sparks: Array = []   # [position, velocity, life]
@@ -136,6 +148,17 @@ func _process(delta: float) -> void:
 	if get_tree().paused:
 		queue_redraw()   # frozen with the game, but redrawn: a colour picked in Options shows at once
 		return
+	for k in _ring_flash.keys():
+		_ring_flash[k] += delta
+		if _ring_flash[k] > RING_FLASH:
+			_ring_flash.erase(k)
+	for sp in _ring_sparks:
+		sp[0] += sp[1] * delta
+		sp[1] *= 0.9
+		sp[2] -= delta
+	_ring_sparks = _ring_sparks.filter(func(sp: Array) -> bool: return sp[2] > 0.0)
+	if _badge_pop >= 0.0:
+		_badge_pop += delta
 	if not _result.is_empty():
 		_result_t += delta
 		if _result_t < RESULT_ACT and _result["grade"] != "DROPPED":
@@ -163,6 +186,7 @@ func _process(delta: float) -> void:
 	_pop = maxf(_pop - delta / POP_TIME, 0.0)
 	_hit = maxf(_hit - delta / HIT_PULSE, 0.0)
 	_charge_pop = maxf(_charge_pop - delta / 0.2, 0.0)
+	_turn_ring = maxf(_turn_ring - delta / TURN_RING_TIME, 0.0)
 	_boost_ring = maxf(_boost_ring - delta / 0.45, 0.0)
 	_discharge = maxf(_discharge - delta / 0.4, 0.0)
 	_update_sparks(delta)
@@ -209,7 +233,22 @@ func _show_level(lv: int) -> void:
 	_shown_level = level
 
 
-func set_charge(value: int, full: int, charged: bool, boosted := false) -> void:
+func set_charge(value: int, full: int, charged: bool, boosted := false, mult := 1.0) -> void:
+	if value > _charge_units:   # the ring's arcs that just gained: they flash and throw sparks
+		var n := int(ceil(float(full) / PIP_UNITS))
+		for i in n:
+			var before := clampf(float(_charge_units) / PIP_UNITS - i, 0.0, 1.0)
+			var after := clampf(float(value) / PIP_UNITS - i, 0.0, 1.0)
+			if after > before:
+				_ring_flash[i] = 0.0
+				_ring_burst(i, n, after >= 1.0)
+	if mult > 1.0 and _charge_mult <= 1.0:
+		_badge_pop = 0.0
+	if mult > _charge_mult + 0.01:   # golden, then rainbow: the bolt jumps out, as the flawless number does
+		_turn_ring = 1.0
+	_charge_units = value
+	_charge_full = full
+	_charge_mult = mult
 	var v := clampf(float(value) / float(full), 0.0, 1.0)
 	if v > _charge + 0.001:
 		_charge_pop = 1.0
@@ -569,7 +608,26 @@ func _hilt_left() -> float:
 # --- the power-up bolt -------------------------------------------------------
 
 func _bolt_origin() -> Vector2:
-	return Vector2(bolt_x, BLADE.y / 2.0 - BOLT_SIZE.y / 2.0)
+	var o := Vector2(bolt_x, BLADE.y / 2.0 - BOLT_SIZE.y / 2.0)
+	if bolt_fly > 0.0:
+		o += _bolt_fly_shift(o)
+	return o
+
+
+## 0..1: as she turns golden or rainbow the bolt (its ring and badge too) grows
+## to BOLT_FLY_SCALE and back, as the flawless number does (main.gd tweens it
+## the same way), nudged in just enough to stay on screen.
+var bolt_fly := 0.0
+const BOLT_FLY_SCALE := 1.6   # (half the flawless number's growth: it reads bigger, ring and all)
+
+## How far the grown bolt moves in (right and down) to keep its ring on screen.
+func _bolt_fly_shift(o: Vector2) -> Vector2:
+	var c := o + BOLT_SIZE / 2.0
+	var r := (ring_radius() + 6.0) * _boost_scale()
+	var xf := get_global_transform_with_canvas()
+	var k := xf.get_scale().x
+	var at := xf * c
+	return Vector2(maxf(0.0, r * k - at.x), maxf(0.0, r * k - at.y)) / k
 
 
 func _bolt_poly(o: Vector2, scale_by := 1.0) -> PackedVector2Array:
@@ -630,9 +688,6 @@ func _update_sparks(delta: float) -> void:
 
 func _draw_boost(o: Vector2, s: float) -> void:
 	var gold := _sec()
-	var beat := 0.7 + 0.3 * sin(Time.get_ticks_msec() * 0.009)
-	for k in 3:   # a gold aura behind it
-		draw_colored_polygon(_bolt_poly(o, s * (1.3 + 0.18 * k)), Color(gold, 0.07 * beat))
 	if _boost_ring > 0.0:   # a ring bursting out with each gain
 		var c := o + BOLT_SIZE / 2.0
 		draw_arc(c, 18.0 + 30.0 * (1.0 - _boost_ring), 0.0, TAU, 36, Color(gold, 0.9 * _boost_ring), 2.5, true)
@@ -648,7 +703,7 @@ func _draw_boost_front(o: Vector2) -> void:
 func _draw_bolt() -> void:
 	var col := Palette.tint(CHARGE_COLOR)
 	var o := _bolt_origin()
-	var s := 1.0 + (0.3 if _boosted else 0.15) * _charge_pop
+	var s := (1.0 + (0.3 if _boosted else 0.15) * _charge_pop) * _boost_scale()
 	if _boosted:
 		_draw_boost(o, s)
 	var poly := _bolt_poly(o, s)
@@ -678,9 +733,171 @@ func _draw_bolt() -> void:
 		draw_polyline(closed, Color(1, 1, 1, 0.9) if _charged else Color(col.lightened(0.3), 0.75), 1.5, true)
 	if _boosted:
 		_draw_boost_front(o)
+	_draw_pips(o)
 	if _discharge > 0.0:   # used: a white flash bursting out as it empties
 		draw_colored_polygon(_bolt_poly(o, 1.0 + 0.8 * (1.0 - _discharge)), Color(1, 1, 1, 0.55 * _discharge))
 		draw_arc(o + BOLT_SIZE / 2.0, 14.0 + 34.0 * (1.0 - _discharge), 0.0, TAU, 36, Color(Palette.tint(CHARGE_COLOR).lightened(0.4), _discharge), 2.5, true)
+
+
+## Under the bolt: a pip per PERFECT it takes to fill (a CLEAN fills half of
+## one), and while golden or rainbow, how much faster it fills (x1.5, x2).
+static var pip_style := "ring"   # (MOCKUP) "squares", "segments" (the bolt split in 5) or "ring"
+
+func _draw_pips(o: Vector2) -> void:
+	if pip_style == "segments":
+		_draw_segments(o)
+	elif pip_style == "ring":
+		_draw_ring(o)
+	else:
+		_draw_squares(o)
+	_draw_badge(o)
+
+
+func _draw_badge(o: Vector2) -> void:
+	if _charge_mult > 1.0:   # (ready or not: it stays while golden / rainbow)
+		var beat := 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.012)
+		var txt := "x1.5" if _charge_mult < 1.9 else "x2"
+		var p := Vector2(o.x + BOLT_SIZE.x + 6.0, o.y + 16.0)
+		if pip_style == "ring":   # (beside the ring, out with it as it jumps)
+			p = o + BOLT_SIZE / 2.0 + Vector2(ring_radius() * _boost_scale() + 4.0, -ring_radius() * 0.45 * _boost_scale())
+		var pop := 1.0
+		if _badge_pop >= 0.0 and _badge_pop < 0.3:
+			pop = 1.0 + 0.6 * (1.0 - _badge_pop / 0.3)
+		# (one font size, scaled as a picture: a new size each frame would make the font build new letters, a hitch)
+		draw_set_transform(p, 0.0, Vector2(pop, pop))
+		draw_string(FONT, Vector2(1, 1), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(0, 0, 0, 0.7))
+		draw_string(FONT, Vector2.ZERO, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, _sec().lightened(0.2 * beat))
+		draw_set_transform(Vector2.ZERO)
+
+
+## The bolt's colour for its pips now.
+func _pip_col() -> Color:
+	var col := Palette.tint(CHARGE_COLOR)
+	if _charged:
+		return col.lightened(0.15 + 0.2 * (0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.012)))
+	return _sec() if _charge_mult > 1.0 else col
+
+
+## Notches across the bolt at each fifth (the fill already rises in steps of them).
+func _draw_segments(o: Vector2) -> void:
+	var s := 1.0 + (0.3 if _boosted else 0.15) * _charge_pop
+	var poly := _bolt_poly(o, s)
+	var top := poly_top(poly)
+	var bot := poly_bottom(poly)
+	var n := int(ceil(float(_charge_full) / PIP_UNITS))
+	var beat := 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.012)
+	var filled := float(_charge_units) / PIP_UNITS
+	for k in range(1, n):
+		var y := lerpf(bot, top, float(k) / n)
+		var xs: Array[float] = []
+		for i in poly.size():
+			var a := poly[i]
+			var b := poly[(i + 1) % poly.size()]
+			if (a.y - y) * (b.y - y) < 0.0:
+				xs.append(lerpf(a.x, b.x, (y - a.y) / (b.y - a.y)))
+		xs.sort()
+		for j in range(0, xs.size() - 1, 2):
+			draw_line(Vector2(xs[j], y), Vector2(xs[j + 1], y), Color(0.05, 0.03, 0.04, 0.95), 2.5)
+	if not _charged and filled >= n - 1 and filled < n:   # one to go: the top part's edge pulses
+		var part := _below(poly, lerpf(bot, top, float(n - 1) / n))
+		var upper := PackedVector2Array()
+		for p in poly:
+			if p.y <= lerpf(bot, top, float(n - 1) / n) + 0.5:
+				upper.append(p)
+		var closed := poly.duplicate()
+		closed.append(poly[0])
+		draw_polyline(closed, Color(1, 1, 1, 0.35 + 0.6 * beat), 2.0, true)
+
+
+## The ring's radius (round the bolt's middle).
+func ring_radius() -> float:
+	return BOLT_SIZE.y / 2.0 + 12.0   # (clear of the bolt's points, even as it swells)
+
+
+## The square round the ring (the tutorial's highlight of the Red Flash).
+func ring_rect() -> Rect2:
+	var c := _bolt_origin() + BOLT_SIZE / 2.0
+	var half := ring_radius() + 4.0
+	return Rect2(c - Vector2(half, half), Vector2(half, half) * 2.0)
+
+
+## How much bigger the bolt and its ring are right now (the golden / rainbow jump).
+func _boost_scale() -> float:
+	return lerpf(1.0, BOLT_FLY_SCALE, bolt_fly)
+
+
+## Sparks off an arc that just gained (more, and white-hot, when it's whole).
+func _ring_burst(i: int, n: int, whole: bool) -> void:
+	var c := _bolt_origin() + BOLT_SIZE / 2.0
+	var r := ring_radius()
+	var mid := -PI / 2.0 + (i + 0.5) * TAU / n
+	for k in (10 if whole else 5):
+		var a := mid + _rng.randf_range(-0.45, 0.45)
+		var p := c + Vector2.RIGHT.rotated(a) * r
+		var v := Vector2.RIGHT.rotated(a + _rng.randf_range(-0.5, 0.5)) * _rng.randf_range(60.0, 150.0)
+		var life := _rng.randf_range(0.25, 0.45)
+		_ring_sparks.append([p, v, life, life, Color(1, 0.95, 0.85) if whole and k % 2 == 0 else Color(1, 1, 1)])
+
+
+## A ring round the bolt in five arcs, filling clockwise from the top: an arc
+## that gains flashes white and swells; full, lightning jumps its gaps.
+func _draw_ring(o: Vector2) -> void:
+	var c := o + BOLT_SIZE / 2.0
+	var n := int(ceil(float(_charge_full) / PIP_UNITS))
+	var filled := float(_charge_units) / PIP_UNITS
+	var r := ring_radius() * _boost_scale()
+	if _turn_ring > 0.0:   # a ring bursting out with it, in her new colour
+		var k := 1.0 - _turn_ring
+		draw_arc(c, r + 30.0 * ease(k, 0.5), 0.0, TAU, 48, Color(_sec(), _turn_ring), 3.0, true)
+	var gap := deg_to_rad(9.0)
+	var seg := TAU / n
+	var col := _pip_col()
+	for i in n:
+		var a0 := -PI / 2.0 + i * seg + gap / 2.0
+		var a1 := a0 + seg - gap
+		var part := clampf(filled - i, 0.0, 1.0)
+		var t: float = _ring_flash.get(i, -1.0)
+		var flash := 1.0 - t / RING_FLASH if t >= 0.0 else 0.0
+		var w := 4.0 + 3.0 * flash
+		draw_arc(c, r, a0, a1, 16, Color(1, 1, 1, 0.14), 4.0, true)
+		if part > 0.0:
+			var a_end := lerpf(a0, a1, part)
+			draw_arc(c, r, a0, a_end, 16, Color(col, 0.22 + 0.25 * flash), w + 6.0, true)   # glow
+			draw_arc(c, r, a0, a_end, 16, col.lerp(Color.WHITE, 0.75 * flash), w, true)
+	if _charged:
+		for i in n:
+			if _rng.randf() < 0.35:
+				var ga := -PI / 2.0 + i * seg
+				var p0 := c + Vector2.RIGHT.rotated(ga - gap) * r
+				var p1 := c + Vector2.RIGHT.rotated(ga + gap) * r
+				var mid := (p0 + p1) / 2.0 + (p1 - p0).orthogonal().normalized() * _rng.randf_range(-5.0, 5.0)
+				draw_polyline(PackedVector2Array([p0, mid, p1]), Color(1, 1, 1, 0.9), 1.5, true)
+	for sp in _ring_sparks:
+		var k: float = sp[2] / sp[3]
+		draw_line(sp[0], sp[0] - sp[1] * 0.04, Color(sp[4], k), 2.0, true)
+
+
+func _draw_squares(o: Vector2) -> void:
+	var col := Palette.tint(CHARGE_COLOR)
+	var n := int(ceil(float(_charge_full) / PIP_UNITS))
+	var row_w := n * PIP + (n - 1) * PIP_GAP
+	var x0 := o.x + BOLT_SIZE.x / 2.0 - row_w / 2.0
+	var y := o.y + BOLT_SIZE.y + 9.0
+	var filled := float(_charge_units) / PIP_UNITS
+	var beat := 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.012)
+	for i in n:
+		var r := Rect2(x0 + i * (PIP + PIP_GAP), y, PIP, PIP)
+		var part := clampf(filled - i, 0.0, 1.0)
+		var c := col
+		if _charged:
+			c = col.lightened(0.15 + 0.2 * beat)
+		elif _charge_mult > 1.0:
+			c = _sec()
+		draw_rect(r, Color(1, 1, 1, 0.1))
+		if part > 0.0:
+			draw_rect(Rect2(r.position, Vector2(PIP * part, PIP)), c)
+		var last_one := not _charged and i == n - 1 and filled >= n - 1 and filled < n
+		draw_rect(r, Color(1, 1, 1, 0.5 + 0.5 * beat) if last_one else Color(1, 1, 1, 0.35), false, 1.0)
 
 
 func poly_top(poly: PackedVector2Array) -> float:

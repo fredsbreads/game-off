@@ -30,7 +30,7 @@ const HINT_KEYS := "Left: Up/Down    Right: Forward    Both: Diagonal"
 ## Her: running (the run sheet, as in the game), at a whole-number scale
 ## (crisp pixels).
 const RUN_FRAMES := 6
-const RUN_FPS := 12.0
+const RUN_CYCLE := 0.61676 / 1.25   # seconds a run cycle (a quarter faster than a beat of the music)
 const FRAME_PX := 96
 ## The part of a frame she fills in any of them (frame pixels), and her
 ## katana's blade (its height in each frame: she bobs as she runs).
@@ -324,8 +324,20 @@ func _draw_her() -> void:
 	draw_texture_rect_region(Player.RUN_SHEET, rect, Rect2(_run_frame() * FRAME_PX, 0, FRAME_PX, FRAME_PX))
 
 
+## Her run: a full cycle every RUN_CYCLE seconds (five to every four beats). Put in
+## step with the music once, when it starts: her last frame (head lowest) on
+## a beat, and on every fourth beat after; then her own clock runs on.
+var _run_offset := 0.0   # cycles to add to her clock
+var _run_synced := false
+
 func _run_frame() -> int:
-	return int(_t * RUN_FPS) % RUN_FRAMES
+	if not _run_synced:
+		var music := get_tree().root.get_node_or_null("Music") as AudioStreamPlayer
+		if music and music.playing:
+			var pos := music.get_playback_position() + AudioServer.get_time_since_last_mix() - AudioServer.get_output_latency()
+			_run_offset = pos / RUN_CYCLE - _t / RUN_CYCLE
+			_run_synced = true
+	return (int(floorf((_t / RUN_CYCLE + _run_offset) * RUN_FRAMES)) + RUN_FRAMES - 1) % RUN_FRAMES
 
 
 func _draw_title() -> void:

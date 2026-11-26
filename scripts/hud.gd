@@ -494,8 +494,8 @@ func set_auto(on: bool) -> void:
 
 
 ## boosted: golden (her PERFECT chains charge double).
-func set_charge(value: int, full: int, charged: bool, boosted := false) -> void:
-	_top.set_charge(value, full, charged, boosted)
+func set_charge(value: int, full: int, charged: bool, boosted := false, mult := 1.0) -> void:
+	_top.set_charge(value, full, charged, boosted, mult)
 
 
 ## The current flawless streak.
@@ -1045,7 +1045,8 @@ func _draw_spotlight(c: Control, v: Vector2) -> void:
 				var ext := _top.extent()
 				r = Rect2(_top.position + Vector2(ext.x, mid - 22.0), Vector2(ext.y - ext.x, 44.0))
 			"bolt":
-				r = Rect2(_top.position + _top._bolt_origin(), TopBar.BOLT_SIZE)
+				var rr := _top.ring_rect()   # (the ring round it too)
+				r = Rect2(_top.position + rr.position, rr.size)
 			"streak":
 				r = Rect2(_top.position + Vector2(_top.streak_x - 6.0, mid - 26.0), Vector2(84.0, 56.0))
 		holes.append(r.grow(12.0))

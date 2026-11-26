@@ -153,6 +153,8 @@ var _fin_hold := FINISHER_HOLD
 const STREAK_REWARD := 50
 const RAINBOW_STREAK := 100   # ...and the rainbow (see Palette.set_rainbow)
 var _rainbowed_before := false
+var _lit_golden := false    # the flawless number and the bolt have grown for her golden this run
+var _lit_rainbow := false   # ... and for her rainbow
 var _rainbow_tier := false   # a streak of RAINBOW_STREAK reached (whether or not the rainbow's shown)
 var _fin_rainbow := false   # this finisher is the rainbow one (five slashes)
 # The auto-chain power-up: a meter filled by finished chains (CLEAN 1,
@@ -175,7 +177,6 @@ const AUTO_SLASH_HOP := 0.2      # the finish's slashes (three; five when golden
 const AUTO_SLASH_HOP_GOLDEN := 0.15   # ...the golden finish's five, a little quicker
 const AUTO_SLASH_TO_BANG := 0.2  # ...and from the third to the big strike
 const AUTO_FINALE_IMPACT := 0.14  # the big strike lands on a frozen, white-hot frame this long
-const AUTO_FINALE_DUCK_DB := -22.0 # the music drops by this through the hold (silence before the bang)
 const AUTO_FINALE_DB := 1.0       # the thunder (the loudest thing in the game)
 const AUTO_FINALE_SHAKE := 14.0   # the bang's screen shake: strength (pixels)...
 const AUTO_FINALE_SHAKE_TIME := 0.4 # ...and seconds
@@ -516,8 +517,9 @@ var _rw_fx: Control
 # forward teleport past the first (6.7 tiles), so when time stops only the
 # teleport across is lit; after her first kill (landing 0.7 short) it's in
 # reach. She escapes across, cuts down the one that would have got her, then
-# diagonal onto the next pair, and across to the last.
-const SAVE_SHAPE := [Vector2(0, 0), Vector2(0, 1), Vector2(6.7, 1), Vector2(6.7, 0)]
+# diagonal onto the next pair, across, and diagonal down onto the last, alone
+# on the floor.
+const SAVE_SHAPE := [Vector2(0, 0), Vector2(0, 1), Vector2(6.7, 1), Vector2(6.7, 0), Vector2(12.7, 0)]
 # The chain lesson: D F D (it ends back on the floor, where the save comes).
 const CHAIN_STEPS := "D F D"
 # The perfect lesson (after the chain lesson): "Perfect Combos = No
@@ -1000,6 +1002,7 @@ func _finish_tutorial(skipped: bool) -> void:
 	kills = 0
 	kill_score = 0
 	sweep = 0
+	_charge_mult_shown = 1.0
 	best_sweep = 0
 	best_chain = 0
 	perfect_chains = 0
@@ -1620,9 +1623,10 @@ func _physics_process(delta: float) -> void:
 	hud.set_auto(_auto or _finale_hold)   # (lightning on the katana while it plays itself)
 	if _auto or _finale_hold:
 		# The power-up playing: its bolt stays full until the finale's strike.
-		hud.set_charge(CHARGE_FULL, CHARGE_FULL, true, Palette.pink >= 1.0)
+		hud.set_charge(CHARGE_FULL, CHARGE_FULL, true, Palette.pink >= 1.0, _charge_mult_shown)
 	else:
-		hud.set_charge(charge, CHARGE_FULL, _charged, Palette.pink >= 1.0)   # (golden: PERFECT charges more)
+		# (golden: PERFECT charges more, rainbow more again: the badge says how much)
+		hud.set_charge(charge, CHARGE_FULL, _charged, Palette.pink >= 1.0, _charge_mult_shown)
 	var to_screen := get_viewport_rect().size.x / (CameraRig.VIEW_TILES * Rules.TILE)
 	hud.set_progress(progression.level, progression.bar, progression.bar_size(), chain_points,
 		(Rules.CEILING_Y - cam.top()) * to_screen)
@@ -1649,7 +1653,9 @@ func _update_pause_visuals() -> void:
 	if chain_pause:
 		_grey_bridge = GREY_BRIDGE
 	else:
-		_grey_bridge = maxf(_grey_bridge - get_process_delta_time(), 0.0)
+		# (At most a 30th of a second a frame: on a slow machine one frame can
+		# outlast the whole bridge while the game itself has barely moved.)
+		_grey_bridge = maxf(_grey_bridge - minf(get_process_delta_time(), 1.0 / 30.0), 0.0)
 	var grey := chain_pause or _tut_hold or (state == State.PLAYING and chain > 0 and _grey_bridge > 0.0)
 	freeze_effect.set_state(1.0 if flashing else 0.0, 1.0 if grey and not flashing else 0.0)
 	# The basic grunts hold still in their idle while it's grey.
@@ -1977,7 +1983,13 @@ func _finisher(k: Enemy, grade: String, to_rainbow := false) -> void:
 	# The first golden (and the first rainbow) of a run points at why: as
 	# the flawless number ticks onto 50 (100) at the sweep's end, it grows
 	# where it is and back (see _finisher_level_up).
-	_fin_explain = not quick   # (the first golden, and the first rainbow)
+	# (Its own flags, kept per run (the scene reloads for each): the first golden and the
+	# first rainbow grow even when their finishers are the quick ones.)
+	_fin_explain = not (_lit_rainbow if to_rainbow else _lit_golden)
+	if to_rainbow:
+		_lit_rainbow = true
+	else:
+		_lit_golden = true
 	_fin_strike_fps = 18.0 if quick else FINISHER_STRIKE_FPS
 	_fin_bolt_fps = FINISHER_QUICK_BOLT_FPS if quick else FINISHER_BOLT_FPS
 	_fin_after = FINISHER_QUICK_AFTER if quick else FINISHER_SWEEP_AFTER
@@ -2013,6 +2025,8 @@ func _finisher(k: Enemy, grade: String, to_rainbow := false) -> void:
 		t.tween_interval(_fin_hop)
 		var last := i == order.size() - 1
 		t.tween_callback(_finisher_strike.bind(k, right_x if i % 2 == 0 else left_x, -1.0 if i % 2 == 0 else 1.0, order[i], grade if last else ""))
+	if to_rainbow:   # the regular music sinks through the slashes, to the level-up
+		_music_finisher_duck(order.size() * _fin_hop + _fin_after + _fin_sweep)
 	# The freeze frame: pink sweeps across her, then the level-up.
 	t.tween_interval(_fin_after)
 	# A wave across the whole screen, right to left. The rainbow's: every
@@ -2091,7 +2105,15 @@ func _row_bolt(size: Vector2, fps: float, hold := -1, hold_time := 0.0) -> void:
 
 ## The sweep is done: she's pink, with a flash, and the chain ends (the
 ## level-up into 10).
+## How much faster a PERFECT charges the Red Flash, as its badge shows it
+## (x1.5 golden, x2 rainbow): set on the finisher's level-up, with the
+## flawless number's jump; back to 1 when the streak breaks or she dies.
+var _charge_mult_shown := 1.0
+
 func _finisher_level_up(grade: String) -> void:
+	_charge_mult_shown = float(CHARGE_RAINBOW_PERFECT if _fin_rainbow else CHARGE_GOLDEN_PERFECT) / float(CHARGE_GAIN["PERFECT"])
+	if _fin_rainbow:
+		_music_to_rainbow()   # its entrance on the level-up
 	Palette.set_pink(1.0)
 	hud.show_sweep(-1.0, Color.WHITE)
 	hud.flash(Palette.flash_colour(), 0.6)   # in her new colour
@@ -2103,9 +2125,10 @@ func _finisher_level_up(grade: String) -> void:
 	# katana's bump (not after the hold that follows).
 	_streak_shown = sweep
 	_show_counts()
-	if _fin_explain:
+	if _fin_explain:   # (the first golden and the first rainbow of a run)
 		_fin_explain = false
 		_light_on_streak()
+		_light_on_bolt()
 
 
 ## Testing colours: the C key switches her level-10 colour to the next one
@@ -2229,7 +2252,6 @@ func _auto_finale(grade: String) -> void:
 	var body := Vector2(player.x * Rules.TILE, Rules.body_center_y(player.row))
 	cam.hold_zoom(body, AUTO_FINALE_ZOOM, 16.0)
 	cam.shake(0.1, 12.0)
-	_duck_music(MUSIC_DB + AUTO_FINALE_DUCK_DB, 0.12)
 	hud.flash(Color(1, 1, 1, 0.3), 0.1)
 	var k := _last_felled
 	if not is_instance_valid(k):
@@ -2325,7 +2347,6 @@ func _auto_finale_strike(grade: String, k: Enemy) -> void:
 	_auto_finale_sound.play()
 	_auto_finale_layer.pitch_scale = 0.85   # deeper than a knight's last hit
 	_auto_finale_layer.play()
-	_duck_music(MUSIC_DB, 1.6, 0.35)
 	_auto_ending = not _shadow_finish
 	var was_auto := _auto_ending   # (not the Shadow's own finale)
 	_shadow_finish = false
@@ -2356,17 +2377,6 @@ func _auto_finale_strike(grade: String, k: Enemy) -> void:
 ## effect is drawn once into an off-screen picture that's never shown, then
 ## thrown away.
 func _prewarm() -> void:
-	# In a browser each sound is readied the first time it plays (decoded on
-	# the spot: a hitch then, e.g. the tutorial's first blocked move): ready
-	# them all now, while the title screen's up.
-	if OS.has_feature("web"):
-		var streams: Array = [STRIKE_MOVE, STRIKE_KILL]
-		for c in get_children():
-			if c is AudioStreamPlayer and c.stream != null:
-				streams.append(c.stream)
-		for st in streams:
-			if not AudioServer.is_stream_registered_as_sample(st):
-				AudioServer.register_stream_as_sample(st)
 	var view := SubViewport.new()
 	view.size = Vector2i(256, 256)
 	view.transparent_bg = true
@@ -2409,7 +2419,7 @@ func _prewarm() -> void:
 	glyphs.position = Vector2(-100000.0, -100000.0)
 	var all_chars := "ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz +0123456789!?"
 	glyphs.draw.connect(func() -> void:
-		for size in [12, 24, 26, 30, 66]:
+		for size in [12, 16, 24, 26, 30, 66]:   # (16: the Red Flash's x1.5 / x2)
 			glyphs.draw_string(TopBar.FONT, Vector2.ZERO, all_chars, HORIZONTAL_ALIGNMENT_LEFT, -1, size)
 		for size in [16, 34, 46]:
 			glyphs.draw_string(ThemeDB.fallback_font, Vector2.ZERO, all_chars, HORIZONTAL_ALIGNMENT_LEFT, -1, size))
@@ -2441,16 +2451,6 @@ func _prewarm() -> void:
 	get_tree().create_timer(0.5).timeout.connect(view.queue_free)
 
 
-## Fades the music to `db` over `seconds`, after `delay`.
-func _duck_music(db: float, seconds: float, delay := 0.0) -> void:
-	var music := get_tree().root.get_node_or_null("Music") as AudioStreamPlayer
-	if music == null:
-		return
-	var t := music.create_tween()
-	t.tween_interval(delay)
-	t.tween_property(music, "volume_db", db, seconds)
-
-
 ## A teleporter's debut waits only while the auto-chain plays (so it never
 ## plays through her); a charge merely held doesn't delay it (a charged kill
 ## on her starts the auto-chain like any other), so it always comes on time.
@@ -2469,6 +2469,9 @@ func _sync_debut_wait() -> void:
 ## back to 0, and if she had her colour, she loses it, with a crack.
 func _break_streak() -> void:
 	sweep = 0
+	_charge_mult_shown = 1.0
+	if _rainbow_tier:
+		_music_to_regular()
 	_rainbow_tier = false
 	if Palette.pink > 0.0 and not _finishing:
 		_lose_colour_sound.pitch_scale = _jitter()
@@ -2499,6 +2502,15 @@ func _light_on_streak() -> void:
 	var t := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_STOP).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	t.tween_property(top, "fly", 1.0, STREAK_FLY_IN)
 	t.tween_property(top, "fly", 0.0, STREAK_FLY_IN)
+
+
+## The Red Flash bolt grows where it is and shrinks straight back (as she turns
+## golden or rainbow: it charges faster now), just as the flawless number does.
+func _light_on_bolt() -> void:
+	var top: Control = hud._top
+	var t := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_STOP).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	t.tween_property(top, "bolt_fly", 1.0, STREAK_FLY_IN)
+	t.tween_property(top, "bolt_fly", 0.0, STREAK_FLY_IN)
 
 
 ## A knight that comes for her after she ran from run_from to where she is:
@@ -3319,6 +3331,8 @@ func _end_chain(grade: String, word: String = "") -> void:
 
 
 func _die(kind: String, killer: Enemy = null) -> void:
+	_charge_mult_shown = 1.0
+	_music_to_regular()   # (the rainbow, if she had it, is over)
 	if _lesson == Lesson.SAVE and not _save_rewound:
 		_rewind_pending = true   # (the tutorial: shown dying, then it rewinds)
 		hud.show_coach("Running Into An Enemy Kills You")
@@ -3451,32 +3465,147 @@ func _save_best(value: int) -> void:
 	cfg.save(SAVE_PATH)
 
 
-# Background music: "Suspense Tension Building" (Monume). Its quiet intro
-# plays once; then the body loops (from MUSIC_LOOP_FROM to the end of the
-# file, seven 16 s phrases with a crossfade baked into the end). Its quiet
-# fade-out was cut.
-const MUSIC := preload("res://assets/music/background.ogg")
+# Background music, two loops on one beat grid (97.28 bpm, a bar is
+# MUSIC_BAR): the regular one, 8 bars, and the rainbow's, 16 bars from the
+# song's climax (sped up 0.3% onto the same grid). Each file is a clean first
+# round, then loops from MUSIC_LOOP_FROM to its end (where the ring of the
+# round's last bar carries over). Going rainbow (the finisher's level-up) the
+# rainbow loop starts from its top, and the regular one, still playing unheard
+# on its own bus, skips on to its next bar there, so the two share bar lines;
+# losing the rainbow fades straight back to the regular loop, on the beat.
+const MUSIC := preload("res://assets/music/regular.ogg")
+const MUSIC_RAINBOW := preload("res://assets/music/rainbow.ogg")
 const MUSIC_DB := -9.0
-const MUSIC_LOOP_FROM := 9.0   # seconds: where the end of the file joins up again
+const MUSIC_LOOP_FROM := 59208.0 / 48000.0   # seconds: two beats into each file
+const MUSIC_BAR := 947338.0 / 48000.0 / 8.0  # seconds a bar
+const MUSIC_REGULAR_LEN := (947338.0 + 59208.0) / 48000.0
+const MUSIC_BACK_TIME := 0.12          # seconds to fade back to the regular loop
+const MUSIC_FINISHER_DUCK_DB := -12.0  # the regular loop drops by this through the rainbow finisher's slashes
+const MUSIC_SILENT_DB := -80.0
+var _music_tween: Tween
 
 
 ## Starts the music with the first run (browsers only allow sound after a
 ## press). It lives outside the scene, so it carries on through retries.
+## (In a browser every sound plays as a stream, mixed by the engine:
+## project.godot's audio/general/default_playback_type.web. Godot 4.3's
+## "sample" playback kept a little memory from every sound played, and long
+## runs crashed iPhones.)
 func _start_music() -> void:
+	_ensure_music_buses()
 	var music := get_tree().root.get_node_or_null("Music") as AudioStreamPlayer
 	if music == null:
-		music = AudioStreamPlayer.new()
-		music.name = "Music"
-		var stream: AudioStreamOggVorbis = MUSIC
-		stream.loop = true
-		stream.loop_offset = MUSIC_LOOP_FROM
-		music.stream = stream
-		music.volume_db = MUSIC_DB
-		music.process_mode = Node.PROCESS_MODE_ALWAYS
-		music.bus = "Music"   # (the Music volume)
-		get_tree().root.add_child(music)
+		music = _music_player("Music", MUSIC, "MusicRegular")
+		_music_player("MusicRainbow", MUSIC_RAINBOW, "MusicRainbow")
+		_set_music_bus("MusicRegular", 0.0)
+		_set_music_bus("MusicRainbow", MUSIC_SILENT_DB)
 	if not music.playing:
 		music.play()
+	_music_to_regular(true)   # (a new run: never in the rainbow)
+
+
+func _music_player(node_name: String, stream: AudioStreamOggVorbis, bus: String) -> AudioStreamPlayer:
+	var p := AudioStreamPlayer.new()
+	p.name = node_name
+	stream.loop = true
+	stream.loop_offset = MUSIC_LOOP_FROM
+	p.stream = stream
+	p.volume_db = MUSIC_DB
+	p.process_mode = Node.PROCESS_MODE_ALWAYS
+	p.bus = bus
+	get_tree().root.add_child(p)
+	return p
+
+
+## The two loops each on their own bus into "Music" (the Music volume and the
+## Shadow's muffle stay on that one): the switch fades these.
+func _ensure_music_buses() -> void:
+	Settings._ensure_buses()
+	for bus in ["MusicRegular", "MusicRainbow"]:
+		if AudioServer.get_bus_index(bus) == -1:
+			AudioServer.add_bus()
+			var i := AudioServer.bus_count - 1
+			AudioServer.set_bus_name(i, bus)
+			AudioServer.set_bus_send(i, "Music")
+
+
+func _set_music_bus(bus: String, db: float) -> void:
+	var i := AudioServer.get_bus_index(bus)
+	if i >= 0:
+		AudioServer.set_bus_volume_db(i, db)
+
+
+func _music_bus(bus: String) -> float:
+	var i := AudioServer.get_bus_index(bus)
+	return AudioServer.get_bus_volume_db(i) if i >= 0 else 0.0
+
+
+func _rainbow_music_on() -> bool:
+	var r := get_tree().root.get_node_or_null("MusicRainbow") as AudioStreamPlayer
+	return r != null and r.playing
+
+
+## A fade of a music bus (from where it is), on a tween that outlives the scene.
+func _fade_music_bus(t: Tween, bus: String, to_db: float, seconds: float) -> void:
+	t.tween_method(func(v: float) -> void: _set_music_bus(bus, v), _music_bus(bus), to_db, seconds)
+
+
+func _music_kill_tween() -> void:
+	if _music_tween and _music_tween.is_valid():
+		_music_tween.kill()
+
+
+## Through the rainbow finisher's slashes: the regular loop sinks, so the
+## rainbow's entrance lands out of near-quiet.
+func _music_finisher_duck(seconds: float) -> void:
+	var music := get_tree().root.get_node_or_null("Music") as AudioStreamPlayer
+	if music == null:
+		return
+	_music_kill_tween()
+	_music_tween = music.create_tween()
+	_fade_music_bus(_music_tween, "MusicRegular", MUSIC_FINISHER_DUCK_DB, seconds)
+
+
+## The finisher's level-up: the rainbow loop starts from its top, now; the
+## regular one goes on unheard, skipped on to its next bar line.
+func _music_to_rainbow() -> void:
+	var music := get_tree().root.get_node_or_null("Music") as AudioStreamPlayer
+	var rain := get_tree().root.get_node_or_null("MusicRainbow") as AudioStreamPlayer
+	if music == null or rain == null:
+		return
+	_music_kill_tween()
+	var pos := music.get_playback_position() + AudioServer.get_time_since_last_mix()
+	var to := (floorf(pos / MUSIC_BAR) + 1.0) * MUSIC_BAR
+	if to >= MUSIC_REGULAR_LEN - 0.001:
+		to -= MUSIC_REGULAR_LEN - MUSIC_LOOP_FROM   # (past the end: round to the loop's same bar)
+	music.play(to)
+	rain.play(0.0)
+	_set_music_bus("MusicRegular", MUSIC_SILENT_DB)
+	_set_music_bus("MusicRainbow", 0.0)
+
+
+## Out of the rainbow (the streak broken, a death, a new run): straight back to
+## the regular loop where it's got to (on the beat), the rainbow fading out.
+func _music_to_regular(instant := false) -> void:
+	var music := get_tree().root.get_node_or_null("Music") as AudioStreamPlayer
+	var rain := get_tree().root.get_node_or_null("MusicRainbow") as AudioStreamPlayer
+	if music == null or rain == null:
+		return
+	_music_kill_tween()
+	if not rain.playing:
+		if instant or _music_bus("MusicRegular") < -0.01:
+			_music_tween = music.create_tween()   # (a finisher's sink undone)
+			_fade_music_bus(_music_tween, "MusicRegular", 0.0, 0.01 if instant else MUSIC_BACK_TIME)
+		return
+	if instant:
+		rain.stop()
+		_set_music_bus("MusicRainbow", MUSIC_SILENT_DB)
+		_set_music_bus("MusicRegular", 0.0)
+		return
+	_music_tween = music.create_tween().set_parallel(true)
+	_fade_music_bus(_music_tween, "MusicRainbow", MUSIC_SILENT_DB, MUSIC_BACK_TIME)
+	_fade_music_bus(_music_tween, "MusicRegular", 0.0, MUSIC_BACK_TIME)
+	_music_tween.chain().tween_callback(rain.stop)
 
 
 func _load_setting(key: String, default: Variant) -> Variant:
