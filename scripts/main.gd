@@ -2762,6 +2762,11 @@ func _kill(e: Enemy) -> void:
 	best_sweep = maxi(best_sweep, sweep)
 	if _auto:
 		Palette.rainbow_next()   # (the rainbow: a new colour on every hit of the auto-chain)
+		if knight and knight.debut:
+			# A debut cut down by the Red Flash doesn't count: she comes
+			# again, alone, as the next chain, to be fought by hand.
+			knight.debut = false
+			level.redo_debut(knight)
 	if knight and knight.hits_left() > 1:
 		_clash(knight)
 		return

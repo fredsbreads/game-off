@@ -284,6 +284,20 @@ func debut_pending() -> bool:
 	return false
 
 
+## The auto-chain cut down a debut (main.gd _kill): it doesn't count, she's
+## laid again, alone, as the next chain (the one after the auto-chain), and
+## fought by hand. (Nothing is laid during the auto-chain: see spawn_hold.)
+func redo_debut(k: Knight) -> void:
+	if k is Shadow:
+		_shadow_intro_done = false
+	elif k is Master:
+		_master_intro_done = false
+	elif k is Ninja:
+		_ninja_intro_done = false
+	else:
+		_knight_intro_done = false
+
+
 ## A teleporter's debut chain (one alone, opening its level).
 static func _is_debut(name: String) -> bool:
 	return name.begins_with("knight alone") or name.begins_with("ninja alone") or name.begins_with("master alone") \
