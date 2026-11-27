@@ -523,7 +523,7 @@ const SAVE_SHAPE := [Vector2(0, 0), Vector2(0, 1), Vector2(6.7, 1), Vector2(6.7,
 # The chain lesson: D F D (it ends back on the floor, where the save comes).
 const CHAIN_STEPS := "D F D"
 # The perfect lesson (after the chain lesson): "Perfect Combos = No
-# Survivors" while she runs on, then "Time A Perfect Combo": a lone enemy on
+# Survivors" while she runs on, then "Land A Perfect Combo": a lone enemy on
 # the floor, time doesn't stop for him (a wrong direction, too early or too
 # late: told so, and she's rewound to try again). Once he's cut down, the
 # rest is a combo that only takes moves leaving no one behind.
@@ -798,7 +798,7 @@ func _begin_perfect_lesson() -> void:
 	t.tween_callback(func() -> void:
 		if _lesson == Lesson.PERFECT and _perfect_phase == 0:
 			_perfect_phase = 1
-			hud.show_coach("Time A Perfect Combo"))
+			hud.show_coach("Land A Perfect Combo"))
 
 
 ## A wrong direction, too early or too late in the perfect lesson's timed strike: said,
@@ -892,7 +892,7 @@ func _after_rewind() -> void:
 	hud.set_pause_button_visible(true)
 	if _lesson == Lesson.PERFECT:   # (the timed strike again)
 		_perfect_late = false
-		hud.show_coach("Time A Perfect Combo")
+		hud.show_coach("Land A Perfect Combo")
 
 
 ## Skip pressed while the tutorial shows her dying, or while it rewinds:
